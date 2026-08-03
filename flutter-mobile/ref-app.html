@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+    <html lang="id">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>E-Learning Sekolah App - Figma Ready</title>
+        
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        
+        <!-- Font Awesome -->
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+        
+        <!-- Google Fonts: Plus Jakarta Sans -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        },
+                        colors: {
+                            primary: '#059669', // Emerald-600
+                            primaryLight: '#d1fae5', // Emerald-100
+                            secondary: '#f59e0b', // Amber-500
+                            surface: '#f8fafc', // Slate-50
+                            cardBg: '#ffffff',
+                        }
+                    }
+                }
+            }
+        </script>
+        
+        <style>
+            body { 
+                background-color: #0f172a; 
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+            }
+            .desktop-wrapper {
+                display: flex;
+                gap: 24px;
+                align-items: center;
+                justify-content: center;
+                flex-wrap: wrap;
+                padding: 20px;
+                width: 100%;
+            }
+            .mobile-container {
+                width: 100%;
+                max-width: 414px; 
+                height: 896px;
+                background-color: #f8fafc;
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                border-radius: 40px;
+                border: 8px solid #1e293b;
+            }
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            
+            .fade-in { animation: fadeIn 0.3s ease-in-out; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+            /* Figma Export Panel Styling */
+            .figma-panel {
+                background: #1e293b;
+                color: #f8fafc;
+                padding: 24px;
+                border-radius: 24px;
+                max-width: 320px;
+                width: 100%;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            }
+        </style>
+    </head>
+    <body class="text-gray-800 antialiased">
+
+        <div class="desktop-wrapper">
+            
+            <!-- Figma Companion Panel -->
+            <div class="figma-panel hidden lg:block">
+                <div class="flex items-center gap-2 mb-4 text-emerald-400 font-bold text-sm">
+                    <i class="fa-brands fa-figma text-xl"></i> Figma Design Companion
+                </div>
+                <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+                    Desain ini disusun menggunakan token terstandarisasi Tailwind yang kompatibel dengan plugin import HTML-to-Figma seperti <span class="text-white font-semibold">Anima</span> atau <span class="text-white font-semibold">Locofy</span>.
+                </p>
+                <div class="space-y-3 mb-6 text-xs">
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span>Frame Size</span>
+                        <span class="font-mono text-emerald-300">414 × 896 px</span>
+                    </div>
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span>Font Family</span>
+                        <span class="font-mono text-emerald-300">Plus Jakarta Sans</span>
+                    </div>
+                    <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span>Color Token</span>
+                        <span class="font-mono text-emerald-300">#059669 (Primary Green)</span>
+                    </div>
+                </div>
+                <button onclick="triggerFigmaExportNotice()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-download"></i> Salin Token Desain CSS
+                </button>
+            </div>
+
+            <!-- Mobile Frame Container -->
+            <div class="mobile-container flex flex-col">
+
+                <!-- ============================================== -->
+                <!-- SCREEN 1: HOME / PELAJARAN E-LEARNING           -->
+                <!-- ============================================== -->
+                <div id="screen-home" class="flex-1 overflow-y-auto no-scrollbar flex flex-col pb-24 fade-in">
+                    
+                    <!-- Header E-Learning -->
+                    <header class="bg-primary px-6 pt-12 pb-6 rounded-b-[2rem] shadow-md z-10 relative">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <span class="text-xs text-emerald-200 font-medium tracking-wide">Modul Pembelajaran</span>
+                                <h1 class="text-xl font-extrabold text-white">E-Learning Siswa</h1>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur-sm">
+                                <i class="fa-solid fa-graduation-cap text-lg"></i>
+                            </div>
+                        </div>
+
+                        <!-- Search Bar -->
+                        <div class="relative mt-2">
+                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" placeholder="Cari mata pelajaran atau modul PDF..." class="w-full bg-white text-sm rounded-xl py-3 pl-10 pr-4 outline-none border-none shadow-sm focus:ring-2 focus:ring-secondary/50 transition">
+                        </div>
+                    </header>
+
+                    <!-- Main Content -->
+                    <main class="px-6 pt-6 flex-1 flex flex-col gap-6">
+                        
+                        <!-- SECTION 1: LIST - Sedang Dipelajari -->
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h2 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-book-open-reader text-primary"></i> Sedang Dipelajari
+                                </h2>
+                                <span class="text-[10px] bg-emerald-50 text-primary font-bold px-2 py-0.5 rounded-full">Aktif</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur-sm">
+                                <i class="fa-solid fa-graduation-cap text-lg"></i>
+                            </div>
+                        </div>
+
+                        <!-- Search Bar -->
+                        <div class="relative mt-2">
+                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" placeholder="Cari mata pelajaran atau modul PDF..." class="w-full bg-white text-sm rounded-xl py-3 pl-10 pr-4 outline-none border-none shadow-sm focus:ring-2 focus:ring-secondary/50 transition">
+                        </div>
+                    </header>
+
+                    <!-- Main Content -->
+                    <main class="px-6 pt-6 flex-1 flex flex-col gap-6">
+                        
+                        <!-- SECTION 1: LIST - Sedang Dipelajari -->
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h2 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-book-open-reader text-primary"></i> Sedang Dipelajari
+                                </h2>
+                                <span class="text-[10px] bg-indigo-50 text-primary font-bold px-2 py-0.5 rounded-full">Aktif</span>
+                            </div>
+
+                            <div class="flex flex-col gap-3">
+                                <!-- Course Card 1 -->
+                                <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition active:scale-[0.98]" onclick="openCourseDetail()">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-blue-100 shrink-0">
+                                            <i class="fa-solid fa-square-root-variable"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between items-start">
+                                                <h3 class="font-bold text-gray-800 text-sm mb-0.5">Matematika Wajib</h3>
+                                                <span class="text-[10px] font-bold text-primary">65%</span>
+                                            </div>
+                                            <p class="text-[11px] text-gray-500 mb-2">Bpk. Hendra, S.Pd • Bab 2</p>
+                                            <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                                <div class="bg-primary h-1.5 rounded-full w-[65%]"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Course Card 2 -->
+                                <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition active:scale-[0.98]" onclick="openCourseDetail()">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-rose-100 shrink-0">
+                                            <i class="fa-solid fa-atom"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between items-start">
+                                                <h3 class="font-bold text-gray-800 text-sm mb-0.5">Fisika</h3>
+                                                <span class="text-[10px] font-bold text-primary">30%</span>
+                                            </div>
+                                            <p class="text-[11px] text-gray-500 mb-2">Ibu Siska, M.Pd • Bab 1</p>
+                                            <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                                <div class="bg-primary h-1.5 rounded-full w-[30%]"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 2: GRID - Semua Mata Pelajaran -->
+                        <div>
+                            <div class="flex justify-between items-end mb-3">
+                                <h2 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-layer-group text-primary"></i> Semua Mata Pelajaran
+                                </h2>
+                                <span class="text-xs font-semibold text-gray-400">Total 6 Mapel</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 pb-6">
+                                <!-- Grid Item 1 -->
+                                <div onclick="openCourseDetail()" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition hover:scale-[1.02] flex flex-col items-center text-center">
+                                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-emerald-100 mb-3">
+                                        <i class="fa-solid fa-flask"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-800 text-xs mb-1">Biologi</h3>
+                                    <p class="text-[10px] text-gray-500 mb-3">10 Bab Modul</p>
+                                    <span class="text-[10px] font-bold text-primary bg-indigo-50 w-full py-1.5 rounded-xl">Mulai Belajar</span>
+                                </div>
+                                
+                                <!-- Grid Item 2 -->
+                                <div onclick="openCourseDetail()" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition hover:scale-[1.02] flex flex-col items-center text-center">
+                                    <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-orange-100 mb-3">
+                                        <i class="fa-solid fa-globe"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-800 text-xs mb-1">Sejarah</h3>
+                                    <p class="text-[10px] text-gray-500 mb-3">8 Bab Modul</p>
+                                    <span class="text-[10px] font-bold text-primary bg-indigo-50 w-full py-1.5 rounded-xl">Mulai Belajar</span>
+                                </div>
+
+                                <!-- Grid Item 3 -->
+                                <div onclick="openCourseDetail()" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition hover:scale-[1.02] flex flex-col items-center text-center">
+                                    <div class="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-teal-100 mb-3">
+                                        <i class="fa-solid fa-language"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-800 text-xs mb-1">B. Inggris</h3>
+                                    <p class="text-[10px] text-gray-500 mb-3">12 Bab Modul</p>
+                                    <span class="text-[10px] font-bold text-primary bg-emerald-50 w-full py-1.5 rounded-xl">Mulai Belajar</span>
+                                </div>
+                                    <h3 class="font-bold text-gray-800 text-xs mb-1">B. Inggris</h3>
+                                    <p class="text-[10px] text-gray-500 mb-3">12 Bab Modul</p>
+                                    <span class="text-[10px] font-bold text-primary bg-indigo-50 w-full py-1.5 rounded-xl">Mulai Belajar</span>
+                                </div>
+
+                                <!-- Grid Item 4 -->
+                                <div onclick="openCourseDetail()" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition hover:scale-[1.02] flex flex-col items-center text-center">
+                                    <div class="w-12 h-12 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-sky-100 mb-3">
+                                        <i class="fa-solid fa-computer"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-800 text-xs mb-1">Informatika</h3>
+                                    <p class="text-[10px] text-gray-500 mb-3">6 Bab Modul</p>
+                                    <span class="text-[10px] font-bold text-primary bg-indigo-50 w-full py-1.5 rounded-xl">Mulai Belajar</span>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 2: TAGIHAN DAN PEMBAYARAN               -->
+                <!-- SCREEN 2: TAGIHAN DAN PEMBAYARAN -->
+                <div id="screen-tagihan" class="hidden flex-1 overflow-y-auto no-scrollbar flex-col pb-24 fade-in bg-surface">
+                    <header class="bg-primary px-6 pt-12 pb-6 rounded-b-[2rem] shadow-md z-10 relative text-white">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <span class="text-xs text-emerald-200 font-medium">Administrasi Sekolah</span>
+                                <h1 class="text-xl font-extrabold">Tagihan & Pembayaran</h1>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                <i class="fa-solid fa-receipt text-lg"></i>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main class="px-6 pt-6 flex-1 flex flex-col gap-4">
+                        <!-- Status Card -->
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer" onclick="openBillDetail()">
+                            <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-xs font-bold text-amber-900">Ada 1 Tagihan Belum Lunas</h4>
+                                <p class="text-[11px] text-amber-700">Jatuh tempo pada 10 Agustus 2026</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-amber-400 text-xs"></i>
+                        </div>
+
+                        <!-- Bill Item 1 (Active) -->
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer transform transition active:scale-[0.99]" onclick="openBillDetail()">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <span class="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded">Belum Lunas</span>
+                                    <h3 class="font-bold text-gray-800 text-sm mt-1">SPP Bulan Juli 2026</h3>
+                                </div>
+                                <span class="font-extrabold text-primary text-sm">Rp 450.000</span>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mb-4">Batas Pembayaran: 10 Agustus 2026</p>
+                            <button onclick="event.stopPropagation(); openBillDetail();" class="w-full bg-primary text-white font-bold py-2.5 rounded-xl text-xs shadow-sm active:scale-98 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-wallet"></i> Lihat Rincian & Bayar
+                            </button>
+                        </div>
+
+                        <!-- Bill Item 2 (Paid) -->
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 opacity-80">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Lunas</span>
+                                    <h3 class="font-bold text-gray-800 text-sm mt-1">SPP Bulan Juni 2026</h3>
+                                </div>
+                                <span class="font-extrabold text-gray-500 text-sm">Rp 450.000</span>
+                            </div>
+                            <p class="text-[11px] text-gray-400">Dibayar pada: 05 Juni 2026</p>
+                        </div>
+                    </main>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 3: PROFIL SISWA                          -->
+                <!-- SCREEN 3: PROFIL SISWA -->
+                <div id="screen-profil" class="hidden flex-1 overflow-y-auto no-scrollbar flex-col pb-24 fade-in bg-surface">
+                    <header class="px-6 pt-12 pb-24 bg-primary rounded-b-[2.5rem] relative">
+                        <div class="flex justify-between items-center text-white mb-6">
+                            <h1 class="text-lg font-bold">Profil Siswa</h1>
+                            <button class="w-8 h-8 rounded-full bg-white/20 flex justify-center items-center hover:bg-white/30 transition">
+                                <i class="fa-solid fa-gear text-sm"></i>
+                            </button>
+                        </div>
+                        <div class="flex flex-col items-center text-center">
+                            <div class="relative mb-3">
+                                <img src="https://placehold.co/100x100/ffffff/059669?text=BS" alt="Profile" class="w-20 h-20 rounded-full border-4 border-white object-cover shadow-lg">
+                                <button class="absolute bottom-0 right-0 w-7 h-7 bg-secondary text-white rounded-full flex items-center justify-center border-2 border-white text-xs shadow-md">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            </div>
+                            <h2 class="text-xl font-bold text-white">Budi Santoso</h2>
+                            <p class="text-sm text-emerald-200 mt-1">NIS: 2024100123</p>
+                            <span class="inline-block mt-2 text-xs font-bold bg-white/20 text-white px-3 py-1 rounded-full backdrop-blur-sm">Kelas 11 IPA 1</span>
+                        </div>
+                    </header>
+
+                    <main class="px-6 -mt-16 relative z-10 flex-1">
+                        <!-- Stats Card -->
+                        <div class="bg-white rounded-2xl shadow-lg p-5 mb-6 flex divide-x divide-gray-100 border border-gray-50">
+                            <div class="flex flex-col items-center flex-1">
+                                <span class="text-2xl font-bold text-gray-800">88.5</span>
+                                <span class="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wider">Nilai Rata-rata</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-1">
+                                <span class="text-2xl font-bold text-emerald-500">95%</span>
+                                <span class="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wider">Kehadiran</span>
+                            </div>
+                        </div>
+
+                        <!-- Menu List -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                            <a href="#" class="flex items-center gap-4 p-4 border-b border-gray-50 active:bg-gray-50 transition">
+                                <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-bold text-gray-800">Laporan Akademik (Rapor)</h4>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-sm"></i>
+                            </a>
+                            <a href="#" class="flex items-center gap-4 p-4 active:bg-gray-50 transition">
+                                <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-headset"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-bold text-gray-800">Bantuan Akademik</h4>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-sm"></i>
+                            </a>
+                        </div>
+
+                        <button class="w-full bg-white text-rose-500 font-bold py-3.5 rounded-xl border border-rose-100 shadow-sm transition text-sm flex justify-center items-center gap-2 active:bg-rose-50 active:scale-[0.98]">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i> Keluar Akun
+                        </button>
+                    </main>
+                </div>
+
+                <!-- Bottom Navigation Bar -->
+                <nav class="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 py-3 flex justify-around items-center rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.04)] z-40">
+                    <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-1 text-primary transition-all duration-300 cursor-pointer scale-110">
+                        <i class="fa-solid fa-book text-lg"></i>
+                        <span class="text-[10px] font-bold">Pelajaran</span>
+                    </button>
+                    <button onclick="switchTab('tagihan')" id="nav-tagihan" class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-all duration-300 cursor-pointer">
+                        <i class="fa-solid fa-receipt text-lg"></i>
+                        <span class="text-[10px] font-medium">Tagihan</span>
+                    </button>
+                    <button onclick="switchTab('profil')" id="nav-profil" class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-all duration-300 cursor-pointer">
+                        <i class="fa-regular fa-user text-lg"></i>
+                        <span class="text-[10px] font-medium">Profil</span>
+                    </button>
+                </nav>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 4: DETAIL MATERI & KURIKULUM (SLIDE-IN)  -->
+                <!-- ============================================== -->
+                <div id="screen-detail" class="absolute top-0 left-0 w-full h-full bg-surface z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    
+                    <!-- Header Video Preview -->
+                    <div class="relative bg-indigo-900 h-64 flex-shrink-0 flex items-center justify-center">
+                        <img src="https://placehold.co/400x300/312e81/ffffff?text=Math+Background" alt="Cover" class="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay">
+                        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
+
+                        <button onclick="closeCourseDetail()" class="absolute top-12 left-4 w-9 h-9 bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/30 z-10 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        
+                        <div onclick="openVideoPlayer()" class="z-10 w-16 h-16 bg-white/30 rounded-full flex items-center justify-center backdrop-blur-lg cursor-pointer hover:scale-105 transition-transform border border-white/50">
+                            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-play text-primary text-xl ml-1"></i>
+                            </div>
+                        </div>
+
+                        <div class="absolute bottom-6 left-6 right-6 text-white z-10">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[10px] font-bold bg-secondary/90 px-2 py-1 rounded-md text-white backdrop-blur-sm uppercase tracking-wider">Matematika Wajib</span>
+                                <span class="text-[10px] font-medium text-gray-300 flex items-center gap-1"><i class="fa-regular fa-clock"></i> 45 Menit</span>
+                            </div>
+                            <h2 class="text-xl font-bold leading-tight mb-1">Bab 2: Aturan Sinus & Cosinus</h2>
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <main class="flex-1 overflow-y-auto no-scrollbar bg-surface relative z-10 -mt-2 rounded-t-[1.5rem] p-6 pb-24">
+                        <!-- Guru Info Box -->
+                        <div class="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                            <img src="https://placehold.co/50x50/f3f4f6/6b7280?text=H" alt="Guru" class="w-12 h-12 rounded-full border border-gray-200">
+                            <div class="flex-1">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Guru Pengampu</p>
+                                <p class="text-sm font-bold text-gray-800">Bpk. Hendra, S.Pd</p>
+                            </div>
+                        </div>
+
+                        <!-- Curriculum Timeline -->
+                        <div class="relative pl-3 mt-4 space-y-6">
+                            <div class="absolute left-[1.3rem] top-4 bottom-4 w-[2px] bg-gray-200 z-0 rounded-full"></div>
+                            <div class="absolute left-[1.3rem] top-4 h-[50%] w-[2px] bg-primary z-0 rounded-full"></div>
+
+                            <!-- 1. Completed Item (Video) -->
+                            <div class="relative z-10 flex gap-4 items-start opacity-70 cursor-pointer" onclick="openVideoPlayer()">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex justify-center items-center border-4 border-surface shadow-sm shrink-0">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:border-indigo-200 transition">
+                                    <h4 class="text-sm font-bold text-gray-800 line-through mb-1">1. Konsep Dasar Sudut</h4>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-circle-play text-indigo-500"></i> Video Pembelajaran (12 Menit)</p>
+                                </div>
+                            </div>
+
+                            <!-- 2. Active Item (Video) -->
+                            <div class="relative z-10 flex gap-4 items-start cursor-pointer" onclick="openVideoPlayer()">
+                                <div class="w-8 h-8 rounded-full bg-white border-[3px] border-primary text-primary flex justify-center items-center shadow-md shrink-0 relative mt-2">
+                                    <div class="w-2.5 h-2.5 bg-primary rounded-full animate-pulse"></div>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border-l-[4px] border-primary shadow-md border-y border-r border-gray-100 hover:bg-slate-50 transition">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <h4 class="text-sm font-bold text-gray-900">2. Aturan Sinus</h4>
+                                        <span class="text-[9px] font-bold text-primary bg-indigo-50 px-2 py-0.5 rounded-full">Sedang Diputar</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-circle-play text-indigo-500"></i> Video Pembelajaran (25 Menit)</p>
+                                </div>
+                            </div>
+
+                            <!-- 3. Document Item (PDF / Handout) -->
+                            <div class="relative z-10 flex gap-4 items-start cursor-pointer" onclick="openDocViewer()">
+                                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex justify-center items-center border-4 border-surface shadow-md shrink-0 relative">
+                                    <i class="fa-solid fa-file-pdf text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-indigo-200 shadow-sm hover:border-indigo-400 transition bg-indigo-50/20">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <h4 class="text-sm font-bold text-gray-900">3. Handout & Modul PDF</h4>
+                                        <span class="text-[9px] font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Dokumen PDF</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-file-lines text-indigo-600"></i> Rangkuman Rumus (12 Halaman)</p>
+                                </div>
+                            </div>
+
+                            <!-- 4. Locked Item (PPTX Slide) -->
+                            <div class="relative z-10 flex gap-4 items-start opacity-50 cursor-pointer" onclick="showToast('Selesaikan modul sebelumnya terlebih dahulu')">
+                                <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex justify-center items-center border-4 border-surface shadow-sm shrink-0">
+                                    <i class="fa-solid fa-lock text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                    <h4 class="text-sm font-bold text-gray-800 mb-1">4. Slide Presentasi Guru</h4>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-file-powerpoint text-orange-500"></i> Dokumen PPTX (24 Slide)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <!-- Sticky Bottom CTA -->
+                    <div class="bg-white px-6 py-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-20">
+                        <button onclick="openVideoPlayer()" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                            Lanjutkan Belajar <i class="fa-solid fa-arrow-right text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 5: DETAIL TAGIHAN & PEMBAYARAN (SLIDE-IN)-->
+                <!-- ============================================== -->
+                <div id="screen-detail-tagihan" class="absolute top-0 left-0 w-full h-full bg-surface z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    <!-- Header -->
+                    <header class="bg-primary px-6 pt-12 pb-6 text-white flex items-center justify-between shadow-md relative z-10 rounded-b-2xl">
+                        <button onclick="closeBillDetail()" class="w-9 h-9 bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/30 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        <h2 class="text-base font-bold">Rincian Tagihan</h2>
+                        <div class="w-9"></div>
+                    </header>
+
+                    <main class="flex-1 overflow-y-auto no-scrollbar p-6 space-y-4 pb-28">
+                        <!-- Status & Invoice Header Card -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center relative overflow-hidden">
+                            <span class="inline-block text-[10px] font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                                <i class="fa-regular fa-clock mr-1"></i> Menunggu Pembayaran
+                            </span>
+                            <p class="text-[11px] text-gray-400 font-medium">No. Invois: INV/202607/0042</p>
+                            <h3 class="text-3xl font-extrabold text-gray-900 my-2">Rp 450.000</h3>
+                            <p class="text-[11px] text-rose-500 font-semibold bg-rose-50 py-1 px-3 rounded-lg inline-block">
+                                Jatuh tempo: 10 Agustus 2026 • 23:59 WIB
+                            </p>
+                        </div>
+
+                        <!-- Virtual Account Box -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-xs flex items-center justify-center border border-blue-100">
+                                        BCA
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-gray-800">BCA Virtual Account</h4>
+                                        <p class="text-[10px] text-gray-400">Verifikasi Otomatis</p>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Aktif</span>
+                            </div>
+
+                            <div>
+                                <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Nomor Virtual Account</span>
+                                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-gray-200 mt-1">
+                                    <span id="va-number" class="font-mono text-sm font-extrabold text-gray-800 tracking-wider">8241 0012 3456 7890</span>
+                                    <button onclick="copyVAText()" class="bg-primary hover:bg-indigo-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg transition active:scale-95 flex items-center gap-1 shadow-sm">
+                                        <i class="fa-regular fa-copy"></i> Salin
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detail Rincian Biaya -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <h4 class="text-xs font-bold text-gray-800 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                <i class="fa-solid fa-list-check text-primary"></i> Rincian Pembiayaan
+                            </h4>
+                            
+                            <div class="space-y-2 text-xs">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>SPP Bulan Juli 2026 (Siswa: Budi Santoso)</span>
+                                    <span class="font-semibold text-gray-800">Rp 440.000</span>
+                                </div>
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Biaya Layanan & Sistem</span>
+                                    <span class="font-semibold text-gray-800">Rp 10.000</span>
+                                </div>
+                                <div class="border-t border-dashed border-gray-200 pt-2 flex justify-between font-bold text-sm text-gray-900">
+                                    <span>Total Pembayaran</span>
+                                    <span class="text-primary">Rp 450.000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instruksi Pembayaran -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <h4 class="text-xs font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-info text-primary"></i> Cara Pembayaran (m-BCA)
+                            </h4>
+                            <ol class="list-decimal list-inside text-[11px] text-gray-600 space-y-1.5 pl-1 leading-relaxed">
+                                <li>Buka aplikasi <b>m-BCA</b> dan pilih menu <b>m-Transfer</b>.</li>
+                                <li>Pilih menu <b>BCA Virtual Account</b>.</li>
+                                <li>Masukkan nomor VA: <span class="font-mono font-bold text-gray-800">8241001234567890</span>.</li>
+                                <li>Pastikan nama <b>Budi Santoso</b> & nominal tagihan sesuai.</li>
+                                <li>Masukkan PIN m-BCA Anda dan simpan bukti transaksi.</li>
+                            </ol>
+                        </div>
+                    </main>
+
+                    <!-- Sticky Bottom Action -->
+                    <div class="bg-white px-6 py-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-20">
+                        <button onclick="copyVAText()" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-xs">
+                            <i class="fa-regular fa-copy"></i> Salin Nomor Virtual Account
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 6: PEMUTAR VIDEO PEMBELAJARAN (SLIDE-IN) -->
+                <!-- ============================================== -->
+                <div id="screen-video-player" class="absolute top-0 left-0 w-full h-full bg-slate-900 z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    
+                    <!-- Video Top Bar Nav -->
+                    <div class="px-5 pt-12 pb-3 bg-slate-900/90 text-white flex items-center justify-between z-20 shrink-0">
+                        <button onclick="closeVideoPlayer()" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        <div class="text-center px-2">
+                            <span class="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider block">Matematika Wajib</span>
+                            <h3 class="text-xs font-bold text-white truncate max-w-[200px]">2. Aturan Sinus</h3>
+                        </div>
+                        <button onclick="toggleBookmark()" id="btn-bookmark" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                            <i class="fa-regular fa-bookmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Interactive Player Container -->
+                    <div class="relative bg-black w-full aspect-video flex-shrink-0 flex items-center justify-center overflow-hidden group">
+                        <img src="https://placehold.co/600x340/1e1b4b/ffffff?text=Video+Aturan+Sinus" alt="Video Screen" class="w-full h-full object-cover opacity-80">
+                        
+                        <!-- Overlay Dark Mask -->
+                        <div class="absolute inset-0 bg-black/40 flex flex-col justify-between p-4 transition-opacity">
+                            <!-- Center Play/Pause Controls -->
+                <!-- SCREEN 4: DETAIL MATERI & KURIKULUM (SLIDE-IN) -->
+                <div id="screen-detail" class="absolute top-0 left-0 w-full h-full bg-surface z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    
+                    <!-- Header Video Preview -->
+                    <div class="relative bg-emerald-950 h-64 flex-shrink-0 flex items-center justify-center">
+                        <img src="https://placehold.co/400x300/064e3b/ffffff?text=Math+Background" alt="Cover" class="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay">
+                        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
+
+                        <button onclick="closeCourseDetail()" class="absolute top-12 left-4 w-9 h-9 bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/30 z-10 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        
+                        <div onclick="openVideoPlayer()" class="z-10 w-16 h-16 bg-white/30 rounded-full flex items-center justify-center backdrop-blur-lg cursor-pointer hover:scale-105 transition-transform border border-white/50">
+                            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-play text-primary text-xl ml-1"></i>
+                            </div>
+                        </div>
+
+                        <div class="absolute bottom-6 left-6 right-6 text-white z-10">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[10px] font-bold bg-secondary/90 px-2 py-1 rounded-md text-white backdrop-blur-sm uppercase tracking-wider">Matematika Wajib</span>
+                                <span class="text-[10px] font-medium text-gray-300 flex items-center gap-1"><i class="fa-regular fa-clock"></i> 45 Menit</span>
+                            </div>
+                            <h2 class="text-xl font-bold leading-tight mb-1">Bab 2: Aturan Sinus & Cosinus</h2>
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <main class="flex-1 overflow-y-auto no-scrollbar bg-surface relative z-10 -mt-2 rounded-t-[1.5rem] p-6 pb-24">
+                        <!-- Guru Info Box -->
+                        <div class="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                            <img src="https://placehold.co/50x50/f3f4f6/6b7280?text=H" alt="Guru" class="w-12 h-12 rounded-full border border-gray-200">
+                            <div class="flex-1">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Guru Pengampu</p>
+                                <p class="text-sm font-bold text-gray-800">Bpk. Hendra, S.Pd</p>
+                            </div>
+                        </div>
+
+                        <!-- Curriculum Timeline -->
+                        <div class="relative pl-3 mt-4 space-y-6">
+                            <div class="absolute left-[1.3rem] top-4 bottom-4 w-[2px] bg-gray-200 z-0 rounded-full"></div>
+                            <div class="absolute left-[1.3rem] top-4 h-[50%] w-[2px] bg-primary z-0 rounded-full"></div>
+
+                            <!-- 1. Completed Item (Video) -->
+                            <div class="relative z-10 flex gap-4 items-start opacity-70 cursor-pointer" onclick="openVideoPlayer()">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex justify-center items-center border-4 border-surface shadow-sm shrink-0">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:border-emerald-200 transition">
+                                    <h4 class="text-sm font-bold text-gray-800 line-through mb-1">1. Konsep Dasar Sudut</h4>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-circle-play text-emerald-600"></i> Video Pembelajaran (12 Menit)</p>
+                                </div>
+                            </div>
+
+                            <!-- 2. Active Item (Video) -->
+                            <div class="relative z-10 flex gap-4 items-start cursor-pointer" onclick="openVideoPlayer()">
+                                <div class="w-8 h-8 rounded-full bg-white border-[3px] border-primary text-primary flex justify-center items-center shadow-md shrink-0 relative mt-2">
+                                    <div class="w-2.5 h-2.5 bg-primary rounded-full animate-pulse"></div>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border-l-[4px] border-primary shadow-md border-y border-r border-gray-100 hover:bg-slate-50 transition">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <h4 class="text-sm font-bold text-gray-900">2. Aturan Sinus</h4>
+                                        <span class="text-[9px] font-bold text-primary bg-emerald-50 px-2 py-0.5 rounded-full">Sedang Diputar</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-circle-play text-emerald-600"></i> Video Pembelajaran (25 Menit)</p>
+                                </div>
+                            </div>
+
+                            <!-- 3. Document Item (PDF / Handout) -->
+                            <div class="relative z-10 flex gap-4 items-start cursor-pointer" onclick="openDocViewer()">
+                                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex justify-center items-center border-4 border-surface shadow-md shrink-0 relative">
+                                    <i class="fa-solid fa-file-pdf text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm hover:border-emerald-400 transition bg-emerald-50/20">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <h4 class="text-sm font-bold text-gray-900">3. Handout & Modul PDF</h4>
+                                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Dokumen PDF</span>
+                                    </div>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-file-lines text-emerald-600"></i> Rangkuman Rumus (12 Halaman)</p>
+                                </div>
+                            </div>
+
+                            <!-- 4. Locked Item (PPTX Slide) -->
+                            <div class="relative z-10 flex gap-4 items-start opacity-50 cursor-pointer" onclick="showToast('Selesaikan modul sebelumnya terlebih dahulu')">
+                                <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex justify-center items-center border-4 border-surface shadow-sm shrink-0">
+                                    <i class="fa-solid fa-lock text-xs"></i>
+                                </div>
+                                <div class="flex-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                    <h4 class="text-sm font-bold text-gray-800 mb-1">4. Slide Presentasi Guru</h4>
+                                    <p class="text-[11px] text-gray-500 flex items-center gap-1"><i class="fa-solid fa-file-powerpoint text-orange-500"></i> Dokumen PPTX (24 Slide)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <!-- Sticky Bottom CTA -->
+                    <div class="bg-white px-6 py-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-20">
+                        <button onclick="openVideoPlayer()" class="w-full bg-primary hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                            Lanjutkan Belajar <i class="fa-solid fa-arrow-right text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 5: DETAIL TAGIHAN & PEMBAYARAN          -->
+                <!-- ============================================== -->
+                <div id="screen-detail-tagihan" class="absolute top-0 left-0 w-full h-full bg-surface z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    <!-- Header -->
+                    <header class="bg-primary px-6 pt-12 pb-6 text-white flex items-center justify-between shadow-md relative z-10 rounded-b-2xl">
+                        <button onclick="closeBillDetail()" class="w-9 h-9 bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/30 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        <h2 class="text-base font-bold">Rincian Tagihan</h2>
+                        <div class="w-9"></div>
+                    </header>
+
+                    <main class="flex-1 overflow-y-auto no-scrollbar p-6 space-y-4 pb-28">
+                        <!-- Status & Invoice Header Card -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center relative overflow-hidden">
+                            <span class="inline-block text-[10px] font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                                <i class="fa-regular fa-clock mr-1"></i> Menunggu Pembayaran
+                            </span>
+                            <p class="text-[11px] text-gray-400 font-medium">No. Invois: INV/202607/0042</p>
+                            <h3 class="text-3xl font-extrabold text-gray-900 my-2">Rp 450.000</h3>
+                            <p class="text-[11px] text-rose-500 font-semibold bg-rose-50 py-1 px-3 rounded-lg inline-block">
+                                Jatuh tempo: 10 Agustus 2026 • 23:59 WIB
+                            </p>
+                        </div>
+
+                        <!-- Virtual Account Box -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-xs flex items-center justify-center border border-blue-100">
+                                        BCA
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-gray-800">BCA Virtual Account</h4>
+                                        <p class="text-[10px] text-gray-400">Verifikasi Otomatis</p>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Aktif</span>
+                            </div>
+
+                            <div>
+                                <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Nomor Virtual Account</span>
+                                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-gray-200 mt-1">
+                                    <span id="va-number" class="font-mono text-sm font-extrabold text-gray-800 tracking-wider">8241 0012 3456 7890</span>
+                                    <button onclick="copyVAText()" class="bg-primary hover:bg-emerald-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg transition active:scale-95 flex items-center gap-1 shadow-sm">
+                                        <i class="fa-regular fa-copy"></i> Salin
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detail Rincian Biaya -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <h4 class="text-xs font-bold text-gray-800 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                <i class="fa-solid fa-list-check text-primary"></i> Rincian Pembiayaan
+                            </h4>
+                            
+                            <div class="space-y-2 text-xs">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>SPP Bulan Juli 2026 (Siswa: Budi Santoso)</span>
+                                    <span class="font-semibold text-gray-800">Rp 440.000</span>
+                                </div>
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Biaya Layanan & Sistem</span>
+                                    <span class="font-semibold text-gray-800">Rp 10.000</span>
+                                </div>
+                                <div class="border-t border-dashed border-gray-200 pt-2 flex justify-between font-bold text-sm text-gray-900">
+                                    <span>Total Pembayaran</span>
+                                    <span class="text-primary">Rp 450.000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instruksi Pembayaran -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                            <h4 class="text-xs font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-info text-primary"></i> Cara Pembayaran (m-BCA)
+                            </h4>
+                            <ol class="list-decimal list-inside text-[11px] text-gray-600 space-y-1.5 pl-1 leading-relaxed">
+                                <li>Buka aplikasi <b>m-BCA</b> dan pilih menu <b>m-Transfer</b>.</li>
+                                <li>Pilih menu <b>BCA Virtual Account</b>.</li>
+                                <li>Masukkan nomor VA: <span class="font-mono font-bold text-gray-800">8241001234567890</span>.</li>
+                                <li>Pastikan nama <b>Budi Santoso</b> & nominal tagihan sesuai.</li>
+                                <li>Masukkan PIN m-BCA Anda dan simpan bukti transaksi.</li>
+                            </ol>
+                        </div>
+                    </main>
+
+                    <!-- Sticky Bottom Action -->
+                    <div class="bg-white px-6 py-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-20">
+                        <button onclick="copyVAText()" class="w-full bg-primary hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-xs">
+                            <i class="fa-regular fa-copy"></i> Salin Nomor Virtual Account
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 6: PEMUTAR VIDEO PEMBELAJARAN           -->
+                <!-- ============================================== -->
+                <div id="screen-video-player" class="absolute top-0 left-0 w-full h-full bg-slate-900 z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    
+                    <!-- Video Top Bar Nav -->
+                    <div class="px-5 pt-12 pb-3 bg-slate-900/90 text-white flex items-center justify-between z-20 shrink-0">
+                        <button onclick="closeVideoPlayer()" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        <div class="text-center px-2">
+                            <span class="text-[10px] text-emerald-300 font-semibold uppercase tracking-wider block">Matematika Wajib</span>
+                            <h3 class="text-xs font-bold text-white truncate max-w-[200px]">2. Aturan Sinus</h3>
+                        </div>
+                        <button onclick="toggleBookmark()" id="btn-bookmark" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                            <i class="fa-regular fa-bookmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Interactive Player Container -->
+                    <div class="relative bg-black w-full aspect-video flex-shrink-0 flex items-center justify-center overflow-hidden group">
+                        <img src="https://placehold.co/600x340/064e3b/ffffff?text=Video+Aturan+Sinus" alt="Video Screen" class="w-full h-full object-cover opacity-80">
+                        
+                        <!-- Overlay Dark Mask -->
+                        <div class="absolute inset-0 bg-black/40 flex flex-col justify-between p-4 transition-opacity">
+                            <!-- Center Play/Pause Controls -->
+                            <div class="flex-1 flex items-center justify-center gap-8">
+                                <button class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 backdrop-blur-sm transition active:scale-90">
+                                    <i class="fa-solid fa-rotate-left text-sm"></i>
+                                </button>
+                                
+                                <button id="btn-video-play" onclick="togglePlayVideo()" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition active:scale-95 border-2 border-white/40">
+                                    <i class="fa-solid fa-pause text-xl"></i>
+                                </button>
+                                
+                                <button class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 backdrop-blur-sm transition active:scale-90">
+                                    <i class="fa-solid fa-rotate-right text-sm"></i>
+                                </button>
+                            </div>
+
+                            <!-- Video Scrubber / Bottom Control Bar -->
+                            <div class="space-y-1.5 text-white">
+                                <div class="flex justify-between text-[10px] font-mono font-medium text-gray-300">
+                                    <span>08:42</span>
+                                    <span>25:00</span>
+                                </div>
+                                <!-- Progress Bar -->
+                                <div class="w-full bg-white/30 h-1.5 rounded-full overflow-hidden cursor-pointer">
+                                    <div class="bg-primary h-full w-[35%] rounded-full relative">
+                                        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md"></div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center pt-1 text-[11px]">
+                                    <div class="flex items-center gap-3">
+                                        <button class="text-white hover:text-emerald-300"><i class="fa-solid fa-closed-captioning"></i></button>
+                                        <button class="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold text-white">1.0x</button>
+                                    </div>
+                                    <button class="text-white hover:text-emerald-300"><i class="fa-solid fa-expand"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Details & Tabs Section -->
+                    <div class="flex-1 bg-surface rounded-t-3xl -mt-3 z-10 flex flex-col overflow-hidden">
+                        
+                        <!-- Title & Meta Header -->
+                        <div class="p-5 pb-3 border-b border-gray-100 bg-white">
+                            <div class="flex items-center justify-between mb-1">
+                                <h2 class="text-base font-extrabold text-gray-900 leading-snug">Bab 2: Aturan Sinus & Penerapan Rumus</h2>
+                            </div>
+                            <p class="text-xs text-gray-500 flex items-center gap-2">
+                                <span><i class="fa-solid fa-user-tie text-primary mr-1"></i> Bpk. Hendra, S.Pd</span>
+                                <span>•</span>
+                                <span><i class="fa-regular fa-eye text-gray-400 mr-1"></i> 124 Dilihat</span>
+                            </p>
+
+                            <!-- Tab Options -->
+                            <div class="flex gap-4 mt-4 border-b border-gray-100 text-xs font-bold">
+                                <button onclick="switchVideoTab('desc')" id="vtab-desc" class="pb-2.5 border-b-2 border-primary text-primary transition">Deskripsi & File</button>
+                                <button onclick="switchVideoTab('playlist')" id="vtab-playlist" class="pb-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition">Playlist Bab (4)</button>
+                                <button onclick="switchVideoTab('discussion')" id="vtab-discussion" class="pb-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition">Diskusi (8)</button>
+                            </div>
+                        </div>
+
+                        <!-- Scrollable Tab Content Container -->
+                        <div class="flex-1 overflow-y-auto no-scrollbar p-5">
+                            
+                            <!-- TAB 1: DESKRIPSI & FILE LAMPIRAN -->
+                            <div id="vcontent-desc" class="space-y-4">
+                                <div>
+                                    <h4 class="text-xs font-bold text-gray-800 mb-1">Ringkasan Materi</h4>
+                                    <p class="text-xs text-gray-600 leading-relaxed">
+                                        Pada video ini kita membahas mengenai konsep perbandingan panjang sisi segitiga sembarang dengan nilai sinus dari sudut di hadapannya.
+                                    </p>
+                                </div>
+
+                                <!-- File Attachment Card -->
+                                <div class="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5 flex items-center justify-between cursor-pointer" onclick="openDocViewer()">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow-sm">
+                                            <i class="fa-solid fa-file-pdf"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-xs font-bold text-gray-800">Rangkuman_Aturan_Sinus.pdf</h5>
+                                            <span class="text-[10px] text-gray-500">3.8 MB • Dokumen Bacaan PDF</span>
+                                        </div>
+                                    </div>
+                                    <button onclick="event.stopPropagation(); openDocViewer();" class="w-8 h-8 rounded-full bg-white text-primary shadow-sm flex items-center justify-center hover:bg-primary hover:text-white transition">
+                                        <i class="fa-solid fa-book-open text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- TAB 2: PLAYLIST BAB -->
+                            <div id="vcontent-playlist" class="hidden space-y-3">
+                                <!-- Lesson 1 -->
+                                <div onclick="showToast('Memutar Modul 1...')" class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 cursor-pointer opacity-70">
+                                    <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 font-bold text-xs flex items-center justify-center shrink-0">
+                                        <i class="fa-solid fa-check"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h5 class="text-xs font-bold text-gray-800">1. Konsep Dasar Sudut</h5>
+                                        <span class="text-[10px] text-gray-400">12 Menit • Video Selesai</span>
+                                    </div>
+                                </div>
+
+                                <!-- Lesson 2 (Active) -->
+                                <div class="flex items-center gap-3 p-3 bg-emerald-50 border-2 border-primary rounded-xl cursor-pointer shadow-sm">
+                                    <div class="w-8 h-8 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                        <i class="fa-solid fa-play text-[10px]"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h5 class="text-xs font-bold text-primary">2. Aturan Sinus</h5>
+                                        <span class="text-[10px] font-semibold text-emerald-600">25 Menit • Sedang Diputar</span>
+                                    </div>
+                                </div>
+
+                                <!-- Lesson 3 (Doc) -->
+                                <div onclick="openDocViewer()" class="flex items-center gap-3 p-3 bg-white rounded-xl border border-emerald-100 cursor-pointer">
+                                    <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 font-bold text-xs flex items-center justify-center shrink-0">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h5 class="text-xs font-bold text-gray-800">3. Handout PDF & Rumus</h5>
+                                        <span class="text-[10px] text-emerald-600 font-medium">12 Halaman • Baca Dokumen</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 3: DISKUSI & TANYA JAWAB -->
+                            <div id="vcontent-discussion" class="hidden flex flex-col h-full justify-between space-y-4">
+                                <div class="space-y-3">
+                                    <!-- Comment 1 -->
+                                    <div class="bg-white p-3 rounded-2xl border border-gray-100 space-y-1">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-xs font-bold text-gray-800">Siti Nurhaliza</span>
+                                            <span class="text-[9px] text-gray-400">10 Menit lalu</span>
+                                        </div>
+                                        <p class="text-xs text-gray-600">Pak, untuk segitiga tumpul apakah aturan sinus ini tetap berlaku sama?</p>
+                                    </div>
+
+                                    <!-- Teacher Reply -->
+                                    <div class="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100 space-y-1 ml-4">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-xs font-bold text-primary">Bpk. Hendra, S.Pd (Guru)</span>
+                                            <span class="text-[9px] text-emerald-600">5 Menit lalu</span>
+                                        </div>
+                                        <p class="text-xs text-gray-700">Ya Siti, aturan sinus berlaku untuk semua jenis segitiga, termasuk segitiga tumpul.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Add Comment Input Box -->
+                                <div class="pt-2">
+                                    <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-gray-200">
+                                        <input id="input-comment" type="text" placeholder="Tanyakan materi ini..." class="flex-1 text-xs outline-none px-2 bg-transparent">
+                                        <button onclick="submitComment()" class="bg-primary text-white w-8 h-8 rounded-lg flex items-center justify-center active:scale-95 transition">
+                                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ============================================== -->
+                <!-- SCREEN 7: PEMBACA DOKUMEN / PDF READER         -->
+                <!-- ============================================== -->
+                <div id="screen-doc-viewer" class="absolute top-0 left-0 w-full h-full bg-slate-900 z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+                    
+                    <!-- Doc Top Bar Nav -->
+                    <div class="px-5 pt-12 pb-3 bg-slate-900 text-white flex items-center justify-between z-20 shrink-0 border-b border-slate-800">
+                        <button onclick="closeDocViewer()" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                            <i class="fa-solid fa-chevron-left text-sm"></i>
+                        </button>
+                        <div class="text-center px-2">
+                            <span class="text-[10px] text-emerald-300 font-semibold uppercase tracking-wider block"><i class="fa-solid fa-file-pdf text-emerald-400 mr-1"></i> Dokumen Modul • PDF</span>
+                            <h3 class="text-xs font-bold text-white truncate max-w-[180px]">Rangkuman_Aturan_Sinus.pdf</h3>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="showToast('File rangkuman diunduh!')" class="w-9 h-9 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-white/20 transition">
+                                <i class="fa-solid fa-download text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Document Toolbar (Page Navigation & Zoom) -->
+                    <div class="bg-slate-800 text-slate-300 px-4 py-2 flex justify-between items-center text-xs shrink-0 border-b border-slate-700">
+                        <div class="flex items-center gap-2">
+                            <button onclick="changePage(-1)" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white active:scale-90 transition">
+                                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                            </button>
+                            <span class="text-[11px] font-mono text-slate-200">Hal <span id="current-page">1</span> / 12</span>
+                            <button onclick="changePage(1)" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white active:scale-90 transition">
+                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="showToast('Memperbesar tampilan dokumen')" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white"><i class="fa-solid fa-magnifying-glass-plus text-xs"></i></button>
+                            <button onclick="showToast('Memperkecil tampilan dokumen')" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white"><i class="fa-solid fa-magnifying-glass-minus text-xs"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Document Viewer Canvas / Simulated Paper Page -->
+                    <div class="flex-1 bg-slate-950 overflow-y-auto p-4 flex flex-col items-center gap-4 no-scrollbar relative">
+                        
+                        <!-- Paper Sheet Canvas Mockup -->
+                        <div class="w-full bg-white rounded-xl shadow-2xl p-6 min-h-[440px] text-gray-800 flex flex-col justify-between border border-gray-200 fade-in">
+                            <div>
+                                <!-- Document Header -->
+                                <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-primary flex items-center justify-center font-bold text-xs">
+                                            <i class="fa-solid fa-book-bookmark"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">SMAN 1 Jakarta • Modul Matematika</p>
+                                            <h4 class="text-xs font-extrabold text-gray-900">Rangkuman Rumus Aturan Sinus</h4>
+                                        </div>
+                                    </div>
+                                    <span class="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-bold px-2 py-0.5 rounded">MODUL-02</span>
+                                </div>
+
+                                <!-- Document Body Content -->
+                                <div class="space-y-3 text-xs leading-relaxed text-gray-700">
+                                    <p class="text-[11px] text-gray-700"><b>A. Definisi Aturan Sinus</b><br>
+                                    Pada segitiga sembarang ABC dengan panjang sisi a, b, c dan sudut A, B, C, berlaku hubungan perbandingan berikut:</p>
+                                    
+                                    <div class="bg-emerald-50/80 border-l-4 border-primary p-3 rounded-r-xl my-2 text-center shadow-sm">
+                                        <p class="font-serif font-bold text-primary text-sm tracking-widest">
+                                            a / sin(A) = b / sin(B) = c / sin(C)
+                                        </p>
+                                    </div>
+
+                                    <p class="text-[11px] text-gray-700"><b>B. Syarat Penggunaan Rumus:</b></p>
+                                    <ul class="list-disc list-inside text-[11px] text-gray-600 space-y-1 pl-1">
+                                        <li>Diketahui dua sudut dan satu sisi sembarang.</li>
+                                        <li>Diketahui dua sisi dan satu sudut di hadapan salah satu sisi.</li>
+                                    </ul>
+
+                                    <!-- Teacher Highlight Box -->
+                                    <div class="border border-amber-200 bg-amber-50/80 p-3 rounded-xl text-[10px] text-amber-900 mt-3 flex items-start gap-2 shadow-sm">
+                                        <i class="fa-solid fa-lightbulb text-amber-500 text-sm mt-0.5"></i>
+                                        <div>
+                                            <b>Catatan Penting Guru (Bpk. Hendra):</b><br>
+                                            Perhatikan bahwa sin(180° - A) = sin(A). Sifat ini sangat sering keluar pada ujian semester untuk segitiga tumpul!
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Page Footer -->
+                            <div class="pt-4 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400 font-medium">
+                                <span>Matematika Wajib - Kelas 11 IPA</span>
+                                <span>Halaman <span id="doc-page-num">1</span> dari 12</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Action Drawer & Tabs -->
+                    <div class="bg-white rounded-t-3xl shadow-2xl z-20 flex flex-col shrink-0 border-t border-gray-100">
+                        <div class="flex justify-around border-b border-gray-100 px-4 pt-3 text-xs font-bold text-gray-500">
+                            <button onclick="switchDocTab('info')" id="dtab-info" class="pb-2.5 border-b-2 border-primary text-primary transition">Info & File</button>
+                            <button onclick="switchDocTab('notes')" id="dtab-notes" class="pb-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition">Catatan Saya</button>
+                            <button onclick="switchDocTab('discuss')" id="dtab-discuss" class="pb-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition">Diskusi Dokumen</button>
+                        </div>
+
+                        <div class="p-4 max-h-36 overflow-y-auto no-scrollbar">
+                            <!-- TAB 1: INFO & FILE -->
+                            <div id="dcontent-info" class="flex justify-between items-center">
+                                <div class="space-y-1">
+                                    <h5 class="text-xs font-bold text-gray-800">Rangkuman_Aturan_Sinus.pdf</h5>
+                                    <p class="text-[10px] text-gray-500">3.8 MB • 12 Halaman • Diunggah 24 Jul 2026</p>
+                                </div>
+                                <button onclick="showToast('Mengunduh dokumen PDF...')" class="bg-primary hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3.5 rounded-xl flex items-center gap-1.5 active:scale-95 transition shadow-sm">
+                                    <i class="fa-solid fa-download text-xs"></i> Unduh File
+                                </button>
+                            </div>
+
+                            <!-- TAB 2: CATATAN SAYA -->
+                            <div id="dcontent-notes" class="hidden space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <input id="input-doc-note" type="text" placeholder="Tulis catatan ringkas halaman ini..." class="flex-1 bg-slate-100 text-xs p-2.5 rounded-xl outline-none border border-gray-200">
+                                    <button onclick="addDocNote()" class="bg-primary text-white text-xs font-bold px-3 py-2.5 rounded-xl active:scale-95 transition">Simpan</button>
+                                </div>
+                                <p id="doc-note-list" class="text-[10px] text-gray-500 italic">Belum ada catatan pribadi pada halaman ini.</p>
+                            </div>
+
+                            <!-- TAB 3: DISKUSI DOKUMEN -->
+                            <div id="dcontent-discuss" class="hidden space-y-2">
+                                <p class="text-[11px] text-gray-600">Ada bagian dalam PDF ini yang ingin ditanyakan ke guru?</p>
+                                <button onclick="showToast('Membuka forum diskusi dokumen')" class="w-full bg-emerald-50 text-primary text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 border border-emerald-100 hover:bg-emerald-100 transition">
+                                    <i class="fa-solid fa-comments"></i> Tanya Jawab Dokumen Ini (3)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <script>
+            function triggerFigmaExportNotice() {
+                const cssTokens = `/* Figma Design System Tokens */\n--font-sans: 'Plus Jakarta Sans', sans-serif;\n--color-primary: #059669;\n--color-secondary: #f59e0b;\n--color-surface: #f8fafc;\n--radius-card: 16px;`;
+                const textarea = document.createElement('textarea');
+                textarea.value = cssTokens;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('Token CSS berhasil disalin ke clipboard! Anda dapat menempelkannya di plugin Figma HTML.');
+            }
+        </script>
+    </body>
+    </html>
