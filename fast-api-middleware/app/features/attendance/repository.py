@@ -1,6 +1,7 @@
 from app.core.odoo_client import OdooRPCClient
 from typing import List, Dict, Any
 
+
 class AttendanceRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
@@ -8,9 +9,10 @@ class AttendanceRepository:
     def get_attendance_history(self, uid: int, password: str, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Panggilan search_read ke Odoo ORM.
-        Record Rule Odoo otomatis menyaring data sesuai akun/session uid pengguna yang login!
+        Data dibatasi oleh ACL dan Record Rule Odoo sesuai user login (uid/password).
         """
         fields = [
+            'id',
             'student_id',
             'course_id',
             'batch_id',
@@ -27,7 +29,7 @@ class AttendanceRepository:
             uid=uid,
             password=password,
             model='op.attendance.line',
-            domain=[],  # Domain kosong, disaring otomatis oleh Record Rule Odoo
+            domain=[],
             fields=fields,
             limit=limit,
             order='attendance_date desc, id desc'

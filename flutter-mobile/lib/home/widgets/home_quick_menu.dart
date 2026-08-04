@@ -25,8 +25,12 @@ class QuickMenuItem {
 }
 
 class HomeQuickMenu extends StatelessWidget {
-  const HomeQuickMenu({super.key});
+final String authToken;
 
+  const HomeQuickMenu({
+    super.key,
+    required this.authToken,
+  });
   // 2. Daftar Menu & Pengaturan Navigasinya
   // Jika Anda punya halaman baru, cukup tambahkan di dalam list ini
   List<QuickMenuItem> _getMenus() {
@@ -40,7 +44,7 @@ class HomeQuickMenu extends StatelessWidget {
         title: 'Kehadiran',
         icon: Icons.menu_book_rounded,
         color: const Color(0xFF0284C7), // Biru
-        destination: const KehadiranTab(), // Pastikan eLearningApp sudah di-import
+        destination: AttendanceView(authToken: authToken), // Pastikan eLearningApp sudah di-import
       ),
       QuickMenuItem(
         title: 'E-Learning',

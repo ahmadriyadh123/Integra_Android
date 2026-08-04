@@ -7,7 +7,7 @@ class AttendanceRecordResponse(BaseModel):
     student_name: str
     course_name: str
     batch_name: str
-    attendance_date: date
+    attendance_date: Optional[date]
     present: bool
     excused: bool
     absent: bool

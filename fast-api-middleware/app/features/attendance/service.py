@@ -18,12 +18,13 @@ class AttendanceService:
             
             cleaned_data = []
             for item in raw_records:
+                attendance_date = item.get("attendance_date")
                 cleaned_data.append({
                     "id": item.get("id"),
                     "student_name": self._parse_many2one(item.get("student_id"), "Siswa"),
                     "course_name": self._parse_many2one(item.get("course_id"), "-"),
                     "batch_name": self._parse_many2one(item.get("batch_id"), "-"),
-                    "attendance_date": str(item.get("attendance_date") or ""),
+                    "attendance_date": str(attendance_date) if attendance_date else None,
                     "present": bool(item.get("present")),
                     "excused": bool(item.get("excused")),
                     "absent": bool(item.get("absent")),

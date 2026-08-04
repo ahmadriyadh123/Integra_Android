@@ -4,7 +4,9 @@ import 'widgets/home_quick_menu.dart';
 import 'widgets/home_announcement_card.dart';
 
 class HomeView extends StatelessWidget {
-  const HomeView({super.key});
+  final String authToken;
+
+  const HomeView({super.key, required this.authToken});
 
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
@@ -47,7 +49,7 @@ class HomeView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      child: const HomeQuickMenu(),
+                      child: HomeQuickMenu(authToken: authToken),
                     ),
                     const SizedBox(height: 24),
                     const Text(
