@@ -42,6 +42,8 @@ def get_current_user_credentials(
         
         uid: int = payload.get("uid") or payload.get("user_id")
         password: str = payload.get("password") or payload.get("session_id")
+        partner_id: int = payload.get("partner_id")
+        student_id: int = payload.get("student_id")
 
         if not uid:
             raise HTTPException(
@@ -51,7 +53,9 @@ def get_current_user_credentials(
 
         return {
             "uid": int(uid),
-            "password": password or ""
+            "password": password or "",
+            "partner_id": int(partner_id) if partner_id else None,
+            "student_id": int(student_id) if student_id else None
         }
 
     except (ValueError, jwt.PyJWTError) as e:

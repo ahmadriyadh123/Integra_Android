@@ -3,6 +3,9 @@ from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.attendance.schemas import APIResponse
 from app.features.attendance.repository import AttendanceRepository
 from app.features.attendance.service import AttendanceService
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/attendance",
@@ -15,13 +18,31 @@ def get_attendance_history(
     creds: dict = Depends(get_current_user_credentials),
     odoo_client = Depends(get_odoo_client)
 ):
+    student_id = creds.get("student_id")
+    student_name = creds.get("name", "Siswa")
+
+    # Log untuk debug — cek apakah student_id benar-benar ada di JWT
+    logger.info(f"[attendance/history] uid={creds['uid']} student_id={student_id}")
+
+    # Jika student_id tidak ada di JWT, tolak request daripada return semua data
+    if not student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Data siswa tidak ditemukan dalam sesi Anda. "
+                "Silakan logout dan login ulang untuk memperbarui sesi."
+            )
+        )
+
     try:
         repo = AttendanceRepository(odoo_client)
         service = AttendanceService(repo)
         
         data = service.get_student_history(
             uid=creds["uid"], 
-            password=creds["password"], 
+            password=creds["password"],
+            student_id=student_id,
+            student_name=student_name,
             limit=limit
         )
         
@@ -30,7 +51,10 @@ def get_attendance_history(
             message="Berhasil mengambil riwayat presensi",
             data=data
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"[attendance/history] Error uid={creds['uid']}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data dari Odoo: {str(e)}"

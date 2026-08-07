@@ -1,24 +1,33 @@
 from app.core.odoo_client import OdooRPCClient
+from app.core.config import settings
 from typing import List, Dict, Any, Optional
+
 
 class ElearningRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
+    def _slide_download_url(self, slide_id: int, slide_type: str) -> Optional[str]:
+        """
+        Buat URL download/akses materi slide dari Odoo.
+        - PDF    : /web/content/slide.slide/<id>/slide_datas/<name>.pdf
+        - SCORM  : tidak ada URL langsung, dikembalikan None
+        """
+        if slide_type == 'pdf':
+            return f"{settings.ODOO_URL}/web/content/slide.slide/{slide_id}/slide_datas/materi.pdf"
+        return None
+
     def get_published_courses(self, uid: int, password: str) -> List[Dict[str, Any]]:
-        """
-        Membaca daftar kursus/mata pelajaran yang dipublikasikan.
-        Record Rule Odoo menyaring akses sesuai hak pengguna yang login.
-        """
+        """Ambil daftar channel/kursus yang dipublikasikan."""
         fields = [
+            'id',
             'name',
             'user_id',
             'total_slides',
             'description',
-            'is_published'
+            'is_published',
         ]
-
-        records = self.odoo.search_read(
+        return self.odoo.search_read(
             uid=uid,
             password=password,
             model='slide.channel',
@@ -26,10 +35,10 @@ class ElearningRepository:
             fields=fields,
             order='name asc'
         )
-        return records
 
     def get_course_by_id(self, uid: int, password: str, course_id: int) -> Optional[Dict[str, Any]]:
-        fields = ['name', 'user_id', 'description', 'total_slides']
+        """Ambil detail satu channel/kursus berdasarkan ID."""
+        fields = ['id', 'name', 'user_id', 'description', 'total_slides']
         records = self.odoo.search_read(
             uid=uid,
             password=password,
@@ -40,18 +49,22 @@ class ElearningRepository:
         )
         return records[0] if records else None
 
-    def get_slides_by_course_id(self, uid: int, password: str, course_id: int) -> List[Dict[str, Any]]:
-        """Membaca daftar slide/materi pembelajaran dalam sebuah channel"""
+    def get_slides_by_course_id(
+        self, uid: int, password: str, course_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Ambil daftar slide dalam sebuah channel, lengkap dengan download URL.
+        url dikosongkan dari Odoo (selalu False), sehingga dibangun di sini.
+        """
         fields = [
+            'id',
             'name',
             'slide_category',
             'slide_type',
-            'url',
             'sequence',
-            'is_published'
+            'is_published',
         ]
-
-        records = self.odoo.search_read(
+        raw = self.odoo.search_read(
             uid=uid,
             password=password,
             model='slide.slide',
@@ -59,4 +72,12 @@ class ElearningRepository:
             fields=fields,
             order='sequence asc, id asc'
         )
-        return records
+
+        # Tambahkan download_url ke setiap slide
+        for slide in raw:
+            slide['download_url'] = self._slide_download_url(
+                slide_id=slide['id'],
+                slide_type=str(slide.get('slide_type') or '')
+            )
+
+        return raw

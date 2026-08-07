@@ -1,37 +1,37 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+
 class CourseItemResponse(BaseModel):
     id: int
     title: str
     teacher_name: str
-    total_chapters: int
-    progress_percentage: float
+    total_slides: int
+    description: str
+
 
 class APIResponseCourseList(BaseModel):
     success: bool
     message: str
     data: List[CourseItemResponse]
 
-class MaterialItemResponse(BaseModel):
+
+class SlideItemResponse(BaseModel):
     id: int
     title: str
-    material_type: str      # 'video', 'document', 'quiz', 'infographic'
-    file_url: Optional[str] = None
-    is_completed: bool = False
+    material_type: str       # 'document', 'video', 'scorm', 'quiz'
+    download_url: Optional[str] = None
+    sequence: int
 
-class ChapterResponse(BaseModel):
-    id: int
-    chapter_name: str
-    description: str
-    materials: List[MaterialItemResponse]
 
 class CourseDetailResponse(BaseModel):
     id: int
     title: str
     teacher_name: str
     description: str
-    chapters: List[ChapterResponse]
+    total_slides: int
+    slides: List[SlideItemResponse]
+
 
 class APIResponseCourseDetail(BaseModel):
     success: bool

@@ -5,8 +5,15 @@ import 'widgets/home_announcement_card.dart';
 
 class HomeView extends StatelessWidget {
   final String authToken;
+  final void Function(Widget page)? onMenuTap;
+  final void Function(int index)? onTabSwitch;
 
-  const HomeView({super.key, required this.authToken});
+  const HomeView({
+    super.key,
+    required this.authToken,
+    this.onMenuTap,
+    this.onTabSwitch,
+  });
 
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
@@ -49,7 +56,11 @@ class HomeView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      child: HomeQuickMenu(authToken: authToken),
+                      child: HomeQuickMenu(
+                        authToken: authToken,
+                        onMenuTap: onMenuTap,
+                        onTabSwitch: onTabSwitch,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     const Text(

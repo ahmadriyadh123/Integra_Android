@@ -20,17 +20,6 @@ class AttendanceView extends StatefulWidget {
 
 class _AttendanceViewState extends State<AttendanceView> {
   @override
-  void initState() {
-    super.initState();
-    // Memanggil API presensi dari ViewModel via Provider setelah frame pertama selesai di-render
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<AttendanceViewModel>().fetchAttendance(widget.authToken);
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

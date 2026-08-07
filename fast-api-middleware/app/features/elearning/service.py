@@ -1,62 +1,78 @@
 from typing import Dict, Any, List, Optional
 from app.features.elearning.repository import ElearningRepository
 
+
 class ElearningService:
     def __init__(self, repo: ElearningRepository):
         self.repo = repo
 
-    def _parse_many2one(self, val: Any, fallback: str = 'Pengajar') -> str:
+    def _parse_many2one(self, val: Any, fallback: str = '-') -> str:
         if isinstance(val, list) and len(val) > 1:
             return str(val[1])
         if isinstance(val, str):
             return val
         return fallback
 
+    def _strip_html(self, raw: Any) -> str:
+        """Hapus tag HTML dari field description Odoo."""
+        if not raw or raw is False:
+            return ''
+        import re
+        return re.sub(r'<[^>]+>', '', str(raw)).strip()
+
+    def _map_slide_type(self, slide_category: str, slide_type: str) -> str:
+        """Normalkan tipe materi ke kategori yang dikenali Flutter."""
+        val = (slide_category or slide_type or '').lower()
+        if val in ('video',):
+            return 'video'
+        if val in ('scorm',):
+            return 'scorm'
+        if val in ('quiz', 'question',):
+            return 'quiz'
+        return 'document'  # pdf, infographic, dsb
+
     def get_courses_list(self, uid: int, password: str) -> List[Dict[str, Any]]:
         raw_courses = self.repo.get_published_courses(uid=uid, password=password)
-
-        cleaned_courses = []
+        result = []
         for c in raw_courses:
-            total_slides = int(c.get("total_slides") or 0)
-            cleaned_courses.append({
+            result.append({
                 "id": c.get("id"),
-                "title": str(c.get("name") or "Mata Pelajaran"),
-                "teacher_name": self._parse_many2one(c.get("user_id"), "Pengajar"),
-                "total_chapters": total_slides,
-                "progress_percentage": 0.0  # Kalkulasi progres default
+                "title": str(c.get("name") or "Kursus"),
+                "teacher_name": self._parse_many2one(c.get("user_id"), "-"),
+                "total_slides": int(c.get("total_slides") or 0),
+                "description": self._strip_html(c.get("description")),
             })
+        return result
 
-        return cleaned_courses
-
-    def get_course_detail(self, uid: int, password: str, course_id: int) -> Optional[Dict[str, Any]]:
+    def get_course_detail(
+        self, uid: int, password: str, course_id: int
+    ) -> Optional[Dict[str, Any]]:
         course = self.repo.get_course_by_id(uid=uid, password=password, course_id=course_id)
         if not course:
             return None
 
-        raw_slides = self.repo.get_slides_by_course_id(uid=uid, password=password, course_id=course_id)
+        raw_slides = self.repo.get_slides_by_course_id(
+            uid=uid, password=password, course_id=course_id
+        )
 
-        materials = []
+        slides = []
         for s in raw_slides:
-            slide_cat = str(s.get("slide_category") or s.get("slide_type") or "document")
-            materials.append({
+            slides.append({
                 "id": s.get("id"),
-                "title": str(s.get("name") or "Materi Pembelajaran"),
-                "material_type": slide_cat,
-                "file_url": s.get("url"),
-                "is_completed": False
+                "title": str(s.get("name") or "Materi"),
+                "material_type": self._map_slide_type(
+                    str(s.get("slide_category") or ''),
+                    str(s.get("slide_type") or '')
+                ),
+                "download_url": s.get("download_url"),
+                "sequence": int(s.get("sequence") or 0),
             })
 
         return {
             "id": course.get("id"),
-            "title": str(course.get("name") or "Mata Pelajaran"),
-            "teacher_name": self._parse_many2one(course.get("user_id"), "Pengajar"),
-            "description": str(course.get("description") or "Deskripsi kursus"),
-            "chapters": [
-                {
-                    "id": 1,
-                    "chapter_name": "Materi Pembelajaran",
-                    "description": "Daftar slide & modul E-Learning",
-                    "materials": materials
-                }
-            ]
+            "title": str(course.get("name") or "Kursus"),
+            "teacher_name": self._parse_many2one(course.get("user_id"), "-"),
+            "description": self._strip_html(course.get("description")),
+            "total_slides": int(course.get("total_slides") or 0),
+            "slides": slides,
         }

@@ -13,15 +13,15 @@ class AttendanceService:
             return val
         return fallback
     
-    def get_student_history(self, uid: int, password: str, limit: int = 100) -> List[Dict[str, Any]]:
-            raw_records = self.repo.get_attendance_history(uid=uid, password=password, limit=limit)
+    def get_student_history(self, uid: int, password: str, student_id: int = None, limit: int = 100) -> List[Dict[str, Any]]:
+            raw_records = self.repo.get_attendance_history(uid=uid, password=password, student_id=student_id, limit=limit)
             
             cleaned_data = []
             for item in raw_records:
                 attendance_date = item.get("attendance_date")
                 cleaned_data.append({
                     "id": item.get("id"),
-                    "student_name": self._parse_many2one(item.get("student_id"), "Siswa"),
+                    "student_name": student_name,
                     "course_name": self._parse_many2one(item.get("course_id"), "-"),
                     "batch_name": self._parse_many2one(item.get("batch_id"), "-"),
                     "attendance_date": str(attendance_date) if attendance_date else None,

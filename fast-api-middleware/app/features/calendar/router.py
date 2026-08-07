@@ -3,6 +3,9 @@ from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.calendar.schemas import APIResponseCalendar
 from app.features.calendar.repository import CalendarRepository
 from app.features.calendar.service import CalendarService
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/calendar",
@@ -29,6 +32,7 @@ def get_academic_calendars(
             data=data
         )
     except Exception as e:
+        logger.error(f"[calendar/list] Error uid={creds['uid']}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data kalender dari Odoo: {str(e)}"

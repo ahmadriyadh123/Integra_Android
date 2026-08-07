@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../auth/viewmodel/auth_viewmodel.dart';
+import '../auth/view/login_view.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/profile_section_card.dart';
 import 'widgets/profile_logout_button.dart';
@@ -85,7 +88,15 @@ class ProfilTab extends StatelessWidget {
 
             const SizedBox(height: 32),
             ProfileLogoutButton(
-              onLogoutTap: () => Navigator.pop(context),
+              onLogoutTap: () {
+                // Bersihkan state auth di ViewModel
+                context.read<AuthViewModel>().logout();
+                // Arahkan ke LoginView dan hapus semua route sebelumnya
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginView()),
+                  (route) => false,
+                );
+              },
             ),
             const SizedBox(height: 16),
           ],
