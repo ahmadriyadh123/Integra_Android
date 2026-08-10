@@ -6,11 +6,11 @@ class CalendarRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
-    def get_academic_calendars(self, uid: int, password: str) -> List[Dict[str, Any]]:
+    def get_academic_calendars(self, uid: int, password: str, jenjang: str = 'sd') -> List[Dict[str, Any]]:
         """
-        Ambil daftar kalender akademik SD dari model kaldik.sd.
+        Ambil daftar kalender akademik berdasarkan jenjang dari model kaldik.{jenjang}.
 
-        Tidak ada relasi langsung dari kaldik.sd ke siswa/user, sehingga
+        Tidak ada relasi langsung dari kaldik ke siswa/user, sehingga
         filter diserahkan ke ACL/Record Rule Odoo yang sudah membatasi
         akses berdasarkan kelas user yang login.
         """
@@ -23,10 +23,12 @@ class CalendarRepository:
             'status',
         ]
 
+        model_name = f"kaldik.{jenjang}"
+
         return self.odoo.search_read(
             uid=uid,
             password=password,
-            model='kaldik.sd',
+            model=model_name,
             domain=[],
             fields=fields,
             order='tahun_id desc, semester_id asc'

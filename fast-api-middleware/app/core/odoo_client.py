@@ -28,8 +28,13 @@ class OdooRPCClient:
         domain: list = None, 
         fields: list = None, 
         limit: int = 80, 
-        order: str = None
+        order: str = None,
+        use_sudo: bool = False
     ) -> List[Dict[str, Any]]:
+        """
+        Query search_read. Jika use_sudo=True, gunakan admin credentials
+        untuk bypass ACL (setara sudo() di Odoo internal API).
+        """
         kwargs = {
             'fields': fields or [],
             'limit': limit
@@ -37,6 +42,18 @@ class OdooRPCClient:
         if order:
             kwargs['order'] = order
 
+        # Gunakan admin credentials jika use_sudo=True
+        if use_sudo and settings.ODOO_ADMIN_USER and settings.ODOO_ADMIN_PASS:
+            admin_uid = self.common.authenticate(
+                self.db, settings.ODOO_ADMIN_USER, settings.ODOO_ADMIN_PASS, {}
+            )
+            if admin_uid:
+                return self.models.execute_kw(
+                    self.db, admin_uid, settings.ODOO_ADMIN_PASS,
+                    model, 'search_read', [domain or []], kwargs
+                )
+
+        # Fallback ke user credentials biasa
         return self.models.execute_kw(
             self.db, uid, password, model, 'search_read', [domain or []], kwargs
         )

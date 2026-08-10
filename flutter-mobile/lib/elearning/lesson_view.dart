@@ -6,21 +6,20 @@ import 'viewmodel/elearning_viewmodel.dart';
 import 'detail_course_view.dart';
 import 'widgets/elearning_header.dart';
 import 'widgets/subject_grid_card.dart';
+import 'widgets/active_course_card.dart';
 
-// Tetap dipertahankan agar import lama tidak error, tapi tidak dipakai lagi
+// Tetap dipertahankan agar import lama tidak error
 class ElearningApp extends StatelessWidget {
   const ElearningApp({super.key});
-
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette ───────────────────────────────────────────────────────────────────
 const Color _green = Color(0xFF059669);
 const Color _bgSlate = Color(0xFFF8FAFC);
 const Color _textDark = Color(0xFF1E293B);
 const Color _textMuted = Color(0xFF94A3B8);
-const Color _borderColor = Color(0xFFF1F5F9);
 
 // Warna ikon per urutan channel (cycling)
 const List<_CourseColor> _courseColors = [
@@ -74,83 +73,62 @@ class _PelajaranViewState extends State<PelajaranView> {
         .toList();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgSlate,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        titleSpacing: 0,
-        title: ElearningHeader(
-          onSearchChanged: (val) => setState(() => _searchQuery = val),
+  void _navigateToDetail(BuildContext context, CourseItem course, int index) {
+    final colors = _courseColors[index % _courseColors.length];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailCourseView(
+          courseId: course.id,
+          title: course.title,
+          teacher: course.teacherName,
+          authToken: widget.authToken,
+          iconData: colors.iconData,
+          iconBgColor: colors.bg,
+          iconColor: colors.icon,
         ),
-        actions: [
-          Consumer<ElearningViewModel>(
-            builder: (context, vm, _) => PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded,
-                  color: Color(0xFF475569)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              onSelected: (val) {
-                if (val == 'refresh') {
-                  vm.fetchCourses(widget.authToken, forceRefresh: true);
-                } else if (val == 'clear') {
-                  vm.clearAllCache(widget.authToken);
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'refresh',
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh_rounded,
-                          size: 18, color: Color(0xFF475569)),
-                      SizedBox(width: 10),
-                      Text('Perbarui dari Server',
-                          style: TextStyle(fontSize: 13)),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'clear',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_sweep_rounded,
-                          size: 18, color: Color(0xFFEF4444)),
-                      SizedBox(width: 10),
-                      Text('Hapus Cache',
-                          style: TextStyle(
-                              fontSize: 13, color: Color(0xFFEF4444))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Consumer<ElearningViewModel>(
-        builder: (context, vm, _) {
-          if (vm.isLoadingCourses) {
-            return const Center(
-              child: CircularProgressIndicator(color: _green),
-            );
-          }
-          if (vm.coursesError != null) {
-            return _buildError(vm);
-          }
-          if (!vm.hasCourses) {
-            return _buildEmpty();
-          }
-          return _buildCourseList(vm);
-        },
       ),
     );
   }
 
-  Widget _buildCourseList(ElearningViewModel vm) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgSlate,
+      body: Column(
+        children: [
+          // Header dengan search — tidak pakai AppBar agar header tetap full-width
+          ElearningHeader(
+            onSearchChanged: (val) => setState(() => _searchQuery = val),
+            onRefreshTap: () {
+              final vm = context.read<ElearningViewModel>();
+              vm.fetchCourses(widget.authToken, forceRefresh: true);
+            },
+            onClearCacheTap: () {
+              final vm = context.read<ElearningViewModel>();
+              vm.clearAllCache(widget.authToken);
+            },
+          ),
+          Expanded(
+            child: Consumer<ElearningViewModel>(
+              builder: (context, vm, _) {
+                if (vm.isLoadingCourses) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _green),
+                  );
+                }
+                if (vm.coursesError != null) return _buildError(vm);
+                if (!vm.hasCourses) return _buildEmpty();
+                return _buildBody(vm);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(ElearningViewModel vm) {
     final filtered = _filtered(vm.courses);
 
     if (filtered.isEmpty) {
@@ -162,59 +140,72 @@ class _PelajaranViewState extends State<PelajaranView> {
       );
     }
 
+    // Kursus pertama sebagai "Sedang Dipelajari"
+    final activeCourse = vm.courses.first;
+    final activeColors = _courseColors[0];
+
     return RefreshIndicator(
       color: _green,
       onRefresh: () => vm.fetchCourses(widget.authToken, forceRefresh: true),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header jumlah mapel
+            // ── Section: Sedang Dipelajari ────────────────────────────────
+            if (_searchQuery.isEmpty) ...[
+              _buildSectionHeader(
+                icon: Icons.play_circle_rounded,
+                title: 'Sedang Dipelajari',
+                badge: 'Aktif',
+                badgeBg: const Color(0xFFD1FAE5),
+                badgeColor: _green,
+              ),
+              const SizedBox(height: 12),
+              ActiveCourseCard(
+                title: activeCourse.title,
+                teacher: activeCourse.teacherName.isNotEmpty
+                    ? activeCourse.teacherName
+                    : 'Guru Pengampu',
+                progress: 0.0,
+                icon: activeColors.iconData,
+                iconBgColor: activeColors.bg,
+                iconColor: activeColors.icon,
+                onTap: () => _navigateToDetail(context, activeCourse, 0),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            // ── Section: Daftar Mata Pelajaran ────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.grid_view_rounded, size: 18, color: _green),
-                    SizedBox(width: 8),
-                    Text(
-                      'Semua Mata Pelajaran',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: _textDark,
-                      ),
-                    ),
-                  ],
+                _buildSectionHeader(
+                  icon: Icons.grid_view_rounded,
+                  title: 'Daftar Mata Pelajaran',
                 ),
                 Row(
                   children: [
-                    // Badge "Memperbarui..." saat refresh background
+                    // Badge "Memperbarui..." saat background refresh
                     if (vm.isRefreshingCourses) ...[
                       const SizedBox(
                         width: 10,
                         height: 10,
                         child: CircularProgressIndicator(
-                          color: _green,
-                          strokeWidth: 1.5,
-                        ),
+                            color: _green, strokeWidth: 1.5),
                       ),
                       const SizedBox(width: 5),
-                      const Text(
-                        'Memperbarui...',
-                        style: TextStyle(fontSize: 10, color: _green),
-                      ),
+                      const Text('Memperbarui...',
+                          style: TextStyle(fontSize: 10, color: _green)),
                       const SizedBox(width: 8),
                     ],
                     Text(
-                      'Total ${filtered.length} Mapel',
+                      '${filtered.length} Mapel',
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: _textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
+                          fontSize: 11,
+                          color: _textMuted,
+                          fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -222,7 +213,6 @@ class _PelajaranViewState extends State<PelajaranView> {
             ),
             const SizedBox(height: 12),
 
-            // Grid kursus
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -242,17 +232,7 @@ class _PelajaranViewState extends State<PelajaranView> {
                   icon: colors.iconData,
                   iconBgColor: colors.bg,
                   iconColor: colors.icon,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DetailCourseView(
-                        courseId: course.id,
-                        title: course.title,
-                        teacher: course.teacherName,
-                        authToken: widget.authToken,
-                      ),
-                    ),
-                  ),
+                  onTap: () => _navigateToDetail(context, course, i),
                 );
               },
             ),
@@ -262,6 +242,50 @@ class _PelajaranViewState extends State<PelajaranView> {
     );
   }
 
+  // ── Section Header Helper ─────────────────────────────────────────────────
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    String? badge,
+    Color badgeBg = const Color(0xFFECFDF5),
+    Color badgeColor = _green,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 17, color: _green),
+        const SizedBox(width: 7),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: _textDark,
+          ),
+        ),
+        if (badge != null) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: badgeBg,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              badge,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: badgeColor,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Error & Empty States ──────────────────────────────────────────────────
   Widget _buildError(ElearningViewModel vm) {
     return Center(
       child: Padding(
@@ -269,22 +293,23 @@ class _PelajaranViewState extends State<PelajaranView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
+            const Icon(Icons.cloud_off_rounded,
+                size: 56, color: Color(0xFFCBD5E1)),
             const SizedBox(height: 16),
-            const Text(
-              'Gagal Memuat Data',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w800, color: _textDark),
-            ),
+            const Text('Gagal Memuat Data',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: _textDark)),
             const SizedBox(height: 8),
-            Text(
-              vm.coursesError!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
-            ),
+            Text(vm.coursesError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFF475569))),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => vm.fetchCourses(widget.authToken),
+              onPressed: () =>
+                  vm.fetchCourses(widget.authToken),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Coba Lagi'),
               style: ElevatedButton.styleFrom(
@@ -308,13 +333,14 @@ class _PelajaranViewState extends State<PelajaranView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.menu_book_rounded, size: 56, color: Color(0xFFCBD5E1)),
+            Icon(Icons.menu_book_rounded,
+                size: 56, color: Color(0xFFCBD5E1)),
             SizedBox(height: 16),
-            Text(
-              'Belum Ada Kursus',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w800, color: _textDark),
-            ),
+            Text('Belum Ada Kursus',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: _textDark)),
             SizedBox(height: 8),
             Text(
               'Belum ada mata pelajaran yang dipublikasikan.',

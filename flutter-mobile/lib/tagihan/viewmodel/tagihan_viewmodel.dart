@@ -46,13 +46,13 @@ class TagihanViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchTagihan(String token) async {
+  Future<void> fetchTagihan(String token, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _summary = await repository.getTagihan(token);
+      _summary = await repository.getTagihan(token, forceRefresh: forceRefresh);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

@@ -17,7 +17,7 @@ class VerifikasiTokenView extends StatefulWidget {
 
 class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
   static const Color darkSlate = Color(0xFF0F172A);
-  static const Color primaryColor = Color(0xFF0284C7);
+  static const Color primaryColor = Color(0xFF059669);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
 
   late final List<TextEditingController> _controllers;

@@ -8,14 +8,14 @@ class TokenInfoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F9FF),
+        color: const Color(0xFFECFDF5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFBAE6FD)),
+        border: Border.all(color: const Color(0xFFA7F3D0)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          Icon(Icons.lock_outline_rounded, color: Color(0xFF0284C7), size: 20),
+          Icon(Icons.lock_outline_rounded, color: Color(0xFF059669), size: 20),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -26,7 +26,7 @@ class TokenInfoBanner extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0369A1),
+                    color: Color(0xFF047857),
                   ),
                 ),
                 SizedBox(height: 2),

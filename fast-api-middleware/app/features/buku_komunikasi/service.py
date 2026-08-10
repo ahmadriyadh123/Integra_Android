@@ -12,13 +12,13 @@ class BukuKomunikasiService:
             return val
         return fallback
 
-    def get_buku_komunikasi(self, uid: int, password: str) -> Optional[Dict[str, Any]]:
-        header = self.repo.get_buku_catatan_header(uid=uid, password=password)
+    def get_buku_komunikasi(self, uid: int, password: str, student_id: int, jenjang: str = 'sd') -> Optional[Dict[str, Any]]:
+        header = self.repo.get_buku_catatan_header(uid=uid, password=password, student_id=student_id, jenjang=jenjang)
         if not header:
             return None
 
         lines = self.repo.get_buku_catatan_lines(
-            uid=uid, password=password, bukpeng_id=header['id']
+            uid=uid, password=password, bukpeng_id=header['id'], jenjang=jenjang
         )
 
         formatted_lines = []
@@ -39,16 +39,16 @@ class BukuKomunikasiService:
                 "feedback_jumat": str(line.get("feedback_jumat") or "-"),
             })
 
-            return {
-                "id": header.get("id"),
-                "student_name": self._parse_many2one(header.get("student_id"), "-"),
-                "kelas": self._parse_many2one(header.get("kelas_id"), "-"),
-                "tahun_ajaran": self._parse_many2one(header.get("tahun_id"), "-"),
-                "status": str(header.get("status") or "-"),
-                "lines": formatted_lines
-            }
+        return {
+            "id": header.get("id"),
+            "student_name": self._parse_many2one(header.get("student_id"), "-"),
+            "kelas": self._parse_many2one(header.get("kelas_id"), "-"),
+            "tahun_ajaran": self._parse_many2one(header.get("tahun_id"), "-"),
+            "status": str(header.get("status") or "-"),
+            "lines": formatted_lines
+        }
         
-    def save_feedback(self, uid: int, password: str,  line_id: int, day: str, feedback_text: str) -> bool:
+    def save_feedback(self, uid: int, password: str,  line_id: int, day: str, feedback_text: str, jenjang: str = 'sd') -> bool:
         allowed_days = ["senin", "selasa", "rabu", "kamis", "jumat"]
         if day.lower() not in allowed_days:
             raise ValueError(f"Hari '{day}' tidak valid. Pilih salah satu dari: {allowed_days}")
@@ -58,5 +58,6 @@ class BukuKomunikasiService:
             password=password,
             line_id=line_id,
             day=day,
-            feedback_text=feedback_text
+            feedback_text=feedback_text,
+            jenjang=jenjang
         )

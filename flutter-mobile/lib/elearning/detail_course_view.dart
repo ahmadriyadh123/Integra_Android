@@ -18,6 +18,9 @@ class DetailCourseView extends StatefulWidget {
   final String title;
   final String teacher;
   final String authToken;
+  final IconData? iconData;
+  final Color? iconBgColor;
+  final Color? iconColor;
 
   const DetailCourseView({
     super.key,
@@ -25,6 +28,9 @@ class DetailCourseView extends StatefulWidget {
     required this.title,
     required this.teacher,
     required this.authToken,
+    this.iconData,
+    this.iconBgColor,
+    this.iconColor,
   });
 
   @override

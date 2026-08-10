@@ -34,9 +34,11 @@ def login(
     jwt_payload = {
         "uid": user_info["uid"],
         "username": user_info["username"],
-        "password": payload.password,  # Disimpan terenkripsi dalam JWT untuk dipasok ke Odoo RPC
-        "partner_id": user_info["partner_id"],  # Disimpan untuk referensi profil
-        "student_id": user_info["student_id"]   # Disimpan untuk filter attendance tanpa query op.student
+        "password": payload.password,
+        "partner_id": user_info["partner_id"],
+        "student_id": user_info["student_id"],
+        "jenjang": user_info["jenjang"],
+        "course_id": user_info["course_id"],   # Untuk filter weekly plan per kelas
     }
     
     access_token = AuthService.create_access_token(data=jwt_payload)

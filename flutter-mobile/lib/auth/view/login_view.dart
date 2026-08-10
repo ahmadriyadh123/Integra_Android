@@ -18,7 +18,7 @@ class _LoginViewState extends State<LoginView> {
   bool _isPasswordVisible = false;
 
   // Warna konsisten dengan app
-  static const Color primaryBlue = Color(0xFF0284C7);
+  static const Color primaryGreen = Color(0xFF059669);
   static const Color bgSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF334155);
   static const Color textMuted = Color(0xFF94A3B8);
@@ -91,11 +91,11 @@ class _LoginViewState extends State<LoginView> {
           width: 72,
           height: 72,
           decoration: BoxDecoration(
-            color: primaryBlue,
+            color: primaryGreen,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: primaryBlue.withValues(alpha: 0.3),
+                color: primaryGreen.withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -251,9 +251,9 @@ class _LoginViewState extends State<LoginView> {
                   child: ElevatedButton(
                     onPressed: viewModel.isLoading ? null : _onLoginPressed,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBlue,
+                      backgroundColor: primaryGreen,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: primaryBlue.withValues(alpha: 0.6),
+                      disabledBackgroundColor: primaryGreen.withValues(alpha: 0.6),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -314,7 +314,7 @@ class _LoginViewState extends State<LoginView> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: primaryBlue, width: 1.5),
+        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

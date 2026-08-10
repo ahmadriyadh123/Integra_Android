@@ -5,20 +5,20 @@ class BukuKomunikasiRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
-    def get_buku_catatan_header(self, uid: int, password: str) -> Optional[Dict[str, Any]]:
-        # 1. Ambil Header Buku Penghubung
+    def get_buku_catatan_header(self, uid: int, password: str, student_id: int, jenjang: str = 'sd') -> Optional[Dict[str, Any]]:
+        # 1. Ambil Header Buku Penghubung berdasarkan jenjang dan student_id
         records = self.odoo.search_read(
             uid=uid,
             password=password,
-            model='bukpeng.sd',
-            domain=[],
+            model=f"bukpeng.{jenjang}",
+            domain=[('student_id', '=', student_id)],
             fields=['student_id', 'kelas_id', 'tahun_id', 'status'],
             limit=1
         )
 
         return records[0] if records else None
 
-    def get_buku_catatan_lines(self, uid: int, password: str, bukpeng_id: int) -> list:
+    def get_buku_catatan_lines(self, uid: int, password: str, bukpeng_id: int, jenjang: str = 'sd') -> list:
         fields = [
             'pekan_ke',
             'bulan',
@@ -36,12 +36,12 @@ class BukuKomunikasiRepository:
         return self.odoo.search_read(
             uid=uid,
             password=password,
-            model='bukpeng.sd.line',
-            domain=[('bukpeng_sd_id', '=', bukpeng_id)],
+            model=f"bukpeng.{jenjang}.line",
+            domain=[(f"bukpeng_{jenjang}_id", '=', bukpeng_id)],
             fields=fields,
             order='pekan_ke asc'
         )
-    def update_parent_feedback(self, uid: int, password: str, line_id: int, day: str, feedback_text: str) -> bool:
+    def update_parent_feedback(self, uid: int, password: str, line_id: int, day: str, feedback_text: str, jenjang: str = 'sd') -> bool:
         """
         Jika orang tua mencoba mengubah line milik siswa lain,
         Odoo ORM akan melemparkan AccessError secara otomatis!
@@ -50,7 +50,7 @@ class BukuKomunikasiRepository:
         return self.odoo.write(
             uid=uid,
             password=password,
-            model='bukpeng.sd.line',
+            model=f"bukpeng.{jenjang}.line",
             ids=[line_id],
             values={field_name: feedback_text}
         )

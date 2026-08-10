@@ -15,14 +15,10 @@ class AttendanceRepository:
     ) -> List[Dict[str, Any]]:
         """
         Ambil riwayat presensi dari op.attendance.line.
-
-        Filter menggunakan student_id (integer) yang sudah diperoleh saat login
-        dan disimpan di JWT — tidak ada dot-notation, tidak ada traverse ke
-        op.student, sehingga tidak memerlukan akses ke model tersebut.
         """
         fields = [
             'id',
-            # 'student_id',
+            'student_id',
             'course_id',
             'batch_id',
             'attendance_date',
@@ -34,15 +30,19 @@ class AttendanceRepository:
             'remark'
         ]
 
-        # Filter langsung dengan integer student_id — tidak ada join ke op.student
-        domain = [('student_id', '=', student_id)] if student_id else []
+        # Jika student_id tidak ada di JWT, kembalikan kosong untuk keamanan
+        if student_id is None:
+            return []
 
-        return self.odoo.search_read(
+        # Ambil langsung dengan memfilter student_id di tingkat database Odoo (tanpa sudo)
+        records = self.odoo.search_read(
             uid=uid,
             password=password,
             model='op.attendance.line',
-            domain=domain,
+            domain=[('student_id', '=', student_id)],
             fields=fields,
             limit=limit,
             order='attendance_date desc, id desc'
         )
+
+        return records

@@ -18,13 +18,13 @@ class CalendarViewModel extends ChangeNotifier {
 
   bool get hasData => _calendars.isNotEmpty;
 
-  Future<void> fetchCalendars(String token) async {
+  Future<void> fetchCalendars(String token, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _calendars = await repository.getCalendars(token);
+      _calendars = await repository.getCalendars(token, forceRefresh: forceRefresh);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

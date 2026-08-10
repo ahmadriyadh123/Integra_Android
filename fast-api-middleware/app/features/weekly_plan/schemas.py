@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Detail Line Kegiatan Harian ---
+
 class DailyActivityLine(BaseModel):
     id: int
     waktu: Optional[str] = "-"
@@ -10,31 +10,35 @@ class DailyActivityLine(BaseModel):
     sumber: Optional[str] = "-"
     penilaian: Optional[str] = "-"
 
-# --- Detail Tujuan Pembelajaran ---
+
 class TargetPembelajaranLine(BaseModel):
     id: int
     subject_name: str
     tp: str
 
-# --- Item Ringkasan untuk List ---
+
 class WeeklyPlanItemResponse(BaseModel):
     id: int
     kelas: str
     semester: str
     tahun_ajaran: str
     pekan: str
+    tema: Optional[str] = "-"
+    nama_guru: Optional[str] = "-"
     status: str
+
 
 class WeeklyPlanListResponse(BaseModel):
     total_records: int
     weekly_plans: List[WeeklyPlanItemResponse]
+
 
 class APIResponseWeeklyPlanList(BaseModel):
     success: bool
     message: str
     data: WeeklyPlanListResponse
 
-# --- Detail Lengkap 1 Dokumen ---
+
 class WeeklyPlanDetailResponse(BaseModel):
     id: int
     nama_sekolah: str
@@ -53,6 +57,7 @@ class WeeklyPlanDetailResponse(BaseModel):
     rabu: List[DailyActivityLine]
     kamis: List[DailyActivityLine]
     jumat: List[DailyActivityLine]
+
 
 class APIResponseWeeklyPlanDetail(BaseModel):
     success: bool

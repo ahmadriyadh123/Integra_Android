@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import 'widgets/cbt/cbt_header_card.dart';
 import 'widgets/cbt/cbt_filter_tabs.dart';
 import 'widgets/cbt/cbt_exam_card.dart';
+import 'viewmodel/cbt_viewmodel.dart';
 
 class CbtListView extends StatefulWidget {
   const CbtListView({super.key});
@@ -17,45 +21,32 @@ class _CbtListViewState extends State<CbtListView> {
   String _selectedTab = 'Semua';
   final List<String> _tabs = ['Semua', 'Aktif', 'Selesai'];
 
-  // Data dummy ujian
-  final List<Map<String, dynamic>> _exams = [
-    {
-      'subject': 'Matematika Wajib',
-      'examType': 'Ujian Tengah Semester',
-      'date': '30 Juli 2026',
-      'time': '08:00 - 10:00 WIB',
-      'duration': 120,
-      'questionCount': 40,
-      'status': 'Aktif',
-    },
-    {
-      'subject': 'Bahasa Indonesia',
-      'examType': 'Ujian Tengah Semester',
-      'date': '31 Juli 2026',
-      'time': '08:00 - 09:30 WIB',
-      'duration': 90,
-      'questionCount': 50,
-      'status': 'Belum Mulai',
-    },
-    {
-      'subject': 'Fisika Dasar',
-      'examType': 'Kuis Harian',
-      'date': '28 Juli 2026',
-      'time': '10:00 - 11:00 WIB',
-      'duration': 60,
-      'questionCount': 20,
-      'status': 'Selesai',
-    },
-  ];
+  // Data diambil dari middleware melalui CbtViewModel
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthViewModel>(context, listen: false);
+      final cbtVm = Provider.of<CbtViewModel>(context, listen: false);
+      final token = auth.token;
+      if (token.isNotEmpty) {
+        cbtVm.fetchCbtSchedules(token);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredExams = _exams.where((exam) {
+    final cbtVm = Provider.of<CbtViewModel>(context);
+    final rawExams = cbtVm.exams;
+
+    final filteredExams = rawExams.where((exam) {
       if (_selectedTab == 'Semua') return true;
-      return exam['status'] == _selectedTab;
+      return (exam['status'] ?? '').toString() == _selectedTab;
     }).toList();
 
-    final activeCount = _exams.where((e) => e['status'] == 'Aktif').length;
+    final activeCount = rawExams.where((e) => (e['status'] ?? '').toString().toLowerCase() == 'aktif' || (e['status'] ?? '').toString().toLowerCase() == 'active').length;
 
     return Scaffold(
       backgroundColor: backgroundSlate,
@@ -85,7 +76,16 @@ class _CbtListViewState extends State<CbtListView> {
               onTabChanged: (tab) => setState(() => _selectedTab = tab),
             ),
             const SizedBox(height: 20),
-            if (filteredExams.isEmpty)
+            if (cbtVm.isLoading)
+              const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: CircularProgressIndicator()))
+            else if (cbtVm.errorMessage != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Text(cbtVm.errorMessage!, style: const TextStyle(color: Colors.red)),
+                ),
+              )
+            else if (filteredExams.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
@@ -100,16 +100,23 @@ class _CbtListViewState extends State<CbtListView> {
                 separatorBuilder: (context, index) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final exam = filteredExams[index];
+                  final subject = exam['mata_pelajaran'] ?? exam['judul_ujian'] ?? '';
+                  final examType = exam['jenis_ujian'] ?? '';
+                  final rentang = exam['rentang_waktu'] ?? '';
+                  final duration = exam['durasi_menit'] ?? 0;
+                  final questionCount = exam['jumlah_soal'] ?? 0;
+                  final status = exam['status'] ?? '';
+
                   return CbtExamCard(
-                    subject: exam['subject'],
-                    examType: exam['examType'],
-                    date: exam['date'],
-                    time: exam['time'],
-                    duration: exam['duration'],
-                    questionCount: exam['questionCount'],
-                    status: exam['status'],
+                    subject: subject.toString(),
+                    examType: examType.toString(),
+                    date: rentang.toString(),
+                    time: '',
+                    duration: int.tryParse(duration.toString()) ?? 0,
+                    questionCount: int.tryParse(questionCount.toString()) ?? 0,
+                    status: status.toString(),
                     onActionTap: () {
-                      // Logika navigasi ke halaman ujian atau halaman hasil
+                      // TODO: navigasi ke halaman detail/ujian
                     },
                   );
                 },

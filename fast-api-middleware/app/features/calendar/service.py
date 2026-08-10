@@ -14,8 +14,8 @@ class CalendarService:
             return val
         return fallback
 
-    def get_calendars_list(self, uid: int, password: str) -> Dict[str, Any]:
-        raw_records = self.repo.get_academic_calendars(uid=uid, password=password)
+    def get_calendars_list(self, uid: int, password: str, jenjang: str = 'sd') -> Dict[str, Any]:
+        raw_records = self.repo.get_academic_calendars(uid=uid, password=password, jenjang=jenjang)
 
         calendars = []
         for item in raw_records:

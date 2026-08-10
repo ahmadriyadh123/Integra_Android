@@ -18,7 +18,12 @@ def get_buku_komunikasi(
         repo = BukuKomunikasiRepository(odoo_client)
         service = BukuKomunikasiService(repo)
 
-        data = service.get_buku_komunikasi(uid=creds['uid'], password=creds['password'])
+        data = service.get_buku_komunikasi(
+            uid=creds['uid'],
+            password=creds['password'],
+            student_id=creds.get('student_id'),
+            jenjang=creds.get('jenjang', 'sd')
+        )
 
         if not data:
             return APIResponseBukuKomunikasi(
@@ -55,6 +60,7 @@ def submit_parent_feedback(
             line_id=payload.line_id, 
             day=payload.day, 
             feedback_text=payload.feedback_text,
+            jenjang=creds.get('jenjang', 'sd')
         )
 
         if success:

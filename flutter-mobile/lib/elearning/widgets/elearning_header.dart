@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 
 class ElearningHeader extends StatelessWidget {
   final ValueChanged<String>? onSearchChanged;
+  final VoidCallback? onRefreshTap;
+  final VoidCallback? onClearCacheTap;
 
-  const ElearningHeader({super.key, this.onSearchChanged});
+  const ElearningHeader({
+    super.key,
+    this.onSearchChanged,
+    this.onRefreshTap,
+    this.onClearCacheTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,18 +49,66 @@ class ElearningHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.school_outlined,
-                  color: Colors.white,
-                  size: 22,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.school_outlined,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  if (onRefreshTap != null && onClearCacheTap != null) ...[
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded,
+                          color: Colors.white, size: 22),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      color: Colors.white,
+                      onSelected: (val) {
+                        if (val == 'refresh' && onRefreshTap != null) {
+                          onRefreshTap!();
+                        } else if (val == 'clear' && onClearCacheTap != null) {
+                          onClearCacheTap!();
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'refresh',
+                          child: Row(
+                            children: [
+                              Icon(Icons.refresh_rounded,
+                                  size: 18, color: Color(0xFF475569)),
+                              SizedBox(width: 10),
+                              Text('Perbarui dari Server',
+                                  style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'clear',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_sweep_rounded,
+                                  size: 18, color: Color(0xFFEF4444)),
+                              SizedBox(width: 10),
+                              Text('Hapus Cache',
+                                  style: TextStyle(
+                                      fontSize: 13, color: Color(0xFFEF4444))),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -72,8 +127,9 @@ class ElearningHeader extends StatelessWidget {
             ),
             child: TextField(
               onChanged: onSearchChanged,
+              style: const TextStyle(fontSize: 13),
               decoration: const InputDecoration(
-                hintText: 'Cari mata pelajaran atau modul PDF...',
+                hintText: 'Cari mata pelajaran atau modul...',
                 hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
                 prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
                 border: InputBorder.none,

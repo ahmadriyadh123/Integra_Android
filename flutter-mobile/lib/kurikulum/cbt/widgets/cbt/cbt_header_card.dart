@@ -7,8 +7,8 @@ class CbtHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF0284C7); // Warna biru khas CBT
-    const Color primaryDark = Color(0xFF0369A1);
+    const Color primaryColor = Color(0xFF059669); // Warna biru khas CBT
+    const Color primaryDark = Color(0xFF047857);
 
     return Container(
       width: double.infinity,
@@ -46,7 +46,7 @@ class CbtHeaderCard extends StatelessWidget {
                 const Text(
                   'UJIAN BERBASIS KOMPUTER',
                   style: TextStyle(
-                    color: Color(0xFFE0F2FE),
+                    color: Color(0xFFECFDF5),
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,

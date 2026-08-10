@@ -126,10 +126,10 @@ class WeeklyPlanScreen extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.blue.shade100,
+                                  color: Colors.green.shade100,
                                   width: 1,
                                 ),
                               ),
@@ -138,7 +138,7 @@ class WeeklyPlanScreen extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade800,
+                                  color: Colors.green.shade800,
                                 ),
                               ),
                             ),

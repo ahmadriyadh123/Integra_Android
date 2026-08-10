@@ -87,7 +87,7 @@ class HomeQuickMenu extends StatelessWidget {
         title: 'Tagihan',
         icon: Icons.receipt_long_rounded,
         color: const Color(0xFFF97316),
-        destination: const TagihanPage(),
+        destination: TagihanPage(authToken: authToken),
       ),
       QuickMenuItem(
         title: 'E-Rapor',

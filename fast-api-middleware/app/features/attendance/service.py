@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.features.attendance.repository import AttendanceRepository
 
 class AttendanceService:
@@ -13,27 +13,27 @@ class AttendanceService:
             return val
         return fallback
     
-    def get_student_history(self, uid: int, password: str, student_id: int = None, limit: int = 100) -> List[Dict[str, Any]]:
-            raw_records = self.repo.get_attendance_history(uid=uid, password=password, student_id=student_id, limit=limit)
+    def get_student_history(self, uid: int, password: str, student_id: Optional[int] = None, student_name: str = "Siswa", limit: int = 100) -> List[Dict[str, Any]]:
+        raw_records = self.repo.get_attendance_history(uid=uid, password=password, student_id=student_id, limit=limit)
+        
+        cleaned_data = []
+        for item in raw_records:
+            attendance_date = item.get("attendance_date")
+            cleaned_data.append({
+                "id": item.get("id"),
+                "student_name": self._parse_many2one(item.get("student_id"), student_name),
+                "course_name": self._parse_many2one(item.get("course_id"), "-"),
+                "batch_name": self._parse_many2one(item.get("batch_id"), "-"),
+                "attendance_date": str(attendance_date) if attendance_date else None,
+                "present": bool(item.get("present")),
+                "excused": bool(item.get("excused")),
+                "absent": bool(item.get("absent")),
+                "sick": bool(item.get("sick")),
+                "status": str(item.get("status") or ""),
+                "remark": str(item.get("remark") or "-"),
+            })
             
-            cleaned_data = []
-            for item in raw_records:
-                attendance_date = item.get("attendance_date")
-                cleaned_data.append({
-                    "id": item.get("id"),
-                    "student_name": student_name,
-                    "course_name": self._parse_many2one(item.get("course_id"), "-"),
-                    "batch_name": self._parse_many2one(item.get("batch_id"), "-"),
-                    "attendance_date": str(attendance_date) if attendance_date else None,
-                    "present": bool(item.get("present")),
-                    "excused": bool(item.get("excused")),
-                    "absent": bool(item.get("absent")),
-                    "sick": bool(item.get("sick")),
-                    "status": str(item.get("status") or ""),
-                    "remark": str(item.get("remark") or "-"),
-                })
-                
-            return cleaned_data
+        return cleaned_data
 
     def get_student_summary(self, user_id: int) -> Dict[str, Any]:
         records = self.repo.get_attendance_history(uid=user_id, password="", limit=365)

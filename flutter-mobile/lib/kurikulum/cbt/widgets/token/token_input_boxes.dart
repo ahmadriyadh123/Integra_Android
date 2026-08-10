@@ -14,7 +14,7 @@ class TokenInputBoxes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF0284C7);
+    const Color primaryColor = Color(0xFF059669);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

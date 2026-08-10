@@ -21,14 +21,16 @@ def get_academic_calendars(
         repo = CalendarRepository(odoo_client)
         service = CalendarService(repo)
 
+        jenjang = creds.get("jenjang", "sd")
         data = service.get_calendars_list(
             uid=creds["uid"],
-            password=creds["password"]
+            password=creds["password"],
+            jenjang=jenjang
         )
 
         return APIResponseCalendar(
             success=True,
-            message="Berhasil mengambil data kalender akademik SD",
+            message=f"Berhasil mengambil data kalender akademik {jenjang.upper()}",
             data=data
         )
     except Exception as e:
