@@ -5,6 +5,7 @@ import '../viewmodel/attendance_viewmodel.dart';
 import '../widgets/attendance_header.dart';
 import '../widgets/attendance_heatmap_card.dart';
 import '../widgets/attendance_list_card.dart';
+import '../widgets/attendance_summary_section.dart';
 
 class AttendanceView extends StatefulWidget {
   final String authToken;
@@ -20,13 +21,21 @@ class AttendanceView extends StatefulWidget {
 
 class _AttendanceViewState extends State<AttendanceView> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<AttendanceViewModel>();
+      vm.fetchAttendance(widget.authToken);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Consumer<AttendanceViewModel>(
           builder: (context, viewModel, _) {
-            // 1. Handling State Loading
             if (viewModel.isLoading) {
               return const Center(
                 child: CircularProgressIndicator(
@@ -35,7 +44,6 @@ class _AttendanceViewState extends State<AttendanceView> {
               );
             }
 
-            // 2. Handling State Error
             if (viewModel.errorMessage != null) {
               return Center(
                 child: Padding(
@@ -78,47 +86,64 @@ class _AttendanceViewState extends State<AttendanceView> {
               );
             }
 
-            // 3. Handling Tampilan Data Berhasil Ditarik
             return RefreshIndicator(
               color: const Color(0xFF0284C7),
               onRefresh: () => viewModel.fetchAttendance(widget.authToken),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header dengan Dropdown Bulan & Tombol Back
+                    // 1. Header & Selector
                     AttendanceHeader(
                       showBackButton: Navigator.canPop(context),
                       activeMonthLabel: viewModel.activeMonthLabel,
                       availableMonths: viewModel.availableMonths,
                       onMonthChanged: viewModel.setActiveMonth,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Heatmap Presensi Bulanan
+                    // 2. Summary Section
+                    AttendanceSummarySection(
+                      totalPresent: viewModel.totalPresent,
+                      totalSick: viewModel.totalSick,
+                      totalPermit: viewModel.totalPermit,
+                      totalAlpha: viewModel.totalAlpha,
+                      percentage: viewModel.attendancePercentage,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 3. Heatmap Visual
+                    const Text(
+                      'KALENDER PRESENSI',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     AttendanceHeatmapCard(
                       totalDays: viewModel.filteredRecords.length,
                       heatmapCells: viewModel.generateHeatmapCells(),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                    // Daftar Riwayat Presensi Mingguan
+                    // 4. Detailed History
+                    const Text(
+                      'RIWAYAT DETAIL',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     if (viewModel.filteredRecords.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40.0),
-                          child: Text(
-                            'Belum ada data presensi pada bulan ini.',
-                            style: TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      )
+                      _buildEmptyState()
                     else
                       AttendanceListCard(
                         sortedWeekStarts: viewModel.sortedWeekStarts,
@@ -127,12 +152,39 @@ class _AttendanceViewState extends State<AttendanceView> {
                         getWeekdayName: viewModel.getWeekdayName,
                         activeMonthLabel: viewModel.activeMonthLabel,
                       ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.event_busy_rounded, size: 48, color: Color(0xFFCBD5E1)),
+          SizedBox(height: 12),
+          Text(
+            'Belum ada data presensi.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

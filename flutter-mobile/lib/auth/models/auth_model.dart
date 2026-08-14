@@ -4,6 +4,8 @@ class UserProfile {
   final String name;
   final String username;
   final String email;
+  final String className;
+  final String jenjang;
 
   UserProfile({
     required this.userId,
@@ -11,6 +13,8 @@ class UserProfile {
     required this.name,
     required this.username,
     required this.email,
+    this.className = '',
+    this.jenjang = 'sd',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,8 @@ class UserProfile {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       email: json['email'] as String? ?? '',
+      className: json['class_name'] as String? ?? '',
+      jenjang: json['jenjang'] as String? ?? 'sd',
     );
   }
 }

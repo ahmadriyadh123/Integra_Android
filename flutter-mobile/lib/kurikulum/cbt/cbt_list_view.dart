@@ -6,6 +6,7 @@ import 'widgets/cbt/cbt_header_card.dart';
 import 'widgets/cbt/cbt_filter_tabs.dart';
 import 'widgets/cbt/cbt_exam_card.dart';
 import 'viewmodel/cbt_viewmodel.dart';
+import 'verifikasi_token_view.dart';
 
 class CbtListView extends StatefulWidget {
   const CbtListView({super.key});
@@ -116,7 +117,17 @@ class _CbtListViewState extends State<CbtListView> {
                     questionCount: int.tryParse(questionCount.toString()) ?? 0,
                     status: status.toString(),
                     onActionTap: () {
-                      // TODO: navigasi ke halaman detail/ujian
+                      final token = Provider.of<AuthViewModel>(context, listen: false).token;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => VerifikasiTokenView(
+                            subject: subject.toString(),
+                            jadwalId: exam['id'] as int? ?? 0,
+                            authToken: token,
+                          ),
+                        ),
+                      );
                     },
                   );
                 },

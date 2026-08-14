@@ -13,6 +13,22 @@ class ProfilTab extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color backgroundSlate = Color(0xFFF8FAFC);
 
+    final user = context.watch<AuthViewModel>().user;
+
+    final String name = user?.name.isNotEmpty == true
+        ? user!.name
+        : user?.username ?? '-';
+
+    final String className = user?.className.isNotEmpty == true
+        ? user!.className
+        : '-';
+
+    final String email = user?.email.isNotEmpty == true
+        ? user!.email
+        : '-';
+
+    final String username = user?.username ?? '-';
+
     return Scaffold(
       backgroundColor: backgroundSlate,
       body: SingleChildScrollView(
@@ -22,11 +38,10 @@ class ProfilTab extends StatelessWidget {
           children: [
             const SizedBox(height: 12),
             ProfileHeaderCard(
-              name: 'Siswa 2',
-              className: 'Kelas 1 SD',
-              rombel: '1A',
-              imageUrl:
-                  'https://images.unsplash.com/photo-1597524678053-5e6fef52d8a3?auto=format&fit=crop&q=80&w=150',
+              name: name,
+              className: className,
+              rombel: '',
+              imageUrl: '',
               onEditTap: () {},
             ),
             const SizedBox(height: 24),
@@ -34,53 +49,27 @@ class ProfilTab extends StatelessWidget {
             // Seksi 1: Data Akademik
             const ProfileSectionLabel(title: 'DATA AKADEMIK'),
             const SizedBox(height: 8),
-            const ProfileSectionCard(
+            ProfileSectionCard(
               children: [
                 ProfileRowItem(
                   icon: Icons.perm_identity_rounded,
                   label: 'Nama Lengkap',
-                  value: 'Siswa 2',
+                  value: name,
                 ),
                 ProfileRowItem(
-                  icon: Icons.badge_outlined,
-                  label: 'NIS',
-                  value: '123',
-                ),
-                ProfileRowItem(
-                  icon: Icons.badge_rounded,
-                  label: 'NISN',
-                  value: '3098172635',
+                  icon: Icons.alternate_email_rounded,
+                  label: 'Username',
+                  value: username,
                 ),
                 ProfileRowItem(
                   icon: Icons.class_outlined,
                   label: 'Kelas',
-                  value: 'Kelas 1 SD',
+                  value: className,
                 ),
                 ProfileRowItem(
-                  icon: Icons.group_work_outlined,
-                  label: 'Rombel',
-                  value: '1A',
-                  showDivider: false,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Seksi 2: Data Pribadi
-            const ProfileSectionLabel(title: 'DATA PRIBADI'),
-            const SizedBox(height: 8),
-            const ProfileSectionCard(
-              children: [
-                ProfileRowItem(
-                  icon: Icons.place_outlined,
-                  label: 'Tempat, Tanggal Lahir',
-                  value: 'Tangerang, 01-01-2015',
-                ),
-                ProfileRowItem(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Umur',
-                  value: '11y 2m 15d',
+                  icon: Icons.email_outlined,
+                  label: 'Email',
+                  value: email,
                   showDivider: false,
                 ),
               ],
@@ -89,9 +78,7 @@ class ProfilTab extends StatelessWidget {
             const SizedBox(height: 32),
             ProfileLogoutButton(
               onLogoutTap: () {
-                // Bersihkan state auth di ViewModel
                 context.read<AuthViewModel>().logout();
-                // Arahkan ke LoginView dan hapus semua route sebelumnya
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginView()),
                   (route) => false,

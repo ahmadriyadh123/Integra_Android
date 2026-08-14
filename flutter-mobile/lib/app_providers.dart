@@ -20,14 +20,26 @@ import 'elearning/repositories/elearning_repository.dart';
 import 'elearning/viewmodel/elearning_viewmodel.dart';
 import 'elearning/local/elearning_local_storage.dart';
 
-import 'kurikulum/cbt/services/cbt_service.dart';
-import 'kurikulum/cbt/repositories/cbt_repository.dart';
-import 'kurikulum/cbt/viewmodel/cbt_viewmodel.dart';
-
 import 'tagihan/services/tagihan_service.dart';
 import 'tagihan/local/tagihan_local_storage.dart';
 import 'tagihan/repositories/tagihan_repository.dart';
 import 'tagihan/viewmodel/tagihan_viewmodel.dart';
+
+import 'kurikulum/weekly_plan/services/weekly_plan_service.dart';
+import 'kurikulum/weekly_plan/repositories/weekly_plan_repository.dart';
+import 'kurikulum/weekly_plan/viewmodel/weekly_plan_viewmodel.dart';
+
+import 'kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
+import 'kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
+import 'kurikulum/buku-komunikasi/viewmodel/buku_komunikasi_viewmodel.dart';
+
+import 'e-rapor/services/rapor_service.dart';
+import 'e-rapor/repositories/rapor_repository.dart';
+import 'e-rapor/viewmodel/rapor_viewmodel.dart';
+
+import 'kurikulum/cbt/services/cbt_service.dart';
+import 'kurikulum/cbt/repositories/cbt_repository.dart';
+import 'kurikulum/cbt/viewmodel/cbt_viewmodel.dart';
 
 /// Mengembalikan daftar semua provider yang digunakan dalam aplikasi.
 /// Memisahkan logika ini dari main.dart menjaga agar struktur kode main.dart tetap bersih dan terorganisir.
@@ -142,6 +154,52 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
       ),
       update: (_, repo, previous) =>
           previous ?? TagihanViewModel(repository: repo),
+    ),
+    // --- Weekly Plan ---
+    Provider<WeeklyPlanService>(
+      create: (_) => WeeklyPlanService(baseUrl: baseUrl),
+    ),
+    ProxyProvider<WeeklyPlanService, WeeklyPlanRepository>(
+      update: (_, service, __) =>
+          WeeklyPlanRepository(apiService: service),
+    ),
+    ChangeNotifierProxyProvider<WeeklyPlanRepository, WeeklyPlanViewModel>(
+      create: (context) => WeeklyPlanViewModel(
+        repository:
+            Provider.of<WeeklyPlanRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? WeeklyPlanViewModel(repository: repo),
+    ),
+
+    // --- Buku Komunikasi ---
+    Provider<BukuKomunikasiService>(
+      create: (_) => BukuKomunikasiService(baseUrl: baseUrl),
+    ),
+    ProxyProvider<BukuKomunikasiService, BukuKomunikasiRepository>(
+      update: (_, service, __) => BukuKomunikasiRepository(apiService: service),
+    ),
+    ChangeNotifierProxyProvider<BukuKomunikasiRepository, BukuKomunikasiViewModel>(
+      create: (context) => BukuKomunikasiViewModel(
+        repository: Provider.of<BukuKomunikasiRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? BukuKomunikasiViewModel(repository: repo),
+    ),
+
+    // --- E-Rapor ---
+    Provider<RaporService>(
+      create: (_) => RaporService(baseUrl: baseUrl),
+    ),
+    ProxyProvider<RaporService, RaporRepository>(
+      update: (_, service, __) => RaporRepository(apiService: service),
+    ),
+    ChangeNotifierProxyProvider<RaporRepository, RaporViewModel>(
+      create: (context) => RaporViewModel(
+        repository: Provider.of<RaporRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? RaporViewModel(repository: repo),
     ),
   ];
 }

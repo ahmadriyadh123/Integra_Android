@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 class HomeHeader extends StatelessWidget {
   final String studentName;
   final String className;
-  final String avatarUrl;
   final VoidCallback onNotificationTap;
 
   const HomeHeader({
     super.key,
     required this.studentName,
     required this.className,
-    required this.avatarUrl,
     required this.onNotificationTap,
   });
 
@@ -18,6 +16,14 @@ class HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color primaryTeal = Color(0xFF059669);
     const Color darkSlate = Color(0xFF0F172A);
+
+    // Ambil inisial dari nama (maks 2 huruf)
+    final parts = studentName.trim().split(' ');
+    final initials = parts.length >= 2
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : studentName.isNotEmpty
+            ? studentName[0].toUpperCase()
+            : '?';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -31,20 +37,16 @@ class HomeHeader extends StatelessWidget {
         children: [
           Row(
             children: [
+              // Avatar inisial — tidak butuh URL gambar
               CircleAvatar(
                 radius: 26,
                 backgroundColor: const Color(0xFFECFDF5),
-                child: ClipOval(
-                  child: Image.network(
-                    avatarUrl,
-                    fit: BoxFit.cover,
-                    width: 52,
-                    height: 52,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.person_rounded,
-                      size: 30,
-                      color: primaryTeal,
-                    ),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: primaryTeal,
                   ),
                 ),
               ),
@@ -69,15 +71,17 @@ class HomeHeader extends StatelessWidget {
                       color: darkSlate,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    className,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: primaryTeal,
-                      fontWeight: FontWeight.w700,
+                  if (className.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      className,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: primaryTeal,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],

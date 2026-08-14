@@ -38,7 +38,7 @@ class _SplashScreenState extends State {
             // Bebas mengatur ukuran logo tanpa batasan circle mask
             Image.asset(
               'assets/logo_integra.png',
-              width: 250, // Bebas atur ukuran piksel
+              width: 100, // Bebas atur ukuran piksel
             ),
             const SizedBox(height: 24),
             const CircularProgressIndicator(

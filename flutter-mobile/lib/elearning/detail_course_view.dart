@@ -252,6 +252,10 @@ class _DetailCourseViewState extends State<DetailCourseView> {
               children: [
                 CourseHeaderBanner(
                   title: detail.title,
+                  subtitle: detail.description.isNotEmpty
+                      ? detail.description
+                      : null,
+                  durasiMenit: detail.totalSlides,
                   onBackTap: () => Navigator.pop(context),
                   onPlayTap: () => _openUrl(firstSlide?.downloadUrl),
                 ),

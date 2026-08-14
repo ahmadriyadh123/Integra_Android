@@ -42,17 +42,16 @@ class ProfileHeaderCard extends StatelessWidget {
                 radius: 52,
                 backgroundColor: const Color(0xFFECFDF5),
                 child: ClipOval(
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    width: 104,
-                    height: 104,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.person_rounded,
-                      size: 60,
-                      color: primaryTeal,
-                    ),
-                  ),
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          width: 104,
+                          height: 104,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildInitialAvatar(name, primaryTeal),
+                        )
+                      : _buildInitialAvatar(name, primaryTeal),
                 ),
               ),
             ),
@@ -93,7 +92,7 @@ class ProfileHeaderCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '$className • Rombel $rombel',
+              rombel.isNotEmpty ? '$className • Rombel $rombel' : className,
               style: const TextStyle(
                 color: textSlate,
                 fontSize: 13,
@@ -121,6 +120,30 @@ class ProfileHeaderCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildInitialAvatar(String name, Color color) {
+    final parts = name.trim().split(' ');
+    final initials = parts.length >= 2
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : name.isNotEmpty
+            ? name[0].toUpperCase()
+            : '?';
+    return Container(
+      width: 104,
+      height: 104,
+      color: const Color(0xFFECFDF5),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 }

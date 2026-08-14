@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../auth/viewmodel/auth_viewmodel.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_quick_menu.dart';
 import 'widgets/home_announcement_card.dart';
@@ -20,6 +22,16 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthViewModel>().user;
+
+    final String studentName = user?.name.isNotEmpty == true
+        ? user!.name
+        : user?.username ?? 'Siswa';
+
+    final String className = user?.className.isNotEmpty == true
+        ? user!.className
+        : '';
+
     return Scaffold(
       backgroundColor: backgroundSlate,
       body: SafeArea(
@@ -28,11 +40,9 @@ class HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               HomeHeader(
-                studentName: 'Siswa 2',
-                className: 'Kelas 1 SD • Rombel 1A',
-                avatarUrl: 'https://images.unsplash.com/photo-1597524678053-5e6fef52d8a3?auto=format&fit=crop&q=80&w=150',
+                studentName: studentName,
+                className: className,
                 onNotificationTap: () {},
-                
               ),
               Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -78,7 +88,6 @@ class HomeView extends StatelessWidget {
                       date: '28 Jul 2026',
                       description: 'Diberitahukan kepada seluruh siswa agar mempersiapkan perangkat CBT dan memeriksa kembali tagihan administrasi.',
                       onTap: () {},
-                      
                     ),
                     const SizedBox(height: 24),
                   ],

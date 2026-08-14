@@ -1,378 +1,160 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import 'viewmodel/weekly_plan_viewmodel.dart';
+
 class WeeklyPlanDetailScreen extends StatefulWidget {
-  const WeeklyPlanDetailScreen({super.key});
+  final int planId;
+  final String title;
+  final String authToken;
+
+  const WeeklyPlanDetailScreen({
+    super.key,
+    required this.planId,
+    required this.title,
+    required this.authToken,
+  });
 
   @override
-  State<WeeklyPlanDetailScreen> createState() => _WeeklyPlanDetailScreenState();
+  State<WeeklyPlanDetailScreen> createState() =>
+      _WeeklyPlanDetailScreenState();
 }
 
 class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
-  late PdfViewerController _pdfViewerController;
-  int currentPage = 1;
-  int pageCount = 0;
-  double zoom = 1.0;
+  static const Color primaryTeal = Color(0xFF059669);
+  static const Color darkSlate   = Color(0xFF0F172A);
+  static const Color bgSlate     = Color(0xFFF8FAFC);
+  static const Color borderColor = Color(0xFFE2E8F0);
+
+  late final String _pdfUrl;
+  final PdfViewerController _pdfController = PdfViewerController();
+
+  bool _isError = false;
+  String _errorMsg = '';
 
   @override
   void initState() {
     super.initState();
-    _pdfViewerController = PdfViewerController();
+    // Bangun URL PDF dari ViewModel — tidak perlu fetch JSON
+    final vm = context.read<WeeklyPlanViewModel>();
+    _pdfUrl = vm.getPdfUrl(widget.planId);
   }
 
   @override
   void dispose() {
-    _pdfViewerController.dispose();
+    _pdfController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: bgSlate,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.5,
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.black87,
-            size: 20,
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: darkSlate, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'DETAIL WEEKLY PLAN',
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            letterSpacing: 0.8,
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            color: darkSlate,
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                color: primaryTeal, size: 22),
+            tooltip: 'Muat Ulang',
+            onPressed: () {
+              setState(() {
+                _isError = false;
+                _errorMsg = '';
+              });
+            },
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: borderColor, height: 1),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+      body: _isError ? _buildError() : _buildPdfViewer(),
+    );
+  }
+
+  Widget _buildPdfViewer() {
+    return SfPdfViewer.network(
+      _pdfUrl,
+      headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      controller: _pdfController,
+      onDocumentLoadFailed: (details) {
+        setState(() {
+          _isError = true;
+          _errorMsg = details.description.isNotEmpty
+              ? details.description
+              : 'File PDF tidak dapat dimuat. Pastikan file sudah diupload oleh admin.';
+        });
+      },
+      canShowScrollHead: true,
+      canShowScrollStatus: true,
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Detail Card Table
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200, width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8.0,
-                  horizontal: 16.0,
-                ),
-                child: Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(1.2),
-                    1: FlexColumnWidth(2.0),
-                  },
-                  // Use light, modern dividers instead of hard border
-                  border: TableBorder(
-                    horizontalInside: BorderSide(
-                      color: Colors.grey.shade100,
-                      width: 1.0,
-                    ),
-                  ),
-                  children: [
-                    _buildDetailRow(
-                      context,
-                      icon: Icons.school_rounded,
-                      label: 'Kelas',
-                      value: 'Kelas 1 SD',
-                    ),
-                    _buildDetailRow(
-                      context,
-                      icon: Icons.view_module_rounded,
-                      label: 'Semester',
-                      valueWidget: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.green.shade100,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          'Semester 1',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                      ),
-                    ),
-                    _buildDetailRow(
-                      context,
-                      icon: Icons.calendar_month_rounded,
-                      label: 'Tahun Ajaran',
-                      value: '2025/2026',
-                    ),
-                  ],
-                ),
-              ),
+            const Icon(Icons.picture_as_pdf_rounded,
+                size: 56, color: Color(0xFFCBD5E1)),
+            const SizedBox(height: 16),
+            const Text(
+              'Gagal Memuat PDF',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: darkSlate),
             ),
-
-            const SizedBox(height: 32),
-            // PDF Toolbar & Viewer Card
-            Container(
-              height: 550,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200, width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Column(
-                  children: [
-                    // PDF Toolbar
-                    Container(
-                      color: Colors.grey.shade900,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // File name
-                          const Expanded(
-                            child: Text(
-                              'WeeklyPlan_Kelas_1_SD.pdf',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          // Pagination Controls
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.chevron_left_rounded,
-                                  color: Colors.white,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: currentPage > 1
-                                    ? () => _pdfViewerController.previousPage()
-                                    : null,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$currentPage/${pageCount == 0 ? '--' : pageCount}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: Colors.white,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: currentPage < pageCount
-                                    ? () => _pdfViewerController.nextPage()
-                                    : null,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 6),
-                          // Zoom & Download Controls
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove_circle_outline_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: zoom > 1.0
-                                    ? () {
-                                        setState(() {
-                                          double newZoom =
-                                              (_pdfViewerController.zoomLevel -
-                                                      0.25)
-                                                  .clamp(1.0, 3.0);
-                                          _pdfViewerController.zoomLevel =
-                                              newZoom;
-                                          zoom = newZoom;
-                                        });
-                                      }
-                                    : null,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${(zoom * 100).toInt()}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.add_circle_outline_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: zoom < 3.0
-                                    ? () {
-                                        setState(() {
-                                          double newZoom =
-                                              (_pdfViewerController.zoomLevel +
-                                                      0.25)
-                                                  .clamp(1.0, 3.0);
-                                          _pdfViewerController.zoomLevel =
-                                              newZoom;
-                                          zoom = newZoom;
-                                        });
-                                      }
-                                    : null,
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.download_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Mengunduh PDF...'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // PDF Viewer Area (using SfPdfViewer)
-                    Expanded(
-                      child: SfPdfViewer.asset(
-                        'assets/WeeklyPlan_Kelas_1_SD.pdf',
-                        controller: _pdfViewerController,
-                        onPageChanged: (PdfPageChangedDetails details) {
-                          setState(() {
-                            currentPage = details.newPageNumber;
-                          });
-                        },
-                        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-                          setState(() {
-                            pageCount = _pdfViewerController.pageCount;
-                          });
-                        },
-                        onZoomLevelChanged: (PdfZoomDetails details) {
-                          setState(() {
-                            zoom = details.newZoomLevel;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMsg.isNotEmpty
+                  ? _errorMsg
+                  : 'File PDF belum tersedia untuk Weekly Plan ini.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF475569)),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => setState(() {
+                _isError = false;
+                _errorMsg = '';
+              }),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Coba Lagi'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryTeal,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  TableRow _buildDetailRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    String? value,
-    Widget? valueWidget,
-  }) {
-    return TableRow(
-      children: [
-        // Label Side
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: Colors.teal.shade600),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Value Side
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child:
-                valueWidget ??
-                Text(
-                  value ?? '',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                ),
-          ),
-        ),
-      ],
     );
   }
 }

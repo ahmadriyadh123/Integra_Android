@@ -5,10 +5,14 @@ import 'widgets/token/token_status_info.dart';
 
 class VerifikasiTokenView extends StatefulWidget {
   final String subject;
+  final int jadwalId;
+  final String authToken;
 
   const VerifikasiTokenView({
     super.key,
-    this.subject = 'Matematika Wajib',
+    required this.subject,
+    required this.jadwalId,
+    required this.authToken,
   });
 
   @override

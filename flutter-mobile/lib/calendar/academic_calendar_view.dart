@@ -127,7 +127,6 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
   Widget _buildCalendarCard(CalendarItem item) {
     final bool hasLink = item.linkDokumen.isNotEmpty;
     final statusColor = _statusColor(item.status);
-    final statusLabel = _statusLabel(item.status);
 
     return Container(
       decoration: BoxDecoration(
@@ -154,7 +153,6 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Baris atas: tahun ajaran + badge status
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -176,23 +174,6 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
                       ),
                     ],
                   ),
-                  if (item.status.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 10),

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../kurikulum/weekly_plan/weekly_plan_view.dart';
 import '../../calendar/academic_calendar_view.dart';
 import '../../spmb/spmb_form_view.dart';
 import '../../tagihan/tagihan_view.dart';
 import '../../elearning/lesson_view.dart';
 import '../../kurikulum/cbt/cbt_list_view.dart';
-import '../../e-rapor/rapor_detail_view.dart';
+import '../../e-rapor/rapor_list_view.dart';
 import '../../kurikulum/buku-komunikasi/buku_komunikasi_view.dart';
 
 // Indeks tab bottom nav yang sudah ada
@@ -78,6 +79,12 @@ class HomeQuickMenu extends StatelessWidget {
         destination: const BukuKomunikasiPage(),
       ),
       QuickMenuItem(
+        title: 'Weekly Plan',
+        icon: Icons.event_note_rounded,
+        color: const Color(0xFF0891B2),
+        destination: WeeklyPlanScreen(authToken: authToken),
+      ),
+      QuickMenuItem(
         title: 'Kalender',
         icon: Icons.calendar_month_rounded,
         color: const Color(0xFFEF4444),
@@ -93,7 +100,7 @@ class HomeQuickMenu extends StatelessWidget {
         title: 'E-Rapor',
         icon: Icons.assignment_turned_in_rounded,
         color: const Color(0xFF14B8A6),
-        destination: const RaporDetailViewPage(),
+        destination: RaporListViewPage(authToken: authToken),
       ),
       QuickMenuItem(
         title: 'SPMB',

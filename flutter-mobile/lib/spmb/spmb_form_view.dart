@@ -248,8 +248,12 @@ class _SpmbFormScreenState extends State<SpmbFormScreen> {
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
-          'Pendaftaran Siswa Baru (SPMB)',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          'PENDAFTARAN SISWA BARU',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.5),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF0F172A), size: 18),
+          onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.teal.shade900,

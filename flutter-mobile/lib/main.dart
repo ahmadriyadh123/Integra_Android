@@ -6,7 +6,6 @@ import 'package:flutter_application_1/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'auth/view/login_view.dart';
 import 'app_providers.dart';
 
 void main() async {

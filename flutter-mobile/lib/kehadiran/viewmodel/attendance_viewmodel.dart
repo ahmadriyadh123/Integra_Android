@@ -48,7 +48,19 @@ class AttendanceViewModel extends ChangeNotifier {
 
   // --- Helper Metode UI ---
   List<AttendanceRecord> get filteredRecords {
+    // In production, this would filter by _activeMonthLabel
     return _allRecords;
+  }
+
+  // Statistics for Summary
+  int get totalPresent => filteredRecords.where((r) => r.hadir > 0).length;
+  int get totalSick => filteredRecords.where((r) => r.sakit > 0).length;
+  int get totalPermit => filteredRecords.where((r) => r.izin > 0).length;
+  int get totalAlpha => filteredRecords.where((r) => r.alpha > 0).length;
+  
+  double get attendancePercentage {
+    if (filteredRecords.isEmpty) return 0;
+    return (totalPresent / filteredRecords.length) * 100;
   }
 
   Map<DateTime, List<AttendanceRecord>> get groupedWeeks {
@@ -85,17 +97,30 @@ class AttendanceViewModel extends ChangeNotifier {
   }
 
   List<Widget> generateHeatmapCells() {
-    return List.generate(20, (index) {
+    // Mocking 31 days for a calendar-like view
+    return List.generate(31, (index) {
       final dayNum = index + 1;
-      Color cellBg = const Color(0xFFECFDF5);
-      Color textColor = const Color(0xFF059669);
+      
+      // Determine color based on record if available
+      Color cellBg = const Color(0xFFF1F5F9); // Default empty
+      Color textColor = const Color(0xFF64748B);
 
-      if (dayNum == 5) {
-        cellBg = const Color(0xFFFEF2F2);
-        textColor = const Color(0xFFDC2626);
-      } else if (dayNum == 12) {
-        cellBg = const Color(0xFFFEF3C7);
-        textColor = const Color(0xFFD97706);
+      // Simple mock logic for specific days matching records
+      if (dayNum <= filteredRecords.length) {
+        final record = filteredRecords[dayNum - 1];
+        if (record.alpha > 0) {
+          cellBg = const Color(0xFFFEF2F2);
+          textColor = const Color(0xFFDC2626);
+        } else if (record.sakit > 0) {
+          cellBg = const Color(0xFFF0F9FF);
+          textColor = const Color(0xFF0284C7);
+        } else if (record.izin > 0) {
+          cellBg = const Color(0xFFFEF3C7);
+          textColor = const Color(0xFFD97706);
+        } else {
+          cellBg = const Color(0xFFECFDF5);
+          textColor = const Color(0xFF059669);
+        }
       }
 
       return Container(

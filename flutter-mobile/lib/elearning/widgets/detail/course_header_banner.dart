@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 
 class CourseHeaderBanner extends StatelessWidget {
   final String title;
+  final String? subtitle;
+  final int? durasiMenit;
   final VoidCallback onBackTap;
   final VoidCallback onPlayTap;
 
   const CourseHeaderBanner({
     super.key,
     required this.title,
+    this.subtitle,
+    this.durasiMenit,
     required this.onBackTap,
     required this.onPlayTap,
   });
@@ -16,6 +20,10 @@ class CourseHeaderBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF059669);
     const Color secondaryColor = Color(0xFFF59E0B);
+
+    final String displayDurasi = durasiMenit != null
+        ? '$durasiMenit Materi'
+        : '';
 
     return Container(
       height: 280,
@@ -77,7 +85,8 @@ class CourseHeaderBanner extends StatelessWidget {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.play_arrow_rounded, color: primaryColor, size: 32),
+                      child: const Icon(Icons.play_arrow_rounded,
+                          color: primaryColor, size: 32),
                     ),
                   ),
                 ),
@@ -94,42 +103,57 @@ class CourseHeaderBanner extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: secondaryColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
+                      child: const Text(
+                        'E-Learning',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Row(
-                      children: [
-                        Icon(Icons.access_time, color: Colors.white70, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          '60 Menit Total',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ],
-                    ),
+                    if (displayDurasi.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.layers_outlined,
+                              color: Colors.white70, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            displayDurasi,
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Bab 2: Aturan Sinus & Cosinus',
-                  style: TextStyle(
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),

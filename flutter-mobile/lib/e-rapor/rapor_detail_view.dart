@@ -1,8 +1,28 @@
+// lib/rapor_detail_view.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'viewmodel/rapor_viewmodel.dart';
+import 'models/rapor_model.dart';
+import 'widgets/rapor_header_card.dart';
+import 'widgets/rapor_notes_card.dart';
+import 'widgets/rapor_subject_card.dart';
+import 'widgets/pdf_viewer_page.dart';
 
-class RaporDetailViewPage extends StatelessWidget {
-  const RaporDetailViewPage({super.key});
+class RaporDetailViewPage extends StatefulWidget {
+  final int raporId;
+  final String authToken;
 
+  const RaporDetailViewPage({
+    super.key,
+    required this.raporId,
+    required this.authToken,
+  });
+
+  @override
+  State<RaporDetailViewPage> createState() => _RaporDetailViewPageState();
+}
+
+class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
   static const Color primaryTeal = Color(0xFF059669);
   static const Color darkSlate = Color(0xFF0F172A);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
@@ -10,278 +30,198 @@ class RaporDetailViewPage extends StatelessWidget {
   static const Color borderSlate = Color(0xFFE2E8F0);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RaporViewModel>().fetchReportDetail(widget.authToken, widget.raporId);
+    });
+  }
+
+  void _openPdfPreview(String pdfUrl, String fileName) {
+    // Susun URL lengkap backend jika path bersifat relatif
+    final fullUrl = pdfUrl.startsWith('http')
+        ? pdfUrl
+        : 'https://domain-backend-anda.com$pdfUrl';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PdfViewerPage(
+          pdfUrl: fullUrl,
+          title: fileName,
+          authToken: widget.authToken,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final vm = context.watch<RaporViewModel>();
+    final detail = vm.currentDetail;
+
+    ReportCardHeader? header;
+    try {
+      header = vm.reports.firstWhere((r) => r.id == widget.raporId);
+    } catch (_) {}
+
+    final semesterText = header?.semester ?? 'Semester -';
+    final statusText = header?.decisionStatus ?? '-';
+    final pdfUrl = detail?.pdfUrl ?? header?.pdfUrl;
+    final fileName = detail?.fileName ?? header?.fileName ?? 'File Rapor.pdf';
+    final hasPdf = pdfUrl != null && pdfUrl.isNotEmpty;
+
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: _buildAppBar(context),
-      body: SingleChildScrollView(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'DETAIL E-RAPOR DIKNAS',
+          style: TextStyle(
+            color: darkSlate,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          if (hasPdf)
+            IconButton(
+              icon: const Icon(Icons.download_rounded, color: primaryTeal, size: 22),
+              onPressed: () => _openPdfPreview(pdfUrl, fileName),
+            ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: borderSlate, height: 1),
+        ),
+      ),
+      body: vm.isLoading && detail == null
+          ? const Center(child: CircularProgressIndicator())
+          : vm.errorMessage != null && detail == null
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            vm.errorMessage!,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      )
+          : detail == null
+          ? const Center(
+        child: Text('Detail rapor tidak ditemukan.'),
+      )
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildMetadataCard(),
+            RaporHeaderCard(
+              studentName: detail.studentName,
+              semester: semesterText,
+              averageScore: detail.averageScore.toStringAsFixed(1),
+            ),
             const SizedBox(height: 16),
-            _buildPdfViewerSimulation(),
+            if (hasPdf) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderSlate),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            fileName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: darkSlate,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const Text(
+                            'Dokumen Resmi E-Rapor',
+                            style: TextStyle(fontSize: 10, color: textSlate),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _openPdfPreview(pdfUrl, fileName),
+                      icon: const Icon(Icons.download, size: 16, color: primaryTeal),
+                      label: const Text(
+                        'Unduh',
+                        style: TextStyle(color: primaryTeal, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            RaporNotesCard(
+              teacherNotes: detail.teacherNotes,
+              statusText: statusText,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'RINCIAN NILAI MATA PELAJARAN',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: textSlate,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (detail.subjects.isNotEmpty)
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: detail.subjects.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final subject = detail.subjects[index];
+                  return RaporSubjectCard(
+                    subjectName: subject.subjectName,
+                    teacherName: 'Mata Pelajaran Wajib',
+                    knowledgeScore: subject.nilaiPengetahuan.toInt(),
+                    skillScore: subject.nilaiKeterampilan.toInt(),
+                    predicate: subject.predicate,
+                  );
+                },
+              )
+            else
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Text(
+                    'Belum ada rincian mata pelajaran.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
             const SizedBox(height: 24),
           ],
         ),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: const Text(
-        'DETAIL E-RAPOR DIKNAS',
-        style: TextStyle(color: darkSlate, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.download_rounded, color: primaryTeal, size: 22),
-          onPressed: () {},
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(color: borderSlate, height: 1),
-      ),
-    );
-  }
-
-  Widget _buildMetadataCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderSlate),
-      ),
-      child: Column(
-        children: [
-          _buildMetaRow(Icons.person, 'Nama Siswa', 'John Doe (12A)'),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          _buildMetaRow(Icons.school, 'Kelas', 'Kelas 1 SD'),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          _buildMetaRow(Icons.description, 'Semester', 'Semester 1', badgeColor: const Color(0xFFEFF6FF), badgeTextColor: const Color(0xFF1E40AF)),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          _buildMetaRow(Icons.calendar_today, 'Tahun Ajaran', '2025/2026'),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          _buildMetaRow(Icons.verified_user, 'Status Dokumen', 'Telah Ditandatangani', badgeColor: const Color(0xFFECFDF5), badgeTextColor: primaryTeal),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetaRow(IconData icon, String label, String value, {Color? badgeColor, Color? badgeTextColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: primaryTeal),
-              const SizedBox(width: 10),
-              Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textSlate)),
-            ],
-          ),
-          if (badgeColor != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(20)),
-              child: Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: badgeTextColor)),
-            )
-          else
-            Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: darkSlate)),
-        ],
-      ),
-    );
-  }
-
-  // Simulasi UI PDF Viewer dengan Toolbar
-  Widget _buildPdfViewerSimulation() {
-    return Container(
-      height: 480,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderSlate),
-        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4))],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Toolbar Dark
-          Container(
-            color: const Color(0xFF1E293B),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Flexible(
-                  child: Text(
-                    'Rapor_Sem1_JohnDoe.pdf',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.chevron_left, color: Colors.white54, size: 18),
-                    const Text('1/4', style: TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.w700)),
-                    const Icon(Icons.chevron_right, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    const Text('100%', style: TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace')),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.download, color: Color(0xFFA7F3D0), size: 16),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Canvas Dokumen Kertas
-          Expanded(
-            child: Container(
-              color: const Color(0xFF020617),
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 15)],
-                  ),
-                  child: Column(
-                    children: [
-                      // Kop Surat
-                      const Text('KEMENTERIAN PENDIDIKAN DAN KEBUDAYAAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                      const Text('SD NEGERI 1 JAKARTA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-                      const Text('Jl. Pendidikan No. 10, Jakarta Selatan • NPSN: 20109281', style: TextStyle(fontSize: 8, color: textSlate)),
-                      const Divider(color: darkSlate, thickness: 1.5, height: 16),
-                      const Text('LAPORAN HASIL BELAJAR (RAPOR)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, decoration: TextDecoration.underline)),
-                      const SizedBox(height: 12),
-                      
-                      // Biodata Grid
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: backgroundSlate, borderRadius: BorderRadius.circular(4)),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Nama : John Doe', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                              Text('NISN : 0039281726', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                            ]),
-                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Kelas    : 1 SD - A', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                              Text('Semester : 1 (Ganjil)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                            ]),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Tabel Nilai
-                      Table(
-                        border: TableBorder.all(color: const Color(0xFFCBD5E1), width: 0.5),
-                        columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(4), 2: FlexColumnWidth(1.5), 3: FlexColumnWidth(1.5)},
-                        children: [
-                          TableRow(
-                            decoration: const BoxDecoration(color: Color(0xFF1E293B)),
-                            children: [
-                              _buildTableCell('No', isHeader: true, align: TextAlign.center),
-                              _buildTableCell('Mata Pelajaran', isHeader: true),
-                              _buildTableCell('Nilai', isHeader: true, align: TextAlign.center),
-                              _buildTableCell('Predikat', isHeader: true, align: TextAlign.center),
-                            ],
-                          ),
-                          _buildTableRow('1', 'Pendidikan Agama', '88', 'A', isGreen: true),
-                          _buildTableRow('2', 'Pendidikan Pancasila', '85', 'A', isGreen: true, isEven: true),
-                          _buildTableRow('3', 'Bahasa Indonesia', '86', 'B+', isGreen: false),
-                          _buildTableRow('4', 'Matematika Wajib', '82', 'B', isGreen: false, isEven: true),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Catatan Wali Kelas
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: const Color(0xFFFFFBEB), border: Border.all(color: const Color(0xFFFDE68A)), borderRadius: BorderRadius.circular(4)),
-                        child: const Text(
-                          'Catatan Wali Kelas:\nAnanda John menunjukkan perkembangan yang sangat baik pada semester ini, khususnya dalam kepemimpinan dan rasa ingin tahu.',
-                          style: TextStyle(fontSize: 8, color: Color(0xFF92400E), height: 1.3),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Tanda Tangan Digital
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Column(
-                          children: [
-                            const Text('Jakarta, 20 Desember 2025\nWali Kelas 1A,', textAlign: TextAlign.center, style: TextStyle(fontSize: 8)),
-                            Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              width: 40, height: 30,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(border: Border.all(color: primaryTeal, style: BorderStyle.solid), borderRadius: BorderRadius.circular(4)),
-                              child: const Text('✔ TTD', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: primaryTeal)),
-                            ),
-                            const Text('Ibu Siska, S.Pd', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
-                            const Text('NIP. 198801202015032001', style: TextStyle(fontSize: 7, color: textSlate)),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTableCell(String text, {bool isHeader = false, TextAlign align = TextAlign.left}) {
-    return Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Text(
-        text,
-        textAlign: align,
-        style: TextStyle(
-          fontSize: 8,
-          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-          color: isHeader ? Colors.white : darkSlate,
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildTableRow(String no, String mapel, String nilai, String predikat, {required bool isGreen, bool isEven = false}) {
-    return TableRow(
-      decoration: BoxDecoration(color: isEven ? const Color(0xFFF8FAFC) : Colors.white),
-      children: [
-        _buildTableCell(no, align: TextAlign.center),
-        _buildTableCell(mapel),
-        _buildTableCell(nilai, align: TextAlign.center),
-        Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: Text(
-            predikat,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isGreen ? primaryTeal : const Color(0xFF2563EB)),
-          ),
-        ),
-      ],
     );
   }
 }

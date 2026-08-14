@@ -16,7 +16,7 @@ class ElearningHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 24),
+      padding: const EdgeInsets.only(top: 40, left: 8, right: 20, bottom: 24),
       decoration: const BoxDecoration(
         color: Color(0xFF059669),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
@@ -27,25 +27,33 @@ class ElearningHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(
-                    'Modul Pembelajaran',
-                    style: TextStyle(
-                      color: Color(0xFFA7F3D0),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'E-Learning Siswa',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Modul Pembelajaran',
+                        style: TextStyle(
+                          color: Color(0xFFA7F3D0),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'E-Learning Siswa',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -113,27 +121,30 @@ class ElearningHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextField(
+                onChanged: onSearchChanged,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(
+                  hintText: 'Cari mata pelajaran atau modul...',
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
                 ),
-              ],
-            ),
-            child: TextField(
-              onChanged: onSearchChanged,
-              style: const TextStyle(fontSize: 13),
-              decoration: const InputDecoration(
-                hintText: 'Cari mata pelajaran atau modul...',
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
-                prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),
