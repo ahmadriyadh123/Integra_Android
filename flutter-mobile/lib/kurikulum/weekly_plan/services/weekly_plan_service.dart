@@ -9,7 +9,7 @@ class WeeklyPlanService {
 
   Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
   /// Ambil daftar weekly plan milik siswa

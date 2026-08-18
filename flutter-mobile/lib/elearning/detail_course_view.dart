@@ -67,17 +67,31 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     super.dispose();
   }
 
-  // Buka URL — untuk PDF gunakan browser, SCORM tidak punya URL langsung
-  Future<void> _openUrl(String? url) async {
+  // Buka URL — untuk PDF gunakan browser, SCORM dibuka via player
+  Future<void> _openUrl(String? url, {bool isScorm = false}) async {
     if (url == null || url.isEmpty) {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
     }
 
+    final rawBaseUrl = _vm.repository.apiService.baseUrl;
+    final uriBase = Uri.parse(rawBaseUrl);
+    final middlewareHost = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
+
+    String fullUrl = url;
+    if (!url.startsWith('http')) {
+      fullUrl = url.startsWith('/') ? '$middlewareHost$url' : '$middlewareHost/$url';
+    } else if (url.contains('203.145.34.16:8069')) {
+      final path = Uri.parse(url).path;
+      final newPath = path.replaceAll('/web/content', '/api/v1/elearning/content');
+      fullUrl = '$middlewareHost$newPath';
+    }
+
+    final lowerUrl = fullUrl.toLowerCase();
+    final isZip = lowerUrl.endsWith('.zip') || lowerUrl.contains('.zip') || isScorm;
+
     // Tangani paket SCORM (zip) dengan membuka in-app WebView setelah ekstraksi
-    if (url.toLowerCase().endsWith('.zip')) {
-      // Susun URL lengkap jika relatif
-      final fullUrl = url.startsWith('http') ? url : 'https://domain-backend-anda.com$url';
+    if (isScorm || isZip) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -87,7 +101,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       return;
     }
 
-    final uri = Uri.parse(url);
+    final uri = Uri.parse(fullUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -278,7 +292,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                       : null,
                   durasiMenit: detail.totalSlides,
                   onBackTap: () => Navigator.pop(context),
-                  onPlayTap: () => _openUrl(firstSlide?.downloadUrl),
+                  onPlayTap: () => _openUrl(firstSlide?.downloadUrl, isScorm: firstSlide?.isScorm ?? false),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -410,7 +424,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                                     iconTextColor: style.iconColor,
                                     badgeText: style.badgeText,
                                     badgeColor: style.badgeColor,
-                                    onTap: () => _openUrl(slide.downloadUrl),
+                                    onTap: () => _openUrl(slide.downloadUrl, isScorm: slide.isScorm),
                                   ),
                                 );
                               }),
@@ -454,7 +468,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () => _openUrl(firstSlide?.downloadUrl),
+        onPressed: () => _openUrl(firstSlide?.downloadUrl, isScorm: firstSlide?.isScorm ?? false),
         style: ElevatedButton.styleFrom(
           backgroundColor: _green,
           padding: const EdgeInsets.symmetric(vertical: 14),

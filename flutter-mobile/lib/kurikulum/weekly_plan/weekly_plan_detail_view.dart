@@ -94,7 +94,7 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   Widget _buildPdfViewer() {
     return SfPdfViewer.network(
       _pdfUrl,
-      headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      headers: widget.authToken.isNotEmpty ? {'Authorization': 'Bearer \${widget.authToken}'} : <String, String>{},
       controller: _pdfController,
       onDocumentLoadFailed: (details) {
         setState(() {
@@ -157,3 +157,5 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
     );
   }
 }
+
+

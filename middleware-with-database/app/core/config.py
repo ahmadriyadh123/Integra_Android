@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # --- Odoo Config (jika diperlukan) ---
     ODOO_URL: str = "http://203.145.34.16:8069"
     ODOO_DB: str = "kp-sekolah.asetkoptii.com"
+    ODOO_FILESTORE_PATH: str = "/var/lib/odoo/.local/share/Odoo/filestore/kp-sekolah.asetkoptii.com"
 
     @property
     def DATABASE_URL(self) -> str:

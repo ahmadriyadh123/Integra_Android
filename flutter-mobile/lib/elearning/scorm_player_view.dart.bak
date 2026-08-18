@@ -1,0 +1,577 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+import '../widgets/shared_header.dart';
+
+class ScormPlayerView extends StatefulWidget {
+  final String scormUrl;
+  final String authToken;
+
+  const ScormPlayerView({
+    super.key,
+    required this.scormUrl,
+    this.authToken = '',
+  });
+
+  @override
+  State<ScormPlayerView> createState() => _ScormPlayerViewState();
+}
+
+class _ScormPlayerViewState extends State<ScormPlayerView> {
+  bool _isLoading = true;
+  String? _statusMessage;
+  String? _error;
+  String? _startUrl;
+  Directory? _extractDir;
+  WebViewController? _webController;
+  HttpServer? _server;
+  bool _isDisposed = false;
+
+  // In-memory store for SCORM data model (basic key/value)
+  final Map<String, String> _scormData = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareScorm();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    try {
+      _server?.close(force: true);
+    } catch (_) {}
+    try {
+      if (_extractDir != null && _extractDir!.existsSync()) {
+        _extractDir!.deleteSync(recursive: true);
+      }
+    } catch (_) {}
+    super.dispose();
+  }
+
+  Future<File> _downloadZipFile(Uri uri, String authToken) async {
+    final tempDir = await getTemporaryDirectory();
+    final zipFile = File(
+      '${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}.zip',
+    );
+
+    List<Uri> uriAttempts = [uri];
+    if (uri.port == 8069 || uri.host == '203.145.34.16') {
+      final path = uri.path.replaceAll('/web/content', '/api/v1/elearning/content');
+      final proxyUri = Uri.parse('http://10.0.2.2:8000$path');
+      uriAttempts.add(proxyUri);
+    }
+
+    Object? lastException;
+
+    for (final targetUri in uriAttempts) {
+      final isOdooWebDirect = targetUri.path.contains('/web/content/') || targetUri.port == 8069;
+
+      List<Map<String, String>> headerAttempts = [];
+      if (!isOdooWebDirect && authToken.isNotEmpty) {
+        headerAttempts.add({
+          'Authorization': 'Bearer $authToken',
+          'User-Agent': 'FlutterApp/1.0',
+        });
+      }
+      headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
+      if (isOdooWebDirect && authToken.isNotEmpty) {
+        headerAttempts.add({
+          'Authorization': 'Bearer $authToken',
+          'User-Agent': 'FlutterApp/1.0',
+        });
+      }
+
+      for (int attempt = 0; attempt < headerAttempts.length; attempt++) {
+        final headers = headerAttempts[attempt];
+        try {
+          print('[SCORM] Download attempt ${attempt + 1}/${headerAttempts.length} from $targetUri');
+          final client = http.Client();
+          try {
+            final request = http.Request('GET', targetUri);
+            request.headers.addAll(headers);
+
+            final streamedResponse = await client.send(request).timeout(
+              const Duration(seconds: 45),
+              onTimeout: () => throw TimeoutException('Waktu koneksi unduh habis (timeout)'),
+            );
+
+            if (streamedResponse.statusCode == 200) {
+              final sink = zipFile.openWrite();
+              await streamedResponse.stream.pipe(sink);
+              await sink.close();
+              print('[SCORM] Download completed successfully: ${zipFile.path}');
+              return zipFile;
+            } else {
+              print('[SCORM] Download HTTP status: ${streamedResponse.statusCode}');
+              lastException = Exception('Gagal mengunduh SCORM (Status HTTP: ${streamedResponse.statusCode})');
+            }
+          } finally {
+            client.close();
+          }
+        } catch (e) {
+          print('[SCORM] Download error: $e');
+          lastException = e;
+        }
+      }
+    }
+
+    final rawErr = lastException.toString();
+    if (rawErr.contains('Connection reset by peer') || rawErr.contains('SocketException')) {
+      throw Exception('Server Odoo (${uri.host}:${uri.port}) tidak dapat dijangkau dari jaringan ini. Pastikan koneksi internet aktif atau server proxy middleware sedang berjalan.');
+    }
+
+    throw lastException ?? Exception('Gagal mengunduh paket SCORM dari server');
+  }
+
+  Future<void> _prepareScorm() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _statusMessage = 'Mengunduh paket SCORM...';
+    });
+
+    File? zipFile;
+    try {
+      final uri = Uri.parse(widget.scormUrl);
+      print('[SCORM] starting download from: $uri');
+
+      zipFile = await _downloadZipFile(uri, widget.authToken);
+
+      if (_isDisposed) return;
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Mengekstrak berkas SCORM...';
+        });
+      }
+
+      final bytes = await zipFile.readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      print('[SCORM] zip decoded successfully with ${archive.length} entries');
+
+      final tempDir = await getTemporaryDirectory();
+      final extractDir = Directory(
+        '${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      if (!await extractDir.exists()) await extractDir.create(recursive: true);
+
+      for (final file in archive) {
+        final filename = file.name;
+        final outPath = '${extractDir.path}/$filename';
+        if (file.isFile) {
+          final outFile = File(outPath);
+          await outFile.parent.create(recursive: true);
+          await outFile.writeAsBytes(file.content as List<int>);
+        } else {
+          await Directory(outPath).create(recursive: true);
+        }
+      }
+      print('[SCORM] extraction finished at: ${extractDir.path}');
+
+      try {
+        if (await zipFile.exists()) await zipFile.delete();
+      } catch (_) {}
+
+      String? indexPath;
+      final allFiles = extractDir.listSync(recursive: true);
+      for (final f in allFiles) {
+        if (f is File) {
+          final lower = f.path.toLowerCase();
+          if (lower.endsWith('/index.html') || lower.endsWith('index.html')) {
+            indexPath = f.path;
+            break;
+          }
+        }
+      }
+
+      if (indexPath == null) {
+        for (final f in allFiles) {
+          if (f is File) {
+            final lower = f.path.toLowerCase();
+            if (lower.endsWith('.html')) {
+              indexPath = f.path;
+              break;
+            }
+          }
+        }
+      }
+
+      if (indexPath == null) {
+        throw Exception('Tidak menemukan file HTML di dalam paket SCORM');
+      }
+
+      print('[SCORM] chosen index.html: $indexPath');
+
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.autoCompress = true;
+      server.listen(
+        (HttpRequest request) async {
+          try {
+            final requestPath = Uri.decodeComponent(request.uri.path);
+
+            String relPath = requestPath;
+            while (relPath.startsWith('/')) {
+              relPath = relPath.substring(1);
+            }
+
+            if (relPath.isEmpty) {
+              final fallbackIndexPath = indexPath ?? '';
+              if (fallbackIndexPath.isNotEmpty) {
+                relPath = fallbackIndexPath
+                    .substring(extractDir.path.length)
+                    .replaceAll('\\', '/');
+                while (relPath.startsWith('/')) {
+                  relPath = relPath.substring(1);
+                }
+              }
+            }
+
+            final fileToServe = File(
+              '${extractDir.path}${Platform.pathSeparator}$relPath',
+            );
+
+            if (!await fileToServe.exists()) {
+              final alt = File(
+                '${extractDir.path}${Platform.pathSeparator}$relPath/index.html',
+              );
+              if (await alt.exists()) {
+                final bytes = await alt.readAsBytes();
+                request.response.headers.contentType = ContentType.html;
+                request.response.add(bytes);
+                await request.response.close();
+                return;
+              }
+
+              request.response.statusCode = HttpStatus.notFound;
+              await request.response.close();
+              return;
+            }
+
+            final ext = fileToServe.path.contains('.')
+                ? fileToServe.path.split('.').last.toLowerCase()
+                : '';
+            final contentType = _contentTypeForExt(ext);
+            if (contentType != null) {
+              request.response.headers.contentType = contentType;
+            }
+
+            final bytes = await fileToServe.readAsBytes();
+            request.response.add(bytes);
+            await request.response.close();
+          } catch (e) {
+            try {
+              request.response.statusCode = HttpStatus.internalServerError;
+              await request.response.close();
+            } catch (_) {}
+          }
+        },
+      );
+
+      final pathFromExtract = indexPath.substring(extractDir.path.length).replaceAll('\\', '/');
+      final cleanPath = pathFromExtract.startsWith('/') ? pathFromExtract : '/$pathFromExtract';
+      final startUrl = 'http://127.0.0.1:${server.port}$cleanPath';
+      print('[SCORM] startUrl resolved to: $startUrl');
+      print('[SCORM] local server started on port ${server.port}');
+
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        // Register a JavaScript channel for the SCORM bridge
+        ..addJavaScriptChannel('ScormHost', onMessageReceived: (message) {
+          try {
+            final Map payload = jsonDecode(message.message) as Map;
+            final type = payload['type'] as String?;
+            final data = payload['payload'] as Map?;
+            print('[SCORM-BRIDGE] received: type=$type payload=$data');
+
+            if (type == 'set' && data != null) {
+              final key = data['key']?.toString() ?? '';
+              final value = data['value']?.toString() ?? '';
+              _scormData[key] = value;
+            } else if (type == 'get' && data != null) {
+              final key = data['key']?.toString() ?? '';
+              // Note: synchronous return from JS get is not possible here; we keep a local copy
+              // The JS shim currently returns empty string to the caller. Future work: implement synchronous bridge using injected script that polls for result.
+              print('[SCORM-BRIDGE] get($key) -> ${_scormData[key] ?? ''}');
+            } else if (type == 'initialize') {
+              print('[SCORM-BRIDGE] initialize called (${data?['api'] ?? 'unknown'})');
+            } else if (type == 'commit') {
+              print('[SCORM-BRIDGE] commit called');
+              _onScormCommit();
+            } else if (type == 'finish') {
+              print('[SCORM-BRIDGE] finish called');
+              _onScormFinish();
+            }
+          } catch (e) {
+            print('[SCORM-BRIDGE] invalid message: ${message.message}');
+          }
+        })
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onProgress: (progress) => print('[WEBVIEW] progress: $progress%'),
+            onPageStarted: (url) async {
+              print('[WEBVIEW] page started: $url');
+              // Inject the SCORM shim early on page start so content can find window.API / API_1484_11
+              const scormBridge = r"""
+(function(){
+  function send(type, payload){
+    var msg = JSON.stringify({type: type, payload: payload || {}});
+    if (window.ScormHost && window.ScormHost.postMessage) {
+      window.ScormHost.postMessage(msg);
+    } else if (window.flutter_inappwebview && window.flutter_inappwebview.postMessage) {
+      window.flutter_inappwebview.postMessage(msg);
+    } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ScormHost) {
+      try { window.webkit.messageHandlers.ScormHost.postMessage(msg); } catch(e) {}
+    } else {
+      console.log('[SCORM BRIDGE] host channel not found');
+    }
+  }
+
+  // Basic SCORM 1.2 shim
+  window.API = window.API || {
+    LMSInitialize: function(){ send('initialize',{api:'1.2'}); return 'true'; },
+    LMSFinish: function(){ send('finish',{api:'1.2'}); return 'true'; },
+    LMSGetValue: function(k){ send('get',{key:k,api:'1.2'}); return ''; },
+    LMSSetValue: function(k,v){ send('set',{key:k,value:v,api:'1.2'}); return 'true'; },
+    LMSCommit: function(){ send('commit',{api:'1.2'}); return 'true'; },
+    LMSGetLastError: function(){ return '0'; },
+    LMSGetErrorString: function(){ return ''; },
+    LMSGetDiagnostic: function(){ return ''; }
+  };
+
+  // Basic SCORM 2004 shim
+  window.API_1484_11 = window.API_1484_11 || {
+    Initialize: function(){ send('initialize',{api:'2004'}); return 'true'; },
+    Terminate: function(){ send('finish',{api:'2004'}); return 'true'; },
+    GetValue: function(k){ send('get',{key:k,api:'2004'}); return ''; },
+    SetValue: function(k,v){ send('set',{key:k,value:v,api:'2004'}); return 'true'; },
+    Commit: function(){ send('commit',{api:'2004'}); return 'true'; },
+    GetLastError: function(){ return '0'; }
+  };
+})();
+""";
+              try {
+                await controller.runJavaScript(scormBridge);
+                print('[SCORM-BRIDGE] shim injected');
+              } catch (e) {
+                print('[SCORM-BRIDGE] inject error: $e');
+              }
+            },
+            onPageFinished: (url) => print('[WEBVIEW] page finished: $url'),
+            onWebResourceError: (err) => print(
+              '[WEBVIEW] resource error: code=${err.errorCode}, description=${err.description}',
+            ),
+          ),
+        )
+        ..loadRequest(Uri.parse(startUrl));
+
+      if (!mounted || _isDisposed) {
+        _extractDir = extractDir;
+        _server = server;
+        _startUrl = startUrl;
+        _webController = controller;
+        _isLoading = false;
+        return;
+      }
+ 
+      setState(() {
+        _extractDir = extractDir;
+        _server = server;
+        _startUrl = startUrl;
+        _webController = controller;
+        _isLoading = false;
+      });
+     } catch (e, st) {
+@@
+     }
+   }
++
++  void _onScormCommit() {
++    // Called when SCORM content requests a commit. Persist the important fields.
++    print('[SCORM] commit event - saving ${_scormData.length} keys');
++    // For now, just log. Later: POST to backend to persist progress.
++  }
++
++  void _onScormFinish() {
++    print('[SCORM] finish event - data keys: ${_scormData.keys.toList()}');
++    if (!mounted || _isDisposed) return;
++    ScaffoldMessenger.of(context).showSnackBar(
++      SnackBar(content: Text('SCORM: Modul selesai. Progress tersimpan secara lokal.')),
++    );
++    // TODO: Send _scormData to backend (use widget.authToken) if API available.
++  }
+    } catch (e, st) {
+      print('[SCORM] prepare error: $e');
+      print('[SCORM] prepare stack trace: $st');
+      if (zipFile != null && zipFile.existsSync()) {
+        try { zipFile.deleteSync(); } catch (_) {}
+      }
+
+      final msg = e.toString().replaceAll('Exception: ', '');
+
+      if (!mounted || _isDisposed) {
+        _error = msg;
+        _isLoading = false;
+        return;
+      }
+
+      setState(() {
+        _error = msg;
+        _isLoading = false;
+      });
+    }
+  }
+
+  ContentType? _contentTypeForExt(String ext) {
+    switch (ext) {
+      case 'html':
+      case 'htm':
+        return ContentType.html;
+      case 'css':
+        return ContentType('text', 'css', charset: 'utf-8');
+      case 'js':
+        return ContentType('application', 'javascript', charset: 'utf-8');
+      case 'json':
+        return ContentType.json;
+      case 'png':
+        return ContentType('image', 'png');
+      case 'jpg':
+      case 'jpeg':
+        return ContentType('image', 'jpeg');
+      case 'gif':
+        return ContentType('image', 'gif');
+      case 'svg':
+        return ContentType('image', 'svg+xml');
+      case 'woff':
+        return ContentType('font', 'woff');
+      case 'woff2':
+        return ContentType('font', 'woff2');
+      case 'ttf':
+        return ContentType('font', 'ttf');
+      case 'mp4':
+        return ContentType('video', 'mp4');
+      case 'mp3':
+        return ContentType('audio', 'mpeg');
+      case 'xml':
+        return ContentType('application', 'xml', charset: 'utf-8');
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: SharedHeader(
+        title: 'SCORM PLAYER',
+        centerTitle: true,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
+      ),
+      body: _isLoading
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(color: Color(0xFF059669)),
+                  const SizedBox(height: 16),
+                  Text(
+                    _statusMessage ?? 'Memuat SCORM...',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF475569),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _error != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 56,
+                      color: Color(0xFFEF4444),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Gagal Membuka SCORM',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _prepareScorm,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Coba Lagi'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _startUrl == null
+          ? const Center(child: Text('Tidak ada konten untuk ditampilkan'))
+          : (_webController == null
+                ? const Center(child: Text('Preparing viewer...'))
+                : Column(
+                    children: [
+                      Container(
+                        color: Colors.black12,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.link, size: 14),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Local URL: $_startUrl',
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: WebViewWidget(controller: _webController!),
+                      ),
+                    ],
+                  )),
+    );
+  }
+}

@@ -33,32 +33,75 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   }
 
   Future<void> _downloadAndSavePdf() async {
-    try {
-      final response = await http.get(
-        Uri.parse(widget.pdfUrl),
-        headers: {'Authorization': 'Bearer ${widget.authToken}'},
-      );
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
 
-      if (response.statusCode == 200) {
+    try {
+      final uri = Uri.parse(widget.pdfUrl);
+      final isOdooWebDirect = uri.path.contains('/web/content/') || uri.port == 8069;
+
+      List<Map<String, String>> headerAttempts = [];
+      if (isOdooWebDirect) {
+        headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
+        if (widget.authToken.isNotEmpty) {
+          headerAttempts.add({'Authorization': 'Bearer ${widget.authToken}'});
+        }
+      } else {
+        if (widget.authToken.isNotEmpty) {
+          headerAttempts.add({'Authorization': 'Bearer ${widget.authToken}'});
+        }
+        headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
+      }
+
+      debugPrint('PDF download start: ${widget.pdfUrl}');
+
+      http.Response? response;
+      Object? lastError;
+
+      for (final headers in headerAttempts) {
+        try {
+          response = await http.get(uri, headers: headers).timeout(
+            const Duration(seconds: 30),
+          );
+          if (response.statusCode == 200) {
+            break;
+          }
+        } catch (e) {
+          lastError = e;
+        }
+      }
+
+      if (response != null && response.statusCode == 200) {
         final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/rapor_temp.pdf');
+        final file = File('${dir.path}/rapor_temp_${DateTime.now().millisecondsSinceEpoch}.pdf');
         await file.writeAsBytes(response.bodyBytes);
 
-        setState(() {
-          localFilePath = file.path;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            localFilePath = file.path;
+            isLoading = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            errorMessage = response != null
+                ? 'Gagal mengunduh file PDF (Status: ${response.statusCode})'
+                : 'Terjadi kesalahan saat mengunduh PDF: ${lastError ?? 'Koneksi terputus'}';
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('PDF download exception: $e\n$stack');
+      if (mounted) {
         setState(() {
-          errorMessage = 'Gagal mengunduh file PDF (Status: ${response.statusCode})';
+          errorMessage = 'Terjadi kesalahan saat memuat PDF: $e';
           isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Terjadi kesalahan saat memuat PDF: $e';
-        isLoading = false;
-      });
     }
   }
 
@@ -86,4 +129,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
     );
   }
 }
+
+
+
 
