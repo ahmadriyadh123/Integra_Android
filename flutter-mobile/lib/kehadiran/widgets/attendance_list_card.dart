@@ -6,7 +6,7 @@ class AttendanceListCard extends StatelessWidget {
   final Map<DateTime, List<AttendanceRecord>> groupedWeeks;
   final String Function(DateTime) getMonthName;
   final String Function(int) getWeekdayName;
-  final String activeMonthLabel;
+  final String? activeMonthLabel;
 
   const AttendanceListCard({
     super.key,
@@ -14,7 +14,7 @@ class AttendanceListCard extends StatelessWidget {
     required this.groupedWeeks,
     required this.getMonthName,
     required this.getWeekdayName,
-    required this.activeMonthLabel,
+    this.activeMonthLabel,
   });
 
   @override

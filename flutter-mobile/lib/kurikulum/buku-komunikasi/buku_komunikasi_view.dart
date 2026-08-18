@@ -6,6 +6,7 @@ import 'models/buku_komunikasi_model.dart';
 import 'widgets/student_info_banner.dart';
 import 'widgets/month_week_filter.dart';
 import 'widgets/daily_note_card.dart';
+import '../../widgets/shared_header.dart';
 
 class BukuKomunikasiPage extends StatefulWidget {
   const BukuKomunikasiPage({super.key});
@@ -146,18 +147,14 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
 
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'BUKU KOMUNIKASI',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'BUKU KOMUNIKASI',
-          style: TextStyle(color: darkSlate, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: primaryTeal, size: 22),

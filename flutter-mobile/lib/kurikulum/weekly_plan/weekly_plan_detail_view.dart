@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import 'viewmodel/weekly_plan_viewmodel.dart';
+import '../../widgets/shared_header.dart';
 
 class WeeklyPlanDetailScreen extends StatefulWidget {
   final int planId;
@@ -51,16 +52,8 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgSlate,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
+      appBar: SharedHeader(
+        titleWidget: Text(
           widget.title,
           style: const TextStyle(
             color: darkSlate,
@@ -70,6 +63,12 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        backgroundColor: Colors.white,
+        foregroundColor: darkSlate,
+        centerTitle: true,
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded,

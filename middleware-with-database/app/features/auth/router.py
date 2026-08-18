@@ -2,8 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from typing import Dict, Any
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.auth.schemas import LoginRequest, APIResponseLogin, TokenResponse, UserProfileData
 from app.features.auth.repository import AuthRepository
 from app.features.auth.service import AuthService
@@ -22,7 +23,17 @@ async def login(
 ):
     repo = AuthRepository(db)
 
-    # 1. Verifikasi Kredensial via Query Database
+    # 1. Cek apakah user/email ada di database
+    user_exists = await repo.get_user_by_login(payload.username)
+    
+    if not user_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email/Username tidak ditemukan. Silakan periksa kembali.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 2. Verifikasi Kredensial via Query Database
     user_info = await repo.authenticate_user(
         login=payload.username, 
         password_plain=payload.password
@@ -31,11 +42,11 @@ async def login(
     if not user_info:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Username/Email atau Password salah. Silakan periksa kembali kredensial Anda.",
+            detail="Password salah. Silakan periksa kembali.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 2. Buat Payload JWT (Bebas dari password mentah)
+    # 3. Buat Payload JWT (Bebas dari password mentah)
     jwt_payload = {
         "uid": user_info["user_id"],
         "sub": str(user_info["user_id"]),
@@ -49,7 +60,7 @@ async def login(
 
     access_token = AuthService.create_access_token(data=jwt_payload)
 
-    # 3. Buat Response
+    # 4. Buat Response
     response_data = TokenResponse(
         access_token=access_token,
         token_type="bearer",
@@ -70,3 +81,23 @@ async def login(
         message="Login berhasil",
         data=response_data
     )
+
+
+@router.post("/validate")
+async def validate_token(
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+):
+    """
+    Validasi token JWT tanpa database query.
+    Endpoint ini digunakan Flutter app untuk background session validation.
+    Jika token valid (signature & expiration OK), return success.
+    Jika token invalid/expired, dependency akan throw 401.
+    """
+    return {
+        "success": True,
+        "message": "Token valid",
+        "data": {
+            "user_id": creds.get("uid"),
+            "username": creds.get("username"),
+        }
+    }

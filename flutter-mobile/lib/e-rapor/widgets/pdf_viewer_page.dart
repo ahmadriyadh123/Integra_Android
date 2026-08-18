@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../../widgets/shared_header.dart';
 
 class PdfViewerPage extends StatefulWidget {
   final String pdfUrl;
@@ -64,11 +65,12 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title, style: const TextStyle(fontSize: 14)),
+      appBar: SharedHeader(
+        titleWidget: Text(widget.title, style: const TextStyle(fontSize: 14)),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
         elevation: 1,
+        showBackButton: true,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -84,3 +86,4 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
     );
   }
 }
+

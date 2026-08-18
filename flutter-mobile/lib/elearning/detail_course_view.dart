@@ -7,6 +7,8 @@ import 'viewmodel/elearning_viewmodel.dart';
 import 'widgets/detail/course_header_banner.dart';
 import 'widgets/detail/teacher_info_card.dart';
 import 'widgets/detail/curriculum_timeline_item.dart';
+import '../widgets/shared_header.dart';
+import 'scorm_player_view.dart';
 
 const Color _green = Color(0xFF059669);
 const Color _bgSlate = Color(0xFFF8FAFC);
@@ -38,19 +40,30 @@ class DetailCourseView extends StatefulWidget {
 }
 
 class _DetailCourseViewState extends State<DetailCourseView> {
+  late ElearningViewModel _vm;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Simpan referensi ViewModel agar aman dipakai di dispose
+    _vm = context.read<ElearningViewModel>();
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final vm = context.read<ElearningViewModel>();
-      vm.fetchCourseDetail(widget.authToken, widget.courseId);
+      // Gunakan referensi yang sudah disimpan di didChangeDependencies
+      _vm.fetchCourseDetail(widget.authToken, widget.courseId);
     });
   }
 
   @override
   void dispose() {
     // Bersihkan detail saat keluar agar fetch ulang saat masuk kursus lain
-    context.read<ElearningViewModel>().clearDetail();
+    try {
+      _vm.clearDetail();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -60,6 +73,20 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
     }
+
+    // Tangani paket SCORM (zip) dengan membuka in-app WebView setelah ekstraksi
+    if (url.toLowerCase().endsWith('.zip')) {
+      // Susun URL lengkap jika relatif
+      final fullUrl = url.startsWith('http') ? url : 'https://domain-backend-anda.com$url';
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScormPlayerView(scormUrl: fullUrl, authToken: widget.authToken),
+        ),
+      );
+      return;
+    }
+
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -163,17 +190,13 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   Widget _buildLoading() {
     return Scaffold(
       backgroundColor: _bgSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: widget.title,
         backgroundColor: const Color(0xFF064E3B),
+        foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.title,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-        ),
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
       ),
       body: const Center(child: CircularProgressIndicator(color: _green)),
     );
@@ -182,15 +205,13 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   Widget _buildError(ElearningViewModel vm) {
     return Scaffold(
       backgroundColor: _bgSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: widget.title,
         backgroundColor: const Color(0xFF064E3B),
+        foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(widget.title,
-            style: const TextStyle(color: Colors.white, fontSize: 15)),
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),

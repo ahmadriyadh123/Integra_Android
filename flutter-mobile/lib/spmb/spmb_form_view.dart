@@ -4,6 +4,7 @@ import 'widgets/supporting_data_form.dart';
 import 'widgets/student_form.dart';
 import 'widgets/parents_form.dart';
 import 'widgets/form_fields.dart';
+import '../widgets/shared_header.dart';
 
 class SpmbFormScreen extends StatefulWidget {
   const SpmbFormScreen({super.key});
@@ -246,19 +247,17 @@ class _SpmbFormScreenState extends State<SpmbFormScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text(
+      appBar: SharedHeader(
+        titleWidget: const Text(
           'PENDAFTARAN SISWA BARU',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.5),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF0F172A), size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.teal.shade900,
+        foregroundColor: Colors.teal,
         elevation: 0,
         centerTitle: true,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Divider(color: Colors.grey.shade200, height: 1),

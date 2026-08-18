@@ -1,8 +1,11 @@
 # app/features/auth/repository.py
+import logging
 from typing import Optional, Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from passlib.context import CryptContext
+
+logger = logging.getLogger(__name__)
 
 # Context untuk verifikasi hash password Odoo (PBKDF2 / Bcrypt / Plaintext)
 pwd_context = CryptContext(
@@ -14,9 +17,10 @@ class AuthRepository:
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
 
-    async def authenticate_user(self, login: str, password_plain: str) -> Optional[Dict[str, Any]]:
+    async def get_user_by_login(self, login: str) -> Optional[Dict[str, Any]]:
         """
-        Memverifikasi kredensial user langsung dari tabel res_users database.
+        Get user data by login/email tanpa verifikasi password.
+        Digunakan untuk cek user existence.
         """
         query = text("""
             SELECT 
@@ -38,11 +42,20 @@ class AuthRepository:
         
         result = await self.db.execute(query, {"login": login})
         user = result.mappings().first()
+        return dict(user) if user else None
 
+    async def authenticate_user(self, login: str, password_plain: str) -> Optional[Dict[str, Any]]:
+        """
+        Memverifikasi kredensial user langsung dari tabel res_users database.
+        """
+        # Cek user ada atau tidak
+        user = await self.get_user_by_login(login)
+        
         if not user:
             logger.error(f"[auth] User dengan login '{login}' tidak ditemukan di DB")
             return None
 
+        # Verifikasi password
         if not user["password_hash"] or not pwd_context.verify(password_plain, user["password_hash"]):
             logger.error(f"[auth] Hash password tidak cocok untuk user '{login}'")
             return None

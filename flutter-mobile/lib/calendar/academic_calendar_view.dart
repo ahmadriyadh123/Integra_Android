@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'models/calendar_model.dart';
 import 'viewmodel/calendar_viewmodel.dart';
 import 'widgets/calendar_header_banner.dart';
+import '../widgets/shared_header.dart';
 
 class AcademicCalendarPage extends StatefulWidget {
   final String authToken;
@@ -46,23 +47,14 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'KALENDER AKADEMIK',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'KALENDER AKADEMIK',
-          style: TextStyle(
-            color: darkSlate,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
       ),
       body: Consumer<CalendarViewModel>(
         builder: (context, vm, _) {

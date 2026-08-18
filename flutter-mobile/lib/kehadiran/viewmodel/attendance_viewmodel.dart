@@ -7,6 +7,11 @@ class AttendanceViewModel extends ChangeNotifier {
 
   AttendanceViewModel({required this.repository});
 
+  static const List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -14,18 +19,27 @@ class AttendanceViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   List<AttendanceRecord> _allRecords = [];
-  
-  String _activeMonthLabel = 'Juli 2026';
-  String get activeMonthLabel => _activeMonthLabel;
 
-  final List<String> availableMonths = [
-    'Juli 2026',
-    'Agustus 2026',
-    'September 2026',
-  ];
+  String? _activeMonthLabel;
+  String? get activeMonthLabel => _activeMonthLabel;
+
+  List<String> get availableMonths {
+    final monthDates = <String, DateTime>{};
+    for (final record in _allRecords) {
+      final label = monthLabelFor(record.date);
+      monthDates.putIfAbsent(
+        label,
+        () => DateTime(record.date.year, record.date.month),
+      );
+    }
+
+    final labels = monthDates.keys.toList();
+    labels.sort((a, b) => monthDates[b]!.compareTo(monthDates[a]!));
+    return labels;
+  }
 
   void setActiveMonth(String? newMonth) {
-    if (newMonth != null) {
+    if (newMonth != null && newMonth != _activeMonthLabel) {
       _activeMonthLabel = newMonth;
       notifyListeners();
     }
@@ -38,6 +52,7 @@ class AttendanceViewModel extends ChangeNotifier {
 
     try {
       _allRecords = await repository.getAttendanceHistory(token);
+      _syncActiveMonth();
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -46,29 +61,54 @@ class AttendanceViewModel extends ChangeNotifier {
     }
   }
 
-  // --- Helper Metode UI ---
-  List<AttendanceRecord> get filteredRecords {
-    // In production, this would filter by _activeMonthLabel
-    return _allRecords;
+  void _syncActiveMonth() {
+    final months = availableMonths;
+    if (months.isEmpty) {
+      _activeMonthLabel = null;
+      return;
+    }
+    if (_activeMonthLabel == null || !months.contains(_activeMonthLabel)) {
+      _activeMonthLabel = months.first;
+    }
   }
 
-  // Statistics for Summary
+  String monthLabelFor(DateTime date) =>
+      '${getMonthName(date)} ${date.year}';
+
+  DateTime? get activeMonthDate {
+    final label = _activeMonthLabel;
+    if (label == null) return null;
+
+    final parts = label.split(' ');
+    if (parts.length < 2) return null;
+
+    final monthIndex = _monthNames.indexOf(parts.first);
+    final year = int.tryParse(parts.last);
+    if (monthIndex < 0 || year == null) return null;
+
+    return DateTime(year, monthIndex + 1);
+  }
+
+  List<AttendanceRecord> get filteredRecords {
+    final label = _activeMonthLabel;
+    if (label == null) return const [];
+    return _allRecords
+        .where((record) => monthLabelFor(record.date) == label)
+        .toList();
+  }
+
   int get totalPresent => filteredRecords.where((r) => r.hadir > 0).length;
   int get totalSick => filteredRecords.where((r) => r.sakit > 0).length;
   int get totalPermit => filteredRecords.where((r) => r.izin > 0).length;
   int get totalAlpha => filteredRecords.where((r) => r.alpha > 0).length;
-  
-  double get attendancePercentage {
-    if (filteredRecords.isEmpty) return 0;
-    return (totalPresent / filteredRecords.length) * 100;
-  }
 
   Map<DateTime, List<AttendanceRecord>> get groupedWeeks {
     final Map<DateTime, List<AttendanceRecord>> weeks = {};
     for (var record in filteredRecords) {
-      final monday = record.date.subtract(Duration(days: record.date.weekday - 1));
+      final monday =
+          record.date.subtract(Duration(days: record.date.weekday - 1));
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      
+
       if (!weeks.containsKey(weekStart)) {
         weeks[weekStart] = [];
       }
@@ -83,31 +123,37 @@ class AttendanceViewModel extends ChangeNotifier {
     return list;
   }
 
-  String getMonthName(DateTime date) {
-    const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return months[date.month - 1];
-  }
+  String getMonthName(DateTime date) => _monthNames[date.month - 1];
 
   String getWeekdayName(int weekday) {
-    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
     return days[weekday - 1];
   }
 
   List<Widget> generateHeatmapCells() {
-    // Mocking 31 days for a calendar-like view
-    return List.generate(31, (index) {
+    final monthDate = activeMonthDate ?? DateTime.now();
+    final daysInMonth = DateUtils.getDaysInMonth(monthDate.year, monthDate.month);
+    final recordsByDay = <int, AttendanceRecord>{};
+    for (final record in filteredRecords) {
+      recordsByDay[record.date.day] = record;
+    }
+
+    return List.generate(daysInMonth, (index) {
       final dayNum = index + 1;
-      
-      // Determine color based on record if available
-      Color cellBg = const Color(0xFFF1F5F9); // Default empty
+      final record = recordsByDay[dayNum];
+
+      Color cellBg = const Color(0xFFF1F5F9);
       Color textColor = const Color(0xFF64748B);
 
-      // Simple mock logic for specific days matching records
-      if (dayNum <= filteredRecords.length) {
-        final record = filteredRecords[dayNum - 1];
+      if (record != null) {
         if (record.alpha > 0) {
           cellBg = const Color(0xFFFEF2F2);
           textColor = const Color(0xFFDC2626);

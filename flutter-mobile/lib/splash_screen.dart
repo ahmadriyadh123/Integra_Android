@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'auth/view/login_view.dart'; // Ganti dengan halaman utama Anda
+import 'package:provider/provider.dart';
+import 'auth/view/login_view.dart';
+import 'auth/viewmodel/auth_viewmodel.dart';
+import 'dashboard/dashboard_view.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,15 +18,22 @@ class _SplashScreenState extends State {
     _navigateToHome();
   }
 
-  void _navigateToHome() async {
-    // Durasi tampilnya splash screen custom (misal 2 detik)
+  Future<void> _navigateToHome() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    // Pindah ke halaman utama
+    final authViewModel = context.read<AuthViewModel>();
+    final hasSession = await authViewModel.restoreSessionFromHive();
+
+    if (!mounted) return;
+
+    final targetPage = hasSession
+        ? DashboardView(authToken: authViewModel.token)
+        : const LoginView();
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LoginView()),
+      MaterialPageRoute(builder: (context) => targetPage),
     );
   }
 
@@ -35,10 +45,9 @@ class _SplashScreenState extends State {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Bebas mengatur ukuran logo tanpa batasan circle mask
             Image.asset(
               'assets/logo_integra.png',
-              width: 100, // Bebas atur ukuran piksel
+              width: 100,
             ),
             const SizedBox(height: 24),
             const CircularProgressIndicator(

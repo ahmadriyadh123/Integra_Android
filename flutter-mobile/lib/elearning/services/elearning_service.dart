@@ -7,10 +7,11 @@ class ElearningService {
 
   ElearningService({required this.baseUrl});
 
-  Map<String, String> _headers(String token) => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    Map<String, String> _headers(String token) {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+    return headers;
+  }
 
   Future<List<dynamic>> fetchCourses(String token) async {
     final url = Uri.parse('$baseUrl/elearning/courses');
@@ -61,3 +62,4 @@ class ElearningService {
     }
   }
 }
+

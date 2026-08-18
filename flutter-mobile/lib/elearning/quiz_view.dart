@@ -106,8 +106,11 @@ class _QuizViewState extends State<QuizView> {
               InkWell(
                 onTap: () {
                   setState(() {
-                    if (isFlagged) _flaggedQuestions.remove(_currentIndex);
-                    else _flaggedQuestions.add(_currentIndex);
+                    if (isFlagged) {
+                      _flaggedQuestions.remove(_currentIndex);
+                    } else {
+                      _flaggedQuestions.add(_currentIndex);
+                    }
                   });
                 },
                 borderRadius: BorderRadius.circular(8),

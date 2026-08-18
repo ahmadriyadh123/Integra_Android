@@ -95,22 +95,21 @@ class _AttendanceViewState extends State<AttendanceView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Header & Selector
                     AttendanceHeader(
                       showBackButton: Navigator.canPop(context),
+                    ),
+                    const SizedBox(height: 16),
+                    AttendanceMonthFilter(
                       activeMonthLabel: viewModel.activeMonthLabel,
                       availableMonths: viewModel.availableMonths,
                       onMonthChanged: viewModel.setActiveMonth,
                     ),
-                    const SizedBox(height: 20),
-
-                    // 2. Summary Section
+                    const SizedBox(height: 16),
                     AttendanceSummarySection(
                       totalPresent: viewModel.totalPresent,
                       totalSick: viewModel.totalSick,
                       totalPermit: viewModel.totalPermit,
                       totalAlpha: viewModel.totalAlpha,
-                      percentage: viewModel.attendancePercentage,
                     ),
                     const SizedBox(height: 24),
 

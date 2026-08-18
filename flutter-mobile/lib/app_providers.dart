@@ -1,6 +1,7 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
+import 'auth/local/auth_local_storage.dart';
 import 'auth/services/auth_service.dart';
 import 'auth/repositories/auth_repository.dart';
 import 'auth/viewmodel/auth_viewmodel.dart';
@@ -25,18 +26,22 @@ import 'tagihan/local/tagihan_local_storage.dart';
 import 'tagihan/repositories/tagihan_repository.dart';
 import 'tagihan/viewmodel/tagihan_viewmodel.dart';
 
+import 'kurikulum/weekly_plan/local/weekly_plan_local_storage.dart';
 import 'kurikulum/weekly_plan/services/weekly_plan_service.dart';
 import 'kurikulum/weekly_plan/repositories/weekly_plan_repository.dart';
 import 'kurikulum/weekly_plan/viewmodel/weekly_plan_viewmodel.dart';
 
+import 'kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
 import 'kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
 import 'kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
 import 'kurikulum/buku-komunikasi/viewmodel/buku_komunikasi_viewmodel.dart';
 
+import 'e-rapor/local/rapor_local_storage.dart';
 import 'e-rapor/services/rapor_service.dart';
 import 'e-rapor/repositories/rapor_repository.dart';
 import 'e-rapor/viewmodel/rapor_viewmodel.dart';
 
+import 'kurikulum/cbt/local/cbt_local_storage.dart';
 import 'kurikulum/cbt/services/cbt_service.dart';
 import 'kurikulum/cbt/repositories/cbt_repository.dart';
 import 'kurikulum/cbt/viewmodel/cbt_viewmodel.dart';
@@ -49,15 +54,19 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<AuthService>(
       create: (_) => AuthService(baseUrl: baseUrl),
     ),
+    Provider<AuthLocalStorage>(
+      create: (_) => AuthLocalStorage(),
+    ),
     ProxyProvider<AuthService, AuthRepository>(
       update: (_, service, __) => AuthRepository(apiService: service),
     ),
-    ChangeNotifierProxyProvider<AuthRepository, AuthViewModel>(
+    ChangeNotifierProxyProvider2<AuthRepository, AuthLocalStorage, AuthViewModel>(
       create: (context) => AuthViewModel(
         repository: Provider.of<AuthRepository>(context, listen: false),
+        localStorage: Provider.of<AuthLocalStorage>(context, listen: false),
       ),
-      update: (_, repo, previous) =>
-          previous ?? AuthViewModel(repository: repo),
+      update: (_, repo, storage, previous) =>
+          previous ?? AuthViewModel(repository: repo, localStorage: storage),
     ),
 
     // --- Kehadiran (Attendance) ---
@@ -109,8 +118,11 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<ElearningLocalStorage>(
       create: (_) => ElearningLocalStorage(),
     ),
-    ProxyProvider<ElearningService, ElearningRepository>(
-      update: (_, service, __) => ElearningRepository(apiService: service),
+    ProxyProvider2<ElearningService, ElearningLocalStorage, ElearningRepository>(
+      update: (_, service, storage, __) => ElearningRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
     ),
     ChangeNotifierProxyProvider2<ElearningRepository, ElearningLocalStorage, ElearningViewModel>(
       create: (context) => ElearningViewModel(
@@ -125,8 +137,14 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<CbtService>(
       create: (_) => CbtService(baseUrl: baseUrl),
     ),
-    ProxyProvider<CbtService, CbtRepository>(
-      update: (_, service, __) => CbtRepository(apiService: service),
+    Provider<CbtLocalStorage>(
+      create: (_) => CbtLocalStorage(),
+    ),
+    ProxyProvider2<CbtService, CbtLocalStorage, CbtRepository>(
+      update: (_, service, storage, __) => CbtRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
     ),
     ChangeNotifierProxyProvider<CbtRepository, CbtViewModel>(
       create: (context) => CbtViewModel(
@@ -159,9 +177,14 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<WeeklyPlanService>(
       create: (_) => WeeklyPlanService(baseUrl: baseUrl),
     ),
-    ProxyProvider<WeeklyPlanService, WeeklyPlanRepository>(
-      update: (_, service, __) =>
-          WeeklyPlanRepository(apiService: service),
+    Provider<WeeklyPlanLocalStorage>(
+      create: (_) => WeeklyPlanLocalStorage(),
+    ),
+    ProxyProvider2<WeeklyPlanService, WeeklyPlanLocalStorage, WeeklyPlanRepository>(
+      update: (_, service, storage, __) => WeeklyPlanRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
     ),
     ChangeNotifierProxyProvider<WeeklyPlanRepository, WeeklyPlanViewModel>(
       create: (context) => WeeklyPlanViewModel(
@@ -176,8 +199,14 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<BukuKomunikasiService>(
       create: (_) => BukuKomunikasiService(baseUrl: baseUrl),
     ),
-    ProxyProvider<BukuKomunikasiService, BukuKomunikasiRepository>(
-      update: (_, service, __) => BukuKomunikasiRepository(apiService: service),
+    Provider<BukuKomunikasiLocalStorage>(
+      create: (_) => BukuKomunikasiLocalStorage(),
+    ),
+    ProxyProvider2<BukuKomunikasiService, BukuKomunikasiLocalStorage, BukuKomunikasiRepository>(
+      update: (_, service, storage, __) => BukuKomunikasiRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
     ),
     ChangeNotifierProxyProvider<BukuKomunikasiRepository, BukuKomunikasiViewModel>(
       create: (context) => BukuKomunikasiViewModel(
@@ -191,8 +220,14 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     Provider<RaporService>(
       create: (_) => RaporService(baseUrl: baseUrl),
     ),
-    ProxyProvider<RaporService, RaporRepository>(
-      update: (_, service, __) => RaporRepository(apiService: service),
+    Provider<RaporLocalStorage>(
+      create: (_) => RaporLocalStorage(),
+    ),
+    ProxyProvider2<RaporService, RaporLocalStorage, RaporRepository>(
+      update: (_, service, storage, __) => RaporRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
     ),
     ChangeNotifierProxyProvider<RaporRepository, RaporViewModel>(
       create: (context) => RaporViewModel(

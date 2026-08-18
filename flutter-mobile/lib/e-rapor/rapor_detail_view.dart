@@ -7,6 +7,7 @@ import 'widgets/rapor_header_card.dart';
 import 'widgets/rapor_notes_card.dart';
 import 'widgets/rapor_subject_card.dart';
 import 'widgets/pdf_viewer_page.dart';
+import '../widgets/shared_header.dart';
 
 class RaporDetailViewPage extends StatefulWidget {
   final int raporId;
@@ -73,30 +74,20 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
 
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'DETAIL E-RAPOR DIKNAS',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'DETAIL E-RAPOR DIKNAS',
-          style: TextStyle(
-            color: darkSlate,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
+        actions: hasPdf ? [
+          IconButton(
+            icon: const Icon(Icons.download_rounded, color: primaryTeal, size: 22),
+            onPressed: () => _openPdfPreview(pdfUrl, fileName),
           ),
-        ),
-        actions: [
-          if (hasPdf)
-            IconButton(
-              icon: const Icon(Icons.download_rounded, color: primaryTeal, size: 22),
-              onPressed: () => _openPdfPreview(pdfUrl, fileName),
-            ),
-        ],
+        ] : null,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: borderSlate, height: 1),

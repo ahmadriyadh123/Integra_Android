@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/rapor_viewmodel.dart';
 import 'rapor_detail_view.dart';
+import '../widgets/shared_header.dart';
 
 class RaporListViewPage extends StatefulWidget {
   final String authToken;
@@ -37,23 +38,14 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
 
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'DAFTAR E-RAPOR',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'DAFTAR E-RAPOR',
-          style: TextStyle(
-            color: darkSlate,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: primaryTeal, size: 22),

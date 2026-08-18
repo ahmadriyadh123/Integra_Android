@@ -6,6 +6,7 @@ import 'models/tagihan_model.dart';
 import 'widgets/tagihan_summary_card.dart';
 import 'widgets/tagihan_filter_row.dart';
 import 'widgets/invoice_card.dart';
+import '../widgets/shared_header.dart';
 
 class TagihanPage extends StatefulWidget {
   final String authToken;
@@ -233,24 +234,24 @@ class _TagihanPageState extends State<TagihanPage> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new,
-            color: darkSlate, size: 18),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: const Text(
+    return SharedHeader(
+      titleWidget: const Text(
         'INFORMASI TAGIHAN',
         style: TextStyle(
-          color: darkSlate,
+          color: Color(0xFF0F172A),
           fontSize: 15,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
+      backgroundColor: Colors.white,
+      foregroundColor: const Color(0xFF0F172A),
+      centerTitle: true,
+      elevation: 0,
+      showBackButton: true,
+      onBack: () => Navigator.pop(context),
       actions: [
         Consumer<TagihanViewModel>(
           builder: (_, vm, __) => IconButton(

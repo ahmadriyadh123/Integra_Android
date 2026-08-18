@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'widgets/token/token_info_banner.dart';
 import 'widgets/token/token_input_boxes.dart';
 import 'widgets/token/token_status_info.dart';
+import '../../widgets/shared_header.dart';
 
 class VerifikasiTokenView extends StatefulWidget {
   final String subject;
@@ -77,18 +78,14 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'VERIFIKASI TOKEN UJIAN',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'VERIFIKASI TOKEN UJIAN',
-          style: TextStyle(color: darkSlate, fontSize: 14, fontWeight: FontWeight.bold),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

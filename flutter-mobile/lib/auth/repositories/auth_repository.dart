@@ -14,4 +14,14 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  /// Validasi session token ke backend.
+  /// Throw exception jika token invalid atau expired.
+  Future<void> validateSession(String token) async {
+    try {
+      await apiService.validateToken(token);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

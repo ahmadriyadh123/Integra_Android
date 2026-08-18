@@ -67,9 +67,11 @@ class _PelajaranViewState extends State<PelajaranView> {
     if (_searchQuery.isEmpty) return courses;
     final q = _searchQuery.toLowerCase();
     return courses
-        .where((c) =>
-            c.title.toLowerCase().contains(q) ||
-            c.teacherName.toLowerCase().contains(q))
+        .where(
+          (c) =>
+              c.title.toLowerCase().contains(q) ||
+              c.teacherName.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -155,12 +157,32 @@ class _PelajaranViewState extends State<PelajaranView> {
           children: [
             // ── Section: Sedang Dipelajari ────────────────────────────────
             if (_searchQuery.isEmpty) ...[
-              _buildSectionHeader(
-                icon: Icons.play_circle_rounded,
-                title: 'Sedang Dipelajari',
-                badge: 'Aktif',
-                badgeBg: const Color(0xFFD1FAE5),
-                badgeColor: _green,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionHeader(
+                    icon: Icons.play_circle_rounded,
+                    title: 'Sedang Dipelajari',
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Aktif',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               ActiveCourseCard(
@@ -168,7 +190,7 @@ class _PelajaranViewState extends State<PelajaranView> {
                 teacher: activeCourse.teacherName.isNotEmpty
                     ? activeCourse.teacherName
                     : 'Guru Pengampu',
-                progress: 0.0,
+                progress: 0.65,
                 icon: activeColors.iconData,
                 iconBgColor: activeColors.bg,
                 iconColor: activeColors.icon,
@@ -193,19 +215,24 @@ class _PelajaranViewState extends State<PelajaranView> {
                         width: 10,
                         height: 10,
                         child: CircularProgressIndicator(
-                            color: _green, strokeWidth: 1.5),
+                          color: _green,
+                          strokeWidth: 1.5,
+                        ),
                       ),
                       const SizedBox(width: 5),
-                      const Text('Memperbarui...',
-                          style: TextStyle(fontSize: 10, color: _green)),
+                      const Text(
+                        'Memperbarui...',
+                        style: TextStyle(fontSize: 10, color: _green),
+                      ),
                       const SizedBox(width: 8),
                     ],
                     Text(
                       '${filtered.length} Mapel',
                       style: const TextStyle(
-                          fontSize: 11,
-                          color: _textMuted,
-                          fontWeight: FontWeight.w500),
+                        fontSize: 11,
+                        color: _textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -265,8 +292,7 @@ class _PelajaranViewState extends State<PelajaranView> {
         if (badge != null) ...[
           const SizedBox(width: 8),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
               color: badgeBg,
               borderRadius: BorderRadius.circular(20),
@@ -293,23 +319,29 @@ class _PelajaranViewState extends State<PelajaranView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: Color(0xFFCBD5E1),
+            ),
             const SizedBox(height: 16),
-            const Text('Gagal Memuat Data',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _textDark)),
+            const Text(
+              'Gagal Memuat Data',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: _textDark,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(vm.coursesError!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 13, color: Color(0xFF475569))),
+            Text(
+              vm.coursesError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () =>
-                  vm.fetchCourses(widget.authToken),
+              onPressed: () => vm.fetchCourses(widget.authToken),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Coba Lagi'),
               style: ElevatedButton.styleFrom(
@@ -317,7 +349,8 @@ class _PelajaranViewState extends State<PelajaranView> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -333,14 +366,16 @@ class _PelajaranViewState extends State<PelajaranView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.menu_book_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
+            Icon(Icons.menu_book_rounded, size: 56, color: Color(0xFFCBD5E1)),
             SizedBox(height: 16),
-            Text('Belum Ada Kursus',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _textDark)),
+            Text(
+              'Belum Ada Kursus',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: _textDark,
+              ),
+            ),
             SizedBox(height: 8),
             Text(
               'Belum ada mata pelajaran yang dipublikasikan.',

@@ -41,4 +41,38 @@ class AuthService {
       throw Exception('Terjadi kesalahan saat login');
     }
   }
+
+  /// Validasi token ke backend.
+  /// Throw exception jika token invalid atau expired.
+  Future<void> validateToken(String token) async {
+    final url = Uri.parse('$baseUrl/auth/validate');
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+            throw TimeoutException('Validasi token timeout');
+          });
+
+      final jsonResponse = json.decode(response.body);
+
+      if (response.statusCode != 200 || jsonResponse['success'] != true) {
+        throw Exception('Token tidak valid atau expired');
+      }
+    } on TimeoutException {
+      // Jika timeout, tidak perlu logout (mungkin server sedang lambat)
+      return;
+    } on http.ClientException {
+      // Network error, biarkan user tetap login dengan cache
+      return;
+    } catch (_) {
+      throw Exception('Gagal validasi token');
+    }
+  }
 }

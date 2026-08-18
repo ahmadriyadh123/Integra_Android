@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'models/weekly_plan_model.dart';
 import 'viewmodel/weekly_plan_viewmodel.dart';
 import 'weekly_plan_detail_view.dart';
+import '../../widgets/shared_header.dart';
 
 class WeeklyPlanScreen extends StatefulWidget {
   final String authToken;
@@ -37,24 +38,14 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'WEEKLY PLAN',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'WEEKLY PLAN',
-          style: TextStyle(
-            color: darkSlate,
-            fontWeight: FontWeight.w800,
-            fontSize: 15,
-            letterSpacing: 0.5,
-          ),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
         actions: [
           Consumer<WeeklyPlanViewModel>(
             builder: (_, vm, __) => IconButton(

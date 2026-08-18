@@ -61,7 +61,7 @@ class ElearningRepository:
 
         return [dict(row) for row in result.mappings().all()]
 
-    async def get_course_by_id(self, coursec_id: int) -> Optional[Dict[str, Any]]:
+    async def get_course_by_id(self, course_id: int) -> Optional[Dict[str, Any]]:
         """Ambil detail satu channel/kursus berdasarkan ID."""
         query = text("""
             SELECT 
@@ -77,7 +77,7 @@ class ElearningRepository:
             WHERE c.id = :course_id AND c.is_published = TRUE
             LIMIT 1;
         """)
-        
+
         result = await self.db.execute(query, {"course_id": course_id})
         row = result.mappings().first()
         return dict(row) if row else None

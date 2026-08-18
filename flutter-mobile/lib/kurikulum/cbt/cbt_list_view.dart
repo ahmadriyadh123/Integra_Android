@@ -7,6 +7,7 @@ import 'widgets/cbt/cbt_filter_tabs.dart';
 import 'widgets/cbt/cbt_exam_card.dart';
 import 'viewmodel/cbt_viewmodel.dart';
 import 'verifikasi_token_view.dart';
+import '../../widgets/shared_header.dart';
 
 class CbtListView extends StatefulWidget {
   const CbtListView({super.key});
@@ -51,18 +52,14 @@ class _CbtListViewState extends State<CbtListView> {
 
     return Scaffold(
       backgroundColor: backgroundSlate,
-      appBar: AppBar(
+      appBar: SharedHeader(
+        title: 'JADWAL UJIAN CBT',
         backgroundColor: Colors.white,
-        elevation: 0,
+        foregroundColor: darkSlate,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: darkSlate, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'JADWAL UJIAN CBT',
-          style: TextStyle(color: darkSlate, fontSize: 14, fontWeight: FontWeight.bold),
-        ),
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
