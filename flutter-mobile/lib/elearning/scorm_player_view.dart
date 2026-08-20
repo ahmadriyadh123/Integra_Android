@@ -64,29 +64,34 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
     return h;
   }
 
-  Future<File> _downloadZipFile(Uri uri) async {
+Future<File> _downloadZipFile(Uri uri) async {
     final tempDir = await getTemporaryDirectory();
     final zipFile = File('${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}.zip');
 
+    // Pastikan menggunakan client yang mendukung redirect jika domain mengarah ke https publik
     final client = http.Client();
     try {
+      print('[SCORM] Starting download from: $uri');
+      
+      // Menggunakan pendekatan HTTP GET dengan header auth
       final request = http.Request('GET', uri);
       request.headers.addAll(_authHeaders());
 
-      final streamed = await client.send(request).timeout(
-        const Duration(seconds: 45),
+      // Kirim request dan izinkan redirect otomatis
+      final streamedResponse = await client.send(request).timeout(
+        const Duration(seconds: 60),
         onTimeout: () => throw TimeoutException('Waktu koneksi unduh habis (timeout)'),
       );
 
-      if (streamed.statusCode == 200) {
+      if (streamedResponse.statusCode == 200) {
         final sink = zipFile.openWrite();
-        await streamed.stream.pipe(sink);
+        await streamedResponse.stream.pipe(sink);
         await sink.close();
         debugPrint('[SCORM] Download completed successfully: ${zipFile.path}');
         return zipFile;
       }
 
-      throw Exception('Gagal mengunduh SCORM (HTTP ${streamed.statusCode})');
+      throw Exception('Gagal mengunduh SCORM (HTTP ${streamedResponse.statusCode})');
     } finally {
       client.close();
     }
@@ -138,12 +143,20 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
         if (zipFile.existsSync()) zipFile.deleteSync();
       } catch (_) {}
 
-      late String indexPath;
+      String? indexPath;
       final allFiles = extractDir.listSync(recursive: true);
+
+      for (var f in allFiles) {
+        if (f is File) debugPrint('[SCORM EXTRACTED] ${f.path.split(Platform.pathSeparator).last}');
+      }
+
       for (final f in allFiles) {
         if (f is File) {
           final lower = f.path.toLowerCase();
-          if (lower.endsWith('/index.html') || lower.endsWith('index.html')) {
+          if (lower.endsWith('index.html') || 
+              lower.endsWith('index.htm') || 
+              lower.endsWith('story.html') || 
+              lower.endsWith('story.htm')) {
             indexPath = f.path;
             break;
           }
@@ -154,7 +167,7 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
         for (final f in allFiles) {
           if (f is File) {
             final lower = f.path.toLowerCase();
-            if (lower.endsWith('.html')) {
+            if (lower.endsWith('.html') || lower.endsWith('.htm') || lower.endsWith('.xhtml')) {
               indexPath = f.path;
               break;
             }
@@ -175,7 +188,7 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
 
           // default to index if path empty
           if (requestPath.isEmpty) {
-            var r = indexPath.substring(extractDir.path.length).replaceAll('\\', '/');
+            var r = indexPath!.substring(extractDir.path.length).replaceAll('\\', '/');
             if (r.startsWith('/')) r = r.substring(1);
             requestPath = r;
           }
@@ -205,7 +218,7 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
       });
 
       // build startUrl safely
-      final pathFromExtract = indexPath.substring(extractDir.path.length).replaceAll('\\', '/');
+      final pathFromExtract = indexPath!.substring(extractDir.path.length).replaceAll('\\', '/');
       final normalizedPath = pathFromExtract.startsWith('/') ? pathFromExtract.substring(1) : pathFromExtract;
       final startUrl = Uri(scheme: 'http', host: '127.0.0.1', port: server.port, path: normalizedPath).toString();
       debugPrint('[SCORM] startUrl resolved to: $startUrl');
@@ -214,6 +227,13 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
       // Prepare WebView controller and bridge
       final controller = WebViewController();
       controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+      
+      controller.setOnJavaScriptAlertDialog((request) async {
+        if (request.message.toLowerCase().contains('scorm api initialized')) {
+          return;
+        }
+      }); 
+
       controller.addJavaScriptChannel('ScormHost', onMessageReceived: (message) {
         try {
           final Map msg = jsonDecode(message.message) as Map;

@@ -6,6 +6,10 @@ class LoginRequest(BaseModel):
     username: str  # login / email / username
     password: str
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class UserProfileData(BaseModel):
     user_id: int
     partner_id: Optional[int] = None

@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 class TagihanSummaryCard extends StatelessWidget {
   final String totalAmount;
   final int activeCount;
-  final VoidCallback? onPaymentMethodTap;
 
   const TagihanSummaryCard({
     super.key,
     required this.totalAmount,
     required this.activeCount,
-    this.onPaymentMethodTap,
   });
 
   @override
@@ -76,40 +74,16 @@ class TagihanSummaryCard extends StatelessWidget {
           const SizedBox(height: 16),
           Divider(color: Colors.white.withValues(alpha: 0.2), height: 1),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const Row(
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.shield_outlined, color: Color(0xFFA7F3D0), size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Virtual Account & QRIS Tersedia',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: onPaymentMethodTap,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Cara Bayar',
-                    style: TextStyle(
-                      color: Color(0xFF059669),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              Icon(Icons.shield_outlined, color: Color(0xFFA7F3D0), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Virtual Account & QRIS Tersedia',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

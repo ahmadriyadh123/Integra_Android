@@ -35,56 +35,63 @@ class HomeHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              // Avatar inisial — tidak butuh URL gambar
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: const Color(0xFFECFDF5),
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: primaryTeal,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Selamat Datang,',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    studentName,
+          Expanded(
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: const Color(0xFFECFDF5),
+                  child: Text(
+                    initials,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: darkSlate,
+                      fontWeight: FontWeight.w800,
+                      color: primaryTeal,
                     ),
                   ),
-                  if (className.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      className,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: primaryTeal,
-                        fontWeight: FontWeight.w700,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Selamat Datang,',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
+                      const SizedBox(height: 2),
+                      Text(
+                        studentName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: darkSlate,
+                        ),
+                      ),
+                      if (className.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          className,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: primaryTeal,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           IconButton(
             onPressed: onNotificationTap,

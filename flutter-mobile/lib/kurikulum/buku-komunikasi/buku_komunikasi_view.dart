@@ -20,6 +20,26 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
   static const Color primaryTeal = Color(0xFF059669);
+  static const List<String> _monthOptions = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  static const List<String> _weekOptions = [
+    'Pekan 1',
+    'Pekan 2',
+    'Pekan 3',
+    'Pekan 4',
+  ];
 
   String? _selectedMonth;
   String? _selectedWeek;
@@ -88,22 +108,27 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     final detail = vm.detail;
     final lines = detail?.lines ?? [];
 
-    // Extract unique months and weeks
-    final List<String> months = lines.map((l) => l.bulan).toSet().toList();
-    final List<int> weeksInt = lines.map((l) => l.pekanKe).toSet().toList();
-    weeksInt.sort();
-    final List<String> weeks = weeksInt.map((w) => "Pekan $w").toList();
+    // Keep all calendar periods selectable, including periods without data.
+    final List<String> months = _monthOptions;
+    final List<String> weeks = _weekOptions;
 
     // Determine current selections
-    final String? currentMonth = _selectedMonth ?? (months.isNotEmpty ? months.first : null);
-    final String? currentWeek = _selectedWeek ?? (weeks.isNotEmpty ? weeks.first : null);
+    final String? currentMonth = months.contains(_selectedMonth)
+      ? _selectedMonth
+      : (months.isNotEmpty ? months.first : null);
+    final String? currentWeek = weeks.contains(_selectedWeek)
+      ? _selectedWeek
+      : weeks.first;
 
     // Find current line matching criteria
     final selectedWeekNum = currentWeek != null ? int.tryParse(currentWeek.replaceAll('Pekan ', '')) : null;
-    final matchingLines = lines.where((l) => l.bulan == currentMonth && l.pekanKe == selectedWeekNum);
+    final matchingLines = lines.where(
+          (l) => l.bulan.trim().toLowerCase() == currentMonth?.toLowerCase() &&
+              l.pekanKe == selectedWeekNum,
+    );
     final DailyNoteLine? selectedLine = matchingLines.isNotEmpty
-        ? matchingLines.first
-        : (lines.isNotEmpty ? lines.first : null);
+      ? matchingLines.first
+      : null;
 
     // Update controllers value when selection changes
     if (selectedLine != null && selectedLine.id != _lastLineId) {
@@ -200,7 +225,9 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
                               selectedWeek: currentWeek!,
                               months: months,
                               weeks: weeks,
-                              onMonthChanged: (val) => setState(() => _selectedMonth = val),
+                              onMonthChanged: (val) {
+                                setState(() => _selectedMonth = val);
+                              },
                               onWeekChanged: (val) => setState(() => _selectedWeek = val),
                             ),
                             const SizedBox(height: 20),
@@ -228,13 +255,13 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
                                   final note = dailyNotes[index];
                                   final dayKey = note['key'] as String;
                                   final noteText = note['note'] as String;
-                                  final hasTeacherNote = noteText.isNotEmpty && noteText != '-';
+                                  final hasDailyContent = noteText.trim().isNotEmpty && noteText != '-';
 
                                   return DailyNoteCard(
                                     day: note['day'] as String,
                                     date: '$currentWeek, $currentMonth',
-                                    hasTeacherNote: hasTeacherNote,
-                                    teacherNote: noteText,
+                                    hasTeacherNote: false,
+                                    savedResponse: hasDailyContent ? noteText : null,
                                     responseController: _responseControllers[dayKey]!,
                                     onSubmitResponse: () => _submitFeedback(selectedLine!.id, dayKey),
                                   );

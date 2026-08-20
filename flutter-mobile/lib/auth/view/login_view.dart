@@ -74,7 +74,7 @@ class _LoginViewState extends State<LoginView> {
                   _buildFormCard(),
                   const SizedBox(height: 24),
                   const Text(
-                    '© 2026 Portal Akademik Sekolah. All rights reserved.',
+                    '© 2026 Integra Edusolusi. All rights reserved.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     textAlign: TextAlign.center,
                   ),

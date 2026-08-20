@@ -9,7 +9,6 @@ class InvoiceCard extends StatelessWidget {
   final String status;
   final bool isOverdue;
   final String? paidDate;
-  final VoidCallback? onActionTap;
 
   const InvoiceCard({
     super.key,
@@ -21,7 +20,6 @@ class InvoiceCard extends StatelessWidget {
     required this.status,
     this.isOverdue = false,
     this.paidDate,
-    this.onActionTap,
   });
 
   @override
@@ -117,57 +115,26 @@ class InvoiceCard extends StatelessWidget {
               const SizedBox(height: 14),
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isLunas
-                            ? 'Dibayar pada: $paidDate'
-                            : 'Batas Waktu: $dueDate',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isOverdue && !isLunas ? redAlert : textSlate,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        amount,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: darkSlate,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    isLunas
+                        ? 'Dibayar pada: $paidDate'
+                        : 'Batas Waktu: $dueDate',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isOverdue && !isLunas ? redAlert : textSlate,
+                    ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: onActionTap,
-                    icon: Icon(
-                      isLunas
-                          ? Icons.download_rounded
-                          : Icons.account_balance_wallet_rounded,
-                      size: 16,
-                    ),
-                    label: Text(
-                      isLunas ? 'Kwitansi' : 'Bayar Sekarang',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isLunas ? const Color(0xFFF1F5F9) : primaryTeal,
-                      foregroundColor: isLunas ? darkSlate : Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    amount,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: darkSlate,
                     ),
                   ),
                 ],

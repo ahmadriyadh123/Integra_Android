@@ -20,6 +20,8 @@ class AttendanceView extends StatefulWidget {
 }
 
 class _AttendanceViewState extends State<AttendanceView> {
+  bool _showCalendar = true;
+
   @override
   void initState() {
     super.initState();
@@ -114,20 +116,43 @@ class _AttendanceViewState extends State<AttendanceView> {
                     const SizedBox(height: 24),
 
                     // 3. Heatmap Visual
-                    const Text(
-                      'KALENDER PRESENSI',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
-                        letterSpacing: 0.8,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'KALENDER PRESENSI',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: _showCalendar
+                              ? 'Sembunyikan kalender'
+                              : 'Tampilkan kalender',
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            _showCalendar
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                            color: const Color(0xFF0284C7),
+                          ),
+                          onPressed: () => setState(
+                            () => _showCalendar = !_showCalendar,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_showCalendar) ...[
+                      const SizedBox(height: 12),
+                      AttendanceHeatmapCard(
+                        totalDays: viewModel.filteredRecords.length,
+                        heatmapCells: viewModel.generateHeatmapCells(),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    AttendanceHeatmapCard(
-                      totalDays: viewModel.filteredRecords.length,
-                      heatmapCells: viewModel.generateHeatmapCells(),
-                    ),
+                    ],
                     const SizedBox(height: 24),
 
                     // 4. Detailed History

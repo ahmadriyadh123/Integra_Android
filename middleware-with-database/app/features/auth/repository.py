@@ -84,6 +84,21 @@ class AuthRepository:
         result = await self.db.execute(query, {"user_id": user_id})
         return [row[0] for row in result.fetchall()]
 
+    async def change_password(self, user_id: int, current_password: str, new_password: str) -> bool:
+        user_query = text("SELECT password FROM res_users WHERE id = :user_id AND active = TRUE LIMIT 1")
+        result = await self.db.execute(user_query, {"user_id": user_id})
+        user = result.mappings().first()
+        if not user or not user["password"] or not pwd_context.verify(current_password, user["password"]):
+            return False
+
+        update_query = text("UPDATE res_users SET password = :password WHERE id = :user_id")
+        await self.db.execute(
+            update_query,
+            {"password": pwd_context.hash(new_password), "user_id": user_id},
+        )
+        await self.db.commit()
+        return True
+
     async def get_user_profile_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         query = text("""
             SELECT 

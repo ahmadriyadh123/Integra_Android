@@ -75,6 +75,42 @@ class AuthService {
       throw Exception('Gagal validasi token');
     }
   }
+
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final url = Uri.parse('$baseUrl/auth/change-password');
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'current_password': currentPassword,
+              'new_password': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final jsonResponse = json.decode(response.body);
+      if (response.statusCode != 200 || jsonResponse['success'] != true) {
+        throw Exception(jsonResponse['detail'] ?? jsonResponse['message'] ?? 'Gagal mengganti password');
+      }
+    } on TimeoutException {
+      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+    } on http.ClientException catch (e) {
+      throw Exception('Gagal terhubung ke server: ${e.message}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Terjadi kesalahan saat mengganti password');
+    }
+  }
 }
 
 

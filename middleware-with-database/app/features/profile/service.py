@@ -35,8 +35,17 @@ class ProfileService:
         except Exception:
             return "0y 0m 0d"
 
-    async def get_student_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
-        record = await self.repo.get_student_profile_record(user_id=user_id)
+    async def get_student_profile(
+        self,
+        user_id: int,
+        partner_id: Optional[int] = None,
+        student_id: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        record = await self.repo.get_student_profile_record(
+            user_id=user_id,
+            partner_id=partner_id,
+            student_id=student_id,
+        )
         if not record:
             return None
 
@@ -47,8 +56,6 @@ class ProfileService:
         foto_url = None
         if partner_id:
             foto_url = await self.repo.get_partner_avatar_url(partner_id=partner_id)
-        if not foto_url:
-            foto_url = "https://images.unsplash.com/photo-1597524678053-5e6fef52d8a3?auto=format&fit=crop&q=80&w=150"
 
         # Tempat & Tanggal Lahir
         tempat_lahir = str(record.get("birth_place") or "-")
@@ -57,7 +64,9 @@ class ProfileService:
         ttl_str = f"{tempat_lahir}, {b_date_str}"
 
         # Kalkulasi Usia
-        usia_str = self._calculate_age_str(b_date)
+        usia_str = str(record.get("age") or self._calculate_age_str(b_date))
+        kelas = record.get("kelas_name") or record.get("grade")
+        rombel = record.get("rombel_name") or record.get("rombel")
 
         return {
             "profile": {
@@ -67,8 +76,8 @@ class ProfileService:
                 "nama_lengkap": nama_lengkap,
                 "nis": str(record.get("nis") or "-"),
                 "nisn": str(record.get("nisn") or "-"),
-                "kelas": str(record.get("kelas_name") or "-"),
-                "rombel": str(record.get("rombel_name") or "-"),
+                "kelas": str(kelas or "-"),
+                "rombel": str(rombel or "-"),
                 "tempat_lahir": tempat_lahir,
                 "tanggal_lahir": b_date_str,
                 "tempat_tanggal_lahir": ttl_str,

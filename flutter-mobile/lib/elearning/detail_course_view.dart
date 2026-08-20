@@ -67,30 +67,50 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     super.dispose();
   }
 
-  // Buka URL — untuk PDF gunakan browser, SCORM dibuka via player
-  Future<void> _openUrl(String? url, {bool isScorm = false}) async {
+Future<void> _openUrl(String? url, {bool isScorm = false}) async {
     if (url == null || url.isEmpty) {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
     }
 
-    final rawBaseUrl = _vm.repository.apiService.baseUrl;
-    final uriBase = Uri.parse(rawBaseUrl);
-    final middlewareHost = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
-
     String fullUrl = url;
+
+    // Jika URL dari server relatif (tidak pakai http), gabungkan dengan base URL host saja
     if (!url.startsWith('http')) {
-      fullUrl = url.startsWith('/') ? '$middlewareHost$url' : '$middlewareHost/$url';
-    } else if (url.contains('203.145.34.16:8069')) {
-      final path = Uri.parse(url).path;
-      final newPath = path.replaceAll('/web/content', '/api/v1/elearning/content');
-      fullUrl = '$middlewareHost$newPath';
+      final rawBaseUrl = _vm.repository.apiService.baseUrl;
+      final uriBase = Uri.parse(rawBaseUrl);
+      final hostOnly = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
+      
+      final cleanPath = url.startsWith('/') ? url : '/$url';
+      fullUrl = '$hostOnly$cleanPath';
     }
+
+    // Bersihkan semua duplikasi teks /api/v1/api/v1/ atau /elearning/elearning/ yang berulang akibat penggabungan sebelumnya
+    while (fullUrl.contains('/api/v1/api/v1/')) {
+      fullUrl = fullUrl.replaceAll('/api/v1/api/v1/', '/api/v1/');
+    }
+    while (fullUrl.contains('/elearning/elearning/')) {
+      fullUrl = fullUrl.replaceAll('/elearning/elearning/', '/elearning/');
+    }
+
+    // Pastikan jika URL Odoo mengarah ke /web/content/ langsung dikonversi ke route FastAPI content
+    if (fullUrl.contains('/web/content/')) {
+      final rawBaseUrl = _vm.repository.apiService.baseUrl;
+      final uriBase = Uri.parse(rawBaseUrl);
+      final hostOnly = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
+      
+      final uriPath = Uri.parse(fullUrl).path;
+      final match = RegExp(r'/web/content/(\d+)').firstMatch(uriPath);
+      if (match != null) {
+        fullUrl = '$hostOnly/api/v1/elearning/content/${match.group(1)}/download.zip';
+      }
+    }
+
+    debugPrint('[OPEN_URL] Final clean URL: $fullUrl');
 
     final lowerUrl = fullUrl.toLowerCase();
     final isZip = lowerUrl.endsWith('.zip') || lowerUrl.contains('.zip') || isScorm;
 
-    // Tangani paket SCORM (zip) dengan membuka in-app WebView setelah ekstraksi
     if (isScorm || isZip) {
       Navigator.push(
         context,

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_quick_menu.dart';
-import 'widgets/home_announcement_card.dart';
 
 class HomeView extends StatelessWidget {
   final String authToken;
@@ -49,47 +48,72 @@ class HomeView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'MENU UTAMA',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: textSlate,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x05000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: HomeQuickMenu(
-                        authToken: authToken,
-                        onMenuTap: onMenuTap,
-                        onTabSwitch: onTabSwitch,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFECFDF5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.school_outlined,
+                              color: Color(0xFF059669),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'PORTAL SISWA',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: textSlate,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Selamat datang di Portal Siswa, sistem informasi terintegrasi yang mendukung kegiatan belajar dan administrasi sekolah secara digital, praktis, dan efisien.',
+                                  style: TextStyle(
+                                    color: textSlate,
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'INFORMASI & PENGUMUMAN',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: textSlate,
-                        letterSpacing: 0.8,
-                      ),
+                    const SizedBox(height: 20),
+                    HomeQuickMenu(
+                      authToken: authToken,
+                      onMenuTap: onMenuTap,
+                      onTabSwitch: onTabSwitch,
                     ),
-                    const SizedBox(height: 12),
-                    HomeAnnouncementCard(
-                      title: 'Persiapan Ujian Tengah Semester (UTS) Genap',
-                      date: '28 Jul 2026',
-                      description: 'Diberitahukan kepada seluruh siswa agar mempersiapkan perangkat CBT dan memeriksa kembali tagihan administrasi.',
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),

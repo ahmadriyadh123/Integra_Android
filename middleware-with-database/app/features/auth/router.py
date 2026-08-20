@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.auth.schemas import LoginRequest, APIResponseLogin, TokenResponse, UserProfileData
+from app.features.auth.schemas import LoginRequest, ChangePasswordRequest, APIResponseLogin, TokenResponse, UserProfileData
 from app.features.auth.repository import AuthRepository
 from app.features.auth.service import AuthService
 
@@ -101,3 +102,24 @@ async def validate_token(
             "username": creds.get("username"),
         }
     }
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password baru minimal 6 karakter.")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="Password baru harus berbeda dari password lama.")
+
+    repo = AuthRepository(db)
+    updated = await repo.change_password(
+        user_id=creds["uid"],
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    if not updated:
+        raise HTTPException(status_code=401, detail="Password lama tidak sesuai.")
+    return {"success": True, "message": "Password berhasil diperbarui."}

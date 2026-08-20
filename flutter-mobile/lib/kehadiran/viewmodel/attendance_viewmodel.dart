@@ -11,7 +11,6 @@ class AttendanceViewModel extends ChangeNotifier {
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
-
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -24,18 +23,10 @@ class AttendanceViewModel extends ChangeNotifier {
   String? get activeMonthLabel => _activeMonthLabel;
 
   List<String> get availableMonths {
-    final monthDates = <String, DateTime>{};
-    for (final record in _allRecords) {
-      final label = monthLabelFor(record.date);
-      monthDates.putIfAbsent(
-        label,
-        () => DateTime(record.date.year, record.date.month),
-      );
-    }
-
-    final labels = monthDates.keys.toList();
-    labels.sort((a, b) => monthDates[b]!.compareTo(monthDates[a]!));
-    return labels;
+    final year = _allRecords.isEmpty
+        ? DateTime.now().year
+        : _allRecords.map((record) => record.date.year).reduce((a, b) => a > b ? a : b);
+    return _monthNames.map((month) => '$month $year').toList();
   }
 
   void setActiveMonth(String? newMonth) {
@@ -68,7 +59,14 @@ class AttendanceViewModel extends ChangeNotifier {
       return;
     }
     if (_activeMonthLabel == null || !months.contains(_activeMonthLabel)) {
-      _activeMonthLabel = months.first;
+      if (_allRecords.isNotEmpty) {
+        final latestRecord = _allRecords.reduce(
+          (current, record) => record.date.isAfter(current.date) ? record : current,
+        );
+        _activeMonthLabel = monthLabelFor(latestRecord.date);
+      } else {
+        _activeMonthLabel = months.first;
+      }
     }
   }
 

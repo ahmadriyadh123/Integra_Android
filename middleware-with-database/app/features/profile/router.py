@@ -30,7 +30,11 @@ async def get_my_profile(
     try:
         repo = ProfileRepository(db)
         service = ProfileService(repo)
-        data = await service.get_student_profile(user_id=user_id)
+        data = await service.get_student_profile(
+            user_id=user_id,
+            partner_id=creds.get("partner_id"),
+            student_id=creds.get("student_id"),
+        )
 
         if not data:
             return APIResponseProfile(

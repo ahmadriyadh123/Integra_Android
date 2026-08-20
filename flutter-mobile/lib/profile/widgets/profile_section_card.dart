@@ -54,6 +54,7 @@ class ProfileRowItem extends StatelessWidget {
   final String label;
   final String value;
   final bool showDivider;
+  final VoidCallback? onTap;
 
   const ProfileRowItem({
     super.key,
@@ -61,6 +62,7 @@ class ProfileRowItem extends StatelessWidget {
     required this.label,
     required this.value,
     this.showDivider = true,
+    this.onTap,
   });
 
   @override
@@ -70,7 +72,9 @@ class ProfileRowItem extends StatelessWidget {
 
     return Column(
       children: [
-        Padding(
+        InkWell(
+          onTap: onTap,
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
@@ -110,6 +114,7 @@ class ProfileRowItem extends StatelessWidget {
                 ),
               ),
             ],
+            ),
           ),
         ),
         if (showDivider)

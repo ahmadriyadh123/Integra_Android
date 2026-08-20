@@ -24,4 +24,16 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return apiService.changePassword(
+      token: token,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
 }

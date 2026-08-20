@@ -73,12 +73,24 @@ class AttendanceMonthFilter extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final selectedValue = availableMonths.contains(activeMonthLabel)
+    final selectedMonth = availableMonths.contains(activeMonthLabel)
         ? activeMonthLabel
         : availableMonths.first;
+    return _buildDropdown(
+      value: selectedMonth,
+      items: availableMonths,
+      icon: Icons.calendar_month,
+      onChanged: onMonthChanged,
+    );
+  }
 
+  Widget _buildDropdown({
+    required String? value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String?> onChanged,
+  }) {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -87,35 +99,21 @@ class AttendanceMonthFilter extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: selectedValue,
+          value: value,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: Color(0xFF475569),
-          ),
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
-          ),
-          onChanged: onMonthChanged,
-          items: availableMonths.map((month) {
-            return DropdownMenuItem<String>(
-              value: month,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_month,
-                    size: 14,
-                    color: Color(0xFF0284C7),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(month),
-                ],
-              ),
-            );
-          }).toList(),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF475569)),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          onChanged: onChanged,
+          items: items.map((item) => DropdownMenuItem<String>(
+            value: item,
+            child: Row(
+              children: [
+                Icon(icon, size: 14, color: const Color(0xFF0284C7)),
+                const SizedBox(width: 8),
+                Text(item),
+              ],
+            ),
+          )).toList(),
         ),
       ),
     );

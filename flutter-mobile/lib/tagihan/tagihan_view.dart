@@ -167,7 +167,6 @@ class _TagihanPageState extends State<TagihanPage> {
       status: item.isPaid ? 'Lunas' : 'Belum Bayar',
       isOverdue: item.isOverdue,
       paidDate: item.isPaid ? _formatDate(item.invoiceDate) : null,
-      onActionTap: () {},
     );
   }
 
