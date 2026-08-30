@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'form_fields.dart';
 
 class ParentsFormWidget extends StatelessWidget {
-  // Controllers - Data Ayah
   final TextEditingController namaAyahController;
   final TextEditingController nikAyahController;
   final TextEditingController tanggalLahirAyahController;
@@ -16,7 +15,6 @@ class ParentsFormWidget extends StatelessWidget {
   final String? pekerjaanAyahValue;
   final String? penghasilanAyahValue;
 
-  // Controllers - Data Ibu
   final TextEditingController namaIbuController;
   final TextEditingController nikIbuController;
   final TextEditingController tanggalLahirIbuController;
@@ -30,7 +28,6 @@ class ParentsFormWidget extends StatelessWidget {
   final String? pekerjaanIbuValue;
   final String? penghasilanIbuValue;
 
-  // Callbacks
   final VoidCallback onSelectTanggalLahirAyah;
   final VoidCallback onSelectTanggalLahirIbu;
   final ValueChanged<String?> onPendidikanAyahChanged;

@@ -23,7 +23,11 @@ class _ProfilTabState extends State<ProfilTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final authViewModel = context.read<AuthViewModel>();
-      context.read<ProfileViewModel>().loadProfile(authViewModel.token);
+      final profileViewModel = context.read<ProfileViewModel>();
+      profileViewModel.loadProfile(
+        authViewModel.token,
+        fallbackPartnerId: authViewModel.user?.partnerId,
+      );
     });
   }
 
@@ -32,124 +36,148 @@ class _ProfilTabState extends State<ProfilTab> {
     const Color backgroundSlate = Color(0xFFF8FAFC);
 
     final authViewModel = context.watch<AuthViewModel>();
-    final profile = context.watch<ProfileViewModel>().profile;
+    final profileViewModel = context.watch<ProfileViewModel>();
+    final profile = profileViewModel.profile;
     final user = authViewModel.user;
     final authService = context.read<AuthService>();
 
     final String name = profile?.name.isNotEmpty == true
         ? profile!.name
         : user?.name.isNotEmpty == true
-            ? user!.name
-            : (user?.username.isNotEmpty == true ? user!.username : '-');
+        ? user!.name
+        : (user?.username.isNotEmpty == true ? user!.username : '-');
 
     final String nis = _firstValue(profile?.nis, user?.nis);
     final String nisn = _firstValue(profile?.nisn, user?.nisn);
     final String className = _firstValue(profile?.className, user?.className);
     final String rombel = _firstValue(profile?.rombel, user?.rombel);
-    final String tempatTanggalLahir =
-        _firstValue(profile?.tempatTanggalLahir, user?.tempatTanggalLahir);
+    final String tempatTanggalLahir = _firstValue(
+      profile?.tempatTanggalLahir,
+      user?.tempatTanggalLahir,
+    );
     final String usia = _firstValue(profile?.usia, user?.usia);
 
-    final String imageUrl = profile?.photoUrl.isNotEmpty == true
-        ? profile!.photoUrl
-        : _buildPartnerImageUrl(authService.baseUrl, user?.partnerId);
+    final String imageUrl = _resolveImageUrl(
+      authService.baseUrl,
+      profile?.photoUrl,
+      user?.partnerId,
+    );
 
     return Scaffold(
       backgroundColor: backgroundSlate,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 12),
-            ProfileHeaderCard(
-              name: name,
-              className: className,
-              rombel: rombel,
-              imageUrl: imageUrl,
-              onEditTap: () {},
-            ),
-            const SizedBox(height: 24),
+      body: RefreshIndicator(
+        color: const Color(0xFF059669),
+        onRefresh: () async {
+          final authViewModel = context.read<AuthViewModel>();
+          final token = authViewModel.token;
+          final partnerId = authViewModel.user?.partnerId;
+          final profileViewModel = context.read<ProfileViewModel>();
+          await profileViewModel.loadProfile(token, fallbackPartnerId: partnerId);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 12),
+              ProfileHeaderCard(
+                name: name,
+                className: className,
+                rombel: rombel,
+                imageUrl: imageUrl,
+                imageBytes: profileViewModel.profileImage,
+                authToken: authViewModel.token,
+                onEditTap: () {},
+              ),
+              const SizedBox(height: 24),
 
-            // Seksi 1: Identitas Siswa
-            const ProfileSectionLabel(title: 'IDENTITAS SISWA'),
-            const SizedBox(height: 8),
-            ProfileSectionCard(
-              children: [
-                ProfileRowItem(
-                  icon: Icons.perm_identity_rounded,
-                  label: 'Nama Lengkap',
-                  value: name,
-                ),
-                ProfileRowItem(
-                  icon: Icons.badge_outlined,
-                  label: 'NIS',
-                  value: nis,
-                ),
-                ProfileRowItem(
-                  icon: Icons.card_membership_outlined,
-                  label: 'NISN',
-                  value: nisn,
-                ),
-                ProfileRowItem(
-                  icon: Icons.class_outlined,
-                  label: 'Kelas',
-                  value: className,
-                ),
-                ProfileRowItem(
-                  icon: Icons.meeting_room_outlined,
-                  label: 'Rombel',
-                  value: rombel,
-                ),
-                ProfileRowItem(
-                  icon: Icons.cake_outlined,
-                  label: 'Tempat, Tanggal Lahir',
-                  value: tempatTanggalLahir,
-                ),
-                ProfileRowItem(
-                  icon: Icons.hourglass_bottom_rounded,
-                  label: 'Usia',
-                  value: usia,
-                  showDivider: false,
-                ),
-              ],
-            ),
+              const ProfileSectionLabel(title: 'IDENTITAS SISWA'),
+              const SizedBox(height: 8),
+              ProfileSectionCard(
+                children: [
+                  ProfileRowItem(
+                    icon: Icons.perm_identity_rounded,
+                    label: 'Nama Lengkap',
+                    value: name,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.badge_outlined,
+                    label: 'NIS',
+                    value: nis,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.card_membership_outlined,
+                    label: 'NISN',
+                    value: nisn,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.class_outlined,
+                    label: 'Kelas',
+                    value: className,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.meeting_room_outlined,
+                    label: 'Rombel',
+                    value: rombel,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.cake_outlined,
+                    label: 'Tempat, Tanggal Lahir',
+                    value: tempatTanggalLahir,
+                  ),
+                  ProfileRowItem(
+                    icon: Icons.hourglass_bottom_rounded,
+                    label: 'Usia',
+                    value: usia,
+                    showDivider: false,
+                  ),
+                ],
+              ),
 
-            const SizedBox(height: 24),
-            const ProfileSectionLabel(title: 'KEAMANAN AKUN'),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ChangePasswordView()),
-                ),
-                icon: const Icon(Icons.lock_reset_rounded),
-                label: const Text('Ganti Password'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF059669),
-                  side: const BorderSide(color: Color(0xFFA7F3D0)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 24),
+              const ProfileSectionLabel(title: 'KEAMANAN AKUN'),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ChangePasswordView(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.lock_reset_rounded),
+                  label: const Text('Ganti Password'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF059669),
+                    side: const BorderSide(color: Color(0xFFA7F3D0)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 32),
-            ProfileLogoutButton(
-              onLogoutTap: () {
-                context.read<AuthViewModel>().logout();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginView()),
-                  (route) => false,
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 32),
+              ProfileLogoutButton(
+                onLogoutTap: () {
+                  context.read<AuthViewModel>().logout();
+                  // Gunakan Navigator.of(context, rootNavigator: true)
+                  // agar logout keluar dari DashboardView sepenuhnya,
+                  // bukan hanya dari nested navigator di dalamnya
+                  Navigator.of(context, rootNavigator: true)
+                      .pushAndRemoveUntil(
+                    MaterialPageRoute(
+                        builder: (_) => const LoginView()),
+                    (route) => false,
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -165,8 +193,19 @@ class _ProfilTabState extends State<ProfilTab> {
     if (partnerId == null || partnerId <= 0) {
       return '';
     }
+    return '$baseUrl/profile/image/$partnerId';
+  }
 
-    final origin = Uri.parse(baseUrl).origin;
-    return '$origin/web/image/res.partner/$partnerId/image_1920';
+  String _resolveImageUrl(String baseUrl, String? photoUrl, int? partnerId) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      if (photoUrl.startsWith('http')) return photoUrl;
+      final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final cleanPath = photoUrl.startsWith('/') ? photoUrl : '/$photoUrl';
+      if (cleanBase.endsWith('/api/v1') && cleanPath.startsWith('/api/v1')) {
+        return '${cleanBase.replaceAll(RegExp(r'/api/v1$'), '')}$cleanPath';
+      }
+      return '$cleanBase$cleanPath';
+    }
+    return _buildPartnerImageUrl(baseUrl, partnerId);
   }
 }

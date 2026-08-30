@@ -1,5 +1,6 @@
-# app/features/cbt/service.py
+import html
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from app.features.cbt.repository import CbtRepository
@@ -13,8 +14,18 @@ class CbtService:
     def _str(self, val: Any, fallback: str = '-') -> str:
         return str(val) if val and val is not False else fallback
 
-    async def get_exam_list(self, course_id: Optional[int] = None) -> Dict[str, Any]:
-        raw = await self.repo.get_schedules(course_id=course_id)
+    def _clean_html(self, val: Any) -> str:
+        if not val or val is False:
+            return ""
+        cleaned = re.sub(r'<[^>]*>', '', str(val))
+        return html.unescape(cleaned).strip()
+
+    async def get_exam_list(
+        self,
+        course_id: Optional[int] = None,
+        student_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        raw = await self.repo.get_schedules(course_id=course_id, student_id=student_id)
         exams = []
         for e in raw:
             t_mulai  = self._str(e.get('tanggal_mulai'), '')
@@ -61,7 +72,7 @@ class CbtService:
                 {
                     "id": opt.get("id"),
                     "kode": self._str(opt.get("kode"), "A"),
-                    "teks_jawaban": self._str(opt.get("teks_jawaban"), ""),
+                    "teks_jawaban": self._clean_html(opt.get("teks_jawaban")),
                 }
                 for opt in q.get('options', [])
             ]
@@ -69,7 +80,7 @@ class CbtService:
                 "id": q.get("id"),
                 "sequence": int(q.get("sequence") or 1),
                 "jenis_soal": self._str(q.get("jenis_soal"), "pilihan_ganda"),
-                "pertanyaan": self._str(q.get("pertanyaan"), ""),
+                "pertanyaan": self._clean_html(q.get("pertanyaan")),
                 "bobot_nilai": float(q.get("bobot_nilai") or 1.0),
                 "options": options,
             })
@@ -97,7 +108,7 @@ class CbtService:
 
         now_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
-        # 1. Buat record hasil ujian
+        # Buat header hasil sebelum menyimpan jawaban per soal.
         hasil_data = {
             'jadwal_ujian_id': jadwal_id,
             'student_id': student_id,
@@ -112,7 +123,7 @@ class CbtService:
         }
         hasil_id = await self.repo.create_hasil_ujian(data=hasil_data)
 
-        # 2. Simpan jawaban
+        # Simpan setiap jawaban dan kaitkan dengan hasil ujian.
         jumlah_kosong = 0
         for answer in answers:
             soal_id = answer.get('soal_id')
@@ -139,7 +150,7 @@ class CbtService:
             except Exception as e:
                 logger.warning(f"[cbt] gagal simpan jawaban soal_id={soal_id}: {e}")
 
-        # 3. Update rekap hasil ujian
+        # Perbarui nilai akhir setelah seluruh jawaban tersimpan.
         total_dijawab = len(answers) - jumlah_kosong
         update_vals = {
             'jumlah_benar': 0,

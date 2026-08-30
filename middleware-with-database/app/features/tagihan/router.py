@@ -1,4 +1,3 @@
-# app/features/tagihan/router.py
 import logging
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional

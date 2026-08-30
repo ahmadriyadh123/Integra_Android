@@ -50,63 +50,15 @@ class ElearningHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onRefreshTap != null && onClearCacheTap != null)
-                PopupMenuButton<String>(
+              if (onClearCacheTap != null)
+                IconButton(
                   icon: const Icon(
-                    Icons.more_vert_rounded,
+                    Icons.delete_sweep_rounded,
                     color: Colors.white,
                     size: 22,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  color: Colors.white,
-                  onSelected: (val) {
-                    if (val == 'refresh' && onRefreshTap != null) {
-                      onRefreshTap!();
-                    } else if (val == 'clear' && onClearCacheTap != null) {
-                      onClearCacheTap!();
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'refresh',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.refresh_rounded,
-                            size: 18,
-                            color: Color(0xFF475569),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            'Perbarui dari Server',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'clear',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_sweep_rounded,
-                            size: 18,
-                            color: Color(0xFFEF4444),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            'Hapus Cache',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFFEF4444),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  tooltip: 'Hapus Cache',
+                  onPressed: onClearCacheTap,
                 ),
             ],
           ),

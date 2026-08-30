@@ -11,7 +11,7 @@ class AttendanceRepository {
     required this.localStorage,
   });
 
-  /// Mengambil data kehadiran dengan strategi Cache-First dan fallback Offline.
+  /// Tampilkan cache yang masih berlaku sebelum meminta data terbaru.
   Future<List<AttendanceRecord>> getAttendanceHistory(String token, {bool forceRefresh = false}) async {
     // 1. Coba load dari cache Hive terlebih dahulu (kecuali dipaksa refresh)
     if (!forceRefresh) {

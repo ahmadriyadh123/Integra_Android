@@ -66,7 +66,7 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const AppLogo(
-                    title: 'Selamat Datang kembali',
+                    title: 'INTEGRA MOBILE APP',
                     subtitle: 'Silakan masuk ke akun siswa Anda',
                     assetPath: 'assets/app_icon.png',
                   ),
@@ -96,7 +96,7 @@ class _LoginViewState extends State<LoginView> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -108,14 +108,14 @@ class _LoginViewState extends State<LoginView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CustomTextField(
-              label: 'Username / Email',
-              hint: 'Masukkan username atau email',
+              label: 'Email',
+              hint: 'Masukkan email',
               prefixIcon: Icons.person_outline_rounded,
               controller: _usernameController,
               keyboardType: TextInputType.emailAddress,
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {
-                  return 'Username tidak boleh kosong';
+                  return 'Email tidak boleh kosong';
                 }
                 return null;
               },
@@ -163,7 +163,7 @@ class _LoginViewState extends State<LoginView> {
             Consumer<AuthViewModel>(
               builder: (context, viewModel, _) {
                 return PrimaryButton(
-                  text: 'Masuk Sekarang',
+                  text: 'Login',
                   isLoading: viewModel.isLoading,
                   onPressed: _onLoginPressed,
                 );

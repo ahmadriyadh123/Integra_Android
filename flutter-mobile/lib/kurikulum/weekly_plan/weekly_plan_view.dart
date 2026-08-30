@@ -46,17 +46,6 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
-        actions: [
-          Consumer<WeeklyPlanViewModel>(
-            builder: (_, vm, __) => IconButton(
-              icon: const Icon(Icons.refresh_rounded,
-                  color: primaryTeal, size: 22),
-              onPressed: vm.isLoading
-                  ? null
-                  : () => vm.fetchList(widget.authToken),
-            ),
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: borderColor, height: 1),
@@ -64,28 +53,38 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       ),
       body: Consumer<WeeklyPlanViewModel>(
         builder: (context, vm, _) {
-          if (vm.isLoading) {
+          if (vm.isLoading && !vm.hasData) {
             return const Center(
                 child: CircularProgressIndicator(color: primaryTeal));
           }
-          if (vm.errorMessage != null) return _buildError(vm);
-          if (!vm.hasData) return _buildEmpty();
-          return _buildList(vm);
+          return RefreshIndicator(
+            color: primaryTeal,
+            onRefresh: () => vm.fetchList(widget.authToken),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: vm.errorMessage != null
+                  ? _buildError(vm)
+                  : !vm.hasData
+                      ? _buildEmpty()
+                      : _buildListBody(vm),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildList(WeeklyPlanViewModel vm) {
-    return RefreshIndicator(
-      color: primaryTeal,
-      onRefresh: () => vm.fetchList(widget.authToken),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: vm.items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) => _buildCard(vm.items[i], vm),
+  Widget _buildListBody(WeeklyPlanViewModel vm) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: List.generate(
+          vm.items.length,
+          (i) => Padding(
+            padding: EdgeInsets.only(bottom: i < vm.items.length - 1 ? 12 : 0),
+            child: _buildCard(vm.items[i], vm),
+          ),
+        ),
       ),
     );
   }
@@ -255,67 +254,71 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   }
 
   Widget _buildError(WeeklyPlanViewModel vm) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
-            const SizedBox(height: 16),
-            const Text('Gagal Memuat Data',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: darkSlate)),
-            const SizedBox(height: 8),
-            Text(vm.errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 13, color: textSlate)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => vm.fetchList(widget.authToken),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Coba Lagi'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryTeal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded,
+              size: 56, color: Color(0xFFCBD5E1)),
+          const SizedBox(height: 16),
+          const Text('Gagal Memuat Data',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: darkSlate)),
+          const SizedBox(height: 8),
+          Text(vm.errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 13, color: textSlate)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => vm.fetchList(widget.authToken),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Coba Lagi'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryTeal,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmpty() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description_outlined,
-                size: 56, color: Color(0xFFCBD5E1)),
-            SizedBox(height: 16),
-            Text('Belum Ada Weekly Plan',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: darkSlate)),
-            SizedBox(height: 8),
-            Text(
-              'Weekly Plan untuk kelas Anda belum tersedia.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: textSlate),
-            ),
-          ],
-        ),
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(32),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.description_outlined,
+              size: 56, color: Color(0xFFCBD5E1)),
+          SizedBox(height: 16),
+          Text('Belum Ada Weekly Plan',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: darkSlate)),
+          SizedBox(height: 8),
+          Text(
+            'Weekly Plan untuk kelas Anda belum tersedia.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: textSlate),
+          ),
+        ],
       ),
     );
   }

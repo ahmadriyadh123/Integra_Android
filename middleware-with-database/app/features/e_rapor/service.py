@@ -1,4 +1,3 @@
-# app/features/e_rapor/service.py
 from typing import List, Dict, Any, Optional
 from app.features.e_rapor.repository import ERaporRepository
 
@@ -51,3 +50,47 @@ class ERaporService:
             "file_name": self._str(raw_detail.get("file_name")),
             "subjects": raw_detail.get("subjects", [])
         }
+
+    async def get_rapor_pdf_bytes(
+        self, rapor_id: int, student_id: int
+    ):
+        """
+        Fetch binary PDF rapor dari ir_attachment.
+        Return tuple (pdf_bytes, filename) atau None jika tidak ada.
+        """
+        import base64, os
+        from app.core.config import settings
+
+        attachment = await self.repo.get_rapor_attachment(
+            rapor_id=rapor_id, student_id=student_id
+        )
+        if not attachment:
+            return None
+
+        filename = self._str(attachment.get("file_name"), f"Rapor_{rapor_id}.pdf")
+        if not filename.lower().endswith('.pdf'):
+            filename += '.pdf'
+
+        # Odoo menyimpan file binary dalam db_datas (base64)
+        db_datas = attachment.get("db_datas")
+        if db_datas:
+            try:
+                if isinstance(db_datas, memoryview):
+                    db_datas = bytes(db_datas)
+                if isinstance(db_datas, bytes):
+                    pdf_bytes = base64.b64decode(db_datas)
+                else:
+                    pdf_bytes = base64.b64decode(str(db_datas))
+                return pdf_bytes, filename
+            except Exception:
+                pass
+
+        # Fallback: baca dari filestore jika ada store_fname
+        store_fname = attachment.get("store_fname")
+        if store_fname and hasattr(settings, 'ODOO_FILESTORE_PATH'):
+            filepath = os.path.join(settings.ODOO_FILESTORE_PATH, store_fname)
+            if os.path.exists(filepath):
+                with open(filepath, 'rb') as f:
+                    return f.read(), filename
+
+        return None

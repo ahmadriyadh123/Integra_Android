@@ -63,7 +63,7 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
     );
 
     List<Uri> uriAttempts = [uri];
-    if (uri.port == 8069 || uri.host == '203.145.34.16') {
+    if (uri.port == 8069) {
       final path = uri.path.replaceAll('/web/content', '/api/v1/elearning/content');
       final proxyUri = Uri.parse('http://10.0.2.2:8000$path');
       uriAttempts.add(proxyUri);

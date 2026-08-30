@@ -1,4 +1,3 @@
-# app/features/attendance/service.py
 
 from typing import List
 from app.features.attendance.repository import AttendanceRepository

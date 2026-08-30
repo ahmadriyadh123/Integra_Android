@@ -14,6 +14,7 @@ class ElearningService {
   }
 
   Future<List<dynamic>> fetchCourses(String token) async {
+    // Semua request e-learning membawa token session yang sama.
     final url = Uri.parse('$baseUrl/elearning/courses');
     try {
       final response = await http
@@ -60,6 +61,20 @@ class ElearningService {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat mengambil detail kursus');
     }
+  }
+
+  Future<String> fetchSlideContent(String token, int slideId) async {
+    final url = Uri.parse('$baseUrl/elearning/content/$slideId');
+    final response = await http
+        .get(url, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+
+    final json = jsonDecode(response.body);
+    if (response.statusCode == 200 && json['success'] == true) {
+      final contentUrl = json['url'] as String?;
+      if (contentUrl != null && contentUrl.isNotEmpty) return contentUrl;
+    }
+    throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil konten materi');
   }
 }
 

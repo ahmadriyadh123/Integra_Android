@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../auth/local/auth_local_storage.dart';
 
 import 'models/elearning_model.dart';
 import 'viewmodel/elearning_viewmodel.dart';
@@ -8,7 +9,7 @@ import 'widgets/detail/course_header_banner.dart';
 import 'widgets/detail/teacher_info_card.dart';
 import 'widgets/detail/curriculum_timeline_item.dart';
 import '../widgets/shared_header.dart';
-import 'scorm_player_view.dart';
+import 'views/scorm_player_view.dart';
 
 const Color _green = Color(0xFF059669);
 const Color _bgSlate = Color(0xFFF8FAFC);
@@ -67,7 +68,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     super.dispose();
   }
 
-Future<void> _openUrl(String? url, {bool isScorm = false}) async {
+Future<void> _openUrl(String? url, {bool isScorm = false, int? slideId}) async {
     if (url == null || url.isEmpty) {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
@@ -75,13 +76,24 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
 
     String fullUrl = url;
 
+    if (isScorm && slideId != null) {
+      try {
+        fullUrl = await _vm.repository.getSlideContent(widget.authToken, slideId);
+      } catch (e) {
+        if (!mounted) return;
+        _showSnack(e.toString().replaceAll('Exception: ', ''));
+        return;
+      }
+      if (!mounted) return;
+    }
+
     // Jika URL dari server relatif (tidak pakai http), gabungkan dengan base URL host saja
-    if (!url.startsWith('http')) {
+    if (!fullUrl.startsWith('http')) {
       final rawBaseUrl = _vm.repository.apiService.baseUrl;
       final uriBase = Uri.parse(rawBaseUrl);
       final hostOnly = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
       
-      final cleanPath = url.startsWith('/') ? url : '/$url';
+      final cleanPath = fullUrl.startsWith('/') ? fullUrl : '/$fullUrl';
       fullUrl = '$hostOnly$cleanPath';
     }
 
@@ -93,29 +105,25 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
       fullUrl = fullUrl.replaceAll('/elearning/elearning/', '/elearning/');
     }
 
-    // Pastikan jika URL Odoo mengarah ke /web/content/ langsung dikonversi ke route FastAPI content
-    if (fullUrl.contains('/web/content/')) {
-      final rawBaseUrl = _vm.repository.apiService.baseUrl;
-      final uriBase = Uri.parse(rawBaseUrl);
-      final hostOnly = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
-      
-      final uriPath = Uri.parse(fullUrl).path;
-      final match = RegExp(r'/web/content/(\d+)').firstMatch(uriPath);
-      if (match != null) {
-        fullUrl = '$hostOnly/api/v1/elearning/content/${match.group(1)}/download.zip';
-      }
-    }
-
     debugPrint('[OPEN_URL] Final clean URL: $fullUrl');
 
     final lowerUrl = fullUrl.toLowerCase();
     final isZip = lowerUrl.endsWith('.zip') || lowerUrl.contains('.zip') || isScorm;
 
     if (isScorm || isZip) {
+      final authStorage = context.read<AuthLocalStorage>();
+      final username = await authStorage.loadUsername();
+      final password = await authStorage.loadPassword();
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ScormPlayerView(scormUrl: fullUrl, authToken: widget.authToken),
+          builder: (_) => ScormPlayerView(
+            scormUrl: fullUrl,
+            authToken: widget.authToken,
+            odooUsername: username,
+            odooPassword: password,
+          ),
         ),
       );
       return;
@@ -149,7 +157,6 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
     );
   }
 
-  // ── Mapping tipe slide ke ikon & warna ──────────────────────────────────
   _SlideStyle _styleFor(String type) {
     switch (type) {
       case 'video':
@@ -246,48 +253,50 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            tooltip: 'Coba Lagi',
-            onPressed: () =>
-                vm.fetchCourseDetail(widget.authToken, widget.courseId, forceRefresh: true),
-          ),
-        ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_rounded,
-                  size: 56, color: Color(0xFFCBD5E1)),
-              const SizedBox(height: 16),
-              const Text('Gagal Memuat Detail',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: _textDark)),
-              const SizedBox(height: 8),
-              Text(vm.detailError!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    vm.fetchCourseDetail(widget.authToken, widget.courseId),
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Coba Lagi'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _green,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+      body: RefreshIndicator(
+        color: _green,
+        onRefresh: () =>
+            vm.fetchCourseDetail(widget.authToken, widget.courseId, forceRefresh: true),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded,
+                    size: 56, color: Color(0xFFCBD5E1)),
+                const SizedBox(height: 16),
+                const Text('Gagal Memuat Detail',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _textDark)),
+                const SizedBox(height: 8),
+                Text(vm.detailError!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      vm.fetchCourseDetail(widget.authToken, widget.courseId),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Coba Lagi'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _green,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -296,117 +305,125 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
 
   Widget _buildContent(CourseDetail detail) {
     final slides = detail.slides;
-    final firstSlide = slides.isNotEmpty ? slides.first : null;
+    final firstPlayableSlide = slides.cast<SlideItem?>().firstWhere(
+          (slide) => slide?.downloadUrl?.isNotEmpty == true,
+          orElse: () => null,
+        );
+    final firstVideoSlide = slides.cast<SlideItem?>().firstWhere(
+          (slide) =>
+              slide != null && slide.isVideo && slide.downloadUrl?.isNotEmpty == true,
+          orElse: () => null,
+        );
 
     return Consumer<ElearningViewModel>(
       builder: (context, vm, _) => Stack(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CourseHeaderBanner(
-                  title: detail.title,
-                  subtitle: detail.description.isNotEmpty
-                      ? detail.description
-                      : null,
-                  durasiMenit: detail.totalSlides,
-                  onBackTap: () => Navigator.pop(context),
-                  onPlayTap: () => _openUrl(firstSlide?.downloadUrl, isScorm: firstSlide?.isScorm ?? false),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Info guru
-                      TeacherInfoCard(teacherName: detail.teacherName),
+          RefreshIndicator(
+            color: _green,
+            onRefresh: () =>
+                vm.fetchCourseDetail(widget.authToken, widget.courseId, forceRefresh: true),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CourseHeaderBanner(
+                    title: detail.title,
+                    subtitle: detail.description.isNotEmpty
+                        ? detail.description
+                        : null,
+                    durasiMenit: detail.totalSlides,
+                    onBackTap: () => Navigator.pop(context),
+                    showPlayButton: firstVideoSlide != null,
+                    onPlayTap: firstVideoSlide == null
+                        ? null
+                        : () => _openUrl(
+                              firstVideoSlide.downloadUrl,
+                              isScorm: false,
+                              slideId: firstVideoSlide.id,
+                            ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Info guru
+                        TeacherInfoCard(teacherName: detail.teacherName),
 
-                      // Deskripsi (jika ada)
-                      if (detail.description.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFF1F5F9)),
-                          ),
-                          child: Text(
-                            detail.description,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF475569),
-                                height: 1.5),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      // Header daftar materi
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.import_contacts_rounded,
-                                  size: 18, color: _green),
-                              SizedBox(width: 8),
-                              Text(
-                                'Daftar Materi',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: _textDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              // Badge "Memperbarui..." saat refresh background
-                              if (vm.isRefreshingDetail) ...[
-                                const SizedBox(
-                                  width: 10,
-                                  height: 10,
-                                  child: CircularProgressIndicator(
-                                    color: _green,
-                                    strokeWidth: 1.5,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                const Text(
-                                  'Memperbarui...',
-                                  style:
-                                      TextStyle(fontSize: 10, color: _green),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Text(
-                                '${slides.length} Materi',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: _textMuted,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              // Tombol force refresh cache
-                              const SizedBox(width: 4),
-                              InkWell(
-                                onTap: () => vm.clearDetailCache(
-                                    widget.authToken, widget.courseId),
-                                borderRadius: BorderRadius.circular(20),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4),
-                                  child: Icon(Icons.refresh_rounded,
-                                      size: 16, color: _textMuted),
-                                ),
-                              ),
-                            ],
+                        // Deskripsi (jika ada)
+                        if (detail.description.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFF1F5F9)),
+                            ),
+                            child: Text(
+                              detail.description,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF475569),
+                                  height: 1.5),
+                            ),
                           ),
                         ],
-                      ),
+
+                        const SizedBox(height: 24),
+
+                        // Header daftar materi
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.import_contacts_rounded,
+                                    size: 18, color: _green),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Daftar Materi',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: _textDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                // Badge "Memperbarui..." saat refresh background
+                                if (vm.isRefreshingDetail) ...[
+                                  const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      color: _green,
+                                      strokeWidth: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  const Text(
+                                    'Memperbarui...',
+                                    style:
+                                        TextStyle(fontSize: 10, color: _green),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Text(
+                                  '${slides.length} Materi',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: _textMuted,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 16),
 
                       // Timeline slide
@@ -444,7 +461,11 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
                                     iconTextColor: style.iconColor,
                                     badgeText: style.badgeText,
                                     badgeColor: style.badgeColor,
-                                    onTap: () => _openUrl(slide.downloadUrl, isScorm: slide.isScorm),
+                                    onTap: () => _openUrl(
+                                      slide.downloadUrl,
+                                      isScorm: slide.isScorm,
+                                      slideId: slide.id,
+                                    ),
                                   ),
                                 );
                               }),
@@ -459,14 +480,15 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
               ],
             ),
           ),
+        ),
 
           // Bottom CTA
-          if (slides.isNotEmpty)
+          if (firstPlayableSlide != null)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: _buildBottomCTA(firstSlide),
+              child: _buildBottomCTA(firstPlayableSlide),
             ),
         ],
       ),
@@ -488,7 +510,11 @@ Future<void> _openUrl(String? url, {bool isScorm = false}) async {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () => _openUrl(firstSlide?.downloadUrl, isScorm: firstSlide?.isScorm ?? false),
+        onPressed: () => _openUrl(
+          firstSlide?.downloadUrl,
+          isScorm: firstSlide?.isScorm ?? false,
+          slideId: firstSlide?.id,
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: _green,
           padding: const EdgeInsets.symmetric(vertical: 14),

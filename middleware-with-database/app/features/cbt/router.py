@@ -1,4 +1,3 @@
-# app/features/cbt/router.py
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +30,10 @@ async def get_cbt_schedules(
     try:
         repo = CbtRepository(db)
         service = CbtService(repo)
-        data = await service.get_exam_list(course_id=creds.get("course_id"))
+        data = await service.get_exam_list(
+            course_id=creds.get("course_id"),
+            student_id=creds.get("student_id")
+        )
         return APIResponseCbtList(
             success=True,
             message="Berhasil mengambil jadwal ujian CBT",

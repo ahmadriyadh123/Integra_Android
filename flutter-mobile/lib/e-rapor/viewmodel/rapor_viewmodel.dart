@@ -19,6 +19,8 @@ class RaporViewModel extends ChangeNotifier {
   ReportCardDetail? _currentDetail;
   ReportCardDetail? get currentDetail => _currentDetail;
 
+  String getPdfUrl(int raporId) => repository.getPdfUrl(raporId);
+
   Future<void> fetchReportList(String token) async {
     _isLoading = true;
     _errorMessage = null;

@@ -44,11 +44,25 @@ class AuthLocalStorage {
     return value is String ? value : '';
   }
 
+  static const String _keyLastTabIndex = 'last_tab_index';
+
+  Future<void> saveLastTabIndex(int index) async {
+    final box = await _box();
+    await box.put(_keyLastTabIndex, index);
+  }
+
+  Future<int> loadLastTabIndex() async {
+    final box = await _box();
+    final value = box.get(_keyLastTabIndex);
+    return value is int ? value : 0;
+  }
+
   Future<void> clearAuth() async {
     final box = await _box();
     await box.delete(_keyAuth);
     await box.delete(_keyUsername);
     await box.delete(_keyPassword);
+    await box.delete(_keyLastTabIndex);
   }
 
   Future<bool> hasSavedAuth() async {

@@ -1,4 +1,3 @@
-# app/features/weekly_plan/repository.py
 import logging
 import base64
 from typing import List, Dict, Any, Optional

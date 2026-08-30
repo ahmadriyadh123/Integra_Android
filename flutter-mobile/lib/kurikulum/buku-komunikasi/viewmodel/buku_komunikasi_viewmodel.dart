@@ -31,25 +31,23 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> submitFeedback({
+  Future<bool> submitDailyNote({
     required String token,
     required int lineId,
     required String day,
-    required String feedbackText,
+    required String noteText,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
-
     try {
-      final success = await repository.submitFeedback(
+      final success = await repository.submitDailyNote(
         token: token,
         lineId: lineId,
         day: day,
-        feedbackText: feedbackText,
+        noteText: noteText,
       );
       if (success) {
-        // Refresh data to get the latest parent feedback
         await fetchBukuKomunikasi(token);
         return true;
       }

@@ -24,7 +24,6 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
-# ── Warna tema ────────────────────────────────────────────────────────────────
 COLOR_GREEN       = colors.HexColor('#059669')
 COLOR_GREEN_LIGHT = colors.HexColor('#D1FAE5')
 COLOR_GREEN_DARK  = colors.HexColor('#065F46')
@@ -39,6 +38,7 @@ MARGIN = 15 * mm
 
 
 def _styles() -> dict:
+    # Semua elemen PDF memakai style terpusat agar formatnya konsisten.
     base = getSampleStyleSheet()
     return {
         'school': ParagraphStyle('school',
@@ -160,6 +160,7 @@ def _day_table(
     styles: dict
 ) -> List:
     """Header hari + tabel kegiatan (Waktu | Aktivitas | Media | Sumber | Penilaian)."""
+    # Lebar kolom dijaga tetap agar tabel harian tidak berubah antar halaman.
     usable = PAGE_W - 2 * MARGIN
     col_w = [
         usable * 0.14,   # Waktu
@@ -169,7 +170,6 @@ def _day_table(
         usable * 0.18,   # Penilaian
     ]
 
-    # Header hari
     day_bar = Table(
         [[Paragraph(day_label, styles['day_header'])]],
         colWidths=[usable]
@@ -181,7 +181,6 @@ def _day_table(
         ('LEFTPADDING',   (0, 0), (-1, -1), 6),
     ]))
 
-    # Header kolom
     col_headers = [
         Paragraph('<b>Waktu</b>',                 styles['cell_center']),
         Paragraph('<b>Aktivitas Pembelajaran</b>', styles['cell_center']),
@@ -228,6 +227,7 @@ def generate_weekly_plan_pdf(data: Dict[str, Any]) -> bytes:
     Terima dict hasil WeeklyPlanService.get_weekly_plan_detail()
     dan kembalikan bytes PDF.
     """
+    # ReportLab menyusun seluruh elemen dokumen sebelum hasilnya dikembalikan.
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -242,7 +242,6 @@ def generate_weekly_plan_pdf(data: Dict[str, Any]) -> bytes:
     s = _styles()
     story = []
 
-    # ── Header Sekolah ────────────────────────────────────────────────────────
     story.append(Paragraph(data.get('nama_sekolah', 'ERP Integra Edusolusi'), s['school']))
     story.append(Paragraph('WEEKLY PLAN SD', s['title']))
     story.append(Paragraph(data.get('alamat_sekolah', ''), s['subtitle']))
@@ -251,21 +250,17 @@ def generate_weekly_plan_pdf(data: Dict[str, Any]) -> bytes:
         color=COLOR_GREEN, spaceAfter=4
     ))
 
-    # ── Info Pekan / Kelas / TA / Semester ────────────────────────────────────
     story.append(_info_table(data, s))
     story.append(Spacer(1, 4 * mm))
 
-    # ── Tema Pembelajaran ─────────────────────────────────────────────────────
     story.append(_section_header('TEMA PEMBELAJARAN', s))
     story.append(_tema_table(data.get('tema', '-'), s))
     story.append(Spacer(1, 4 * mm))
 
-    # ── Tujuan Pembelajaran ───────────────────────────────────────────────────
     story.append(_section_header('TUJUAN PEMBELAJARAN', s))
     story.append(_tp_table(data.get('tujuan_pembelajaran', []), s))
     story.append(Spacer(1, 4 * mm))
 
-    # ── Kegiatan Harian Senin–Jumat ───────────────────────────────────────────
     days = [
         ('Senin',  'senin'),
         ('Selasa', 'selasa'),
@@ -278,7 +273,6 @@ def generate_weekly_plan_pdf(data: Dict[str, Any]) -> bytes:
             story.append(elem)
         story.append(Spacer(1, 3 * mm))
 
-    # ── Footer tanda tangan ───────────────────────────────────────────────────
     story.append(Spacer(1, 6 * mm))
     usable = PAGE_W - 2 * MARGIN
     sign_rows = [[

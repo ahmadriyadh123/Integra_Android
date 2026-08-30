@@ -22,22 +22,34 @@ class WeeklyPlanService {
         throw TimeoutException('Waktu tunggu koneksi habis');
       });
 
-      final json = jsonDecode(response.body);
-      if (response.statusCode == 200 && json['success'] == true) {
-        final data = json['data'] as Map<String, dynamic>;
-        return data['weekly_plans'] as List<dynamic>? ?? [];
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map) {
+        final json = Map<String, dynamic>.from(decoded);
+        if (response.statusCode == 200 && json['success'] == true) {
+          final data = json['data'];
+          if (data is Map) {
+            final dataMap = Map<String, dynamic>.from(data);
+            final plans = dataMap['weekly_plans'];
+            if (plans is List) {
+              return plans;
+            }
+          }
+          return [];
+        }
+        throw Exception(
+            json['detail'] ?? json['message'] ?? 'Gagal mengambil Weekly Plan');
       }
-      throw Exception(
-          json['detail'] ?? json['message'] ?? 'Gagal mengambil Weekly Plan');
+      throw Exception('Format respon server tidak valid');
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
       throw Exception('Gagal terhubung ke server: ${e.message}');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Terjadi kesalahan saat mengambil Weekly Plan');
+      throw Exception('Terjadi kesalahan saat mengambil Weekly Plan: $e');
     }
   }
+
 
   /// Ambil URL PDF untuk ditampilkan di viewer
   /// Mengembalikan URL endpoint — PDF di-stream langsung oleh middleware

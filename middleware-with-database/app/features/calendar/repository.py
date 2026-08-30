@@ -1,4 +1,3 @@
-# app/features/calendar/repository.py
 from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text

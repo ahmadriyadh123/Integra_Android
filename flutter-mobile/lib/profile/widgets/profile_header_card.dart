@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
@@ -5,6 +7,8 @@ class ProfileHeaderCard extends StatelessWidget {
   final String className;
   final String rombel;
   final String imageUrl;
+  final Uint8List? imageBytes;
+  final String authToken;
   final VoidCallback? onEditTap;
 
   const ProfileHeaderCard({
@@ -13,6 +17,8 @@ class ProfileHeaderCard extends StatelessWidget {
     required this.className,
     required this.rombel,
     required this.imageUrl,
+    this.imageBytes,
+    required this.authToken,
     this.onEditTap,
   });
 
@@ -42,12 +48,22 @@ class ProfileHeaderCard extends StatelessWidget {
                 radius: 52,
                 backgroundColor: const Color(0xFFECFDF5),
                 child: ClipOval(
-                  child: imageUrl.isNotEmpty
+                  child: imageBytes != null
+                      ? Image.memory(
+                          imageBytes!,
+                          fit: BoxFit.cover,
+                          width: 104,
+                          height: 104,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildInitialAvatar(name, primaryTeal),
+                        )
+                      : imageUrl.isNotEmpty
                       ? Image.network(
                           imageUrl,
                           fit: BoxFit.cover,
                           width: 104,
                           height: 104,
+                          headers: {'Authorization': 'Bearer $authToken'},
                           errorBuilder: (context, error, stackTrace) =>
                               _buildInitialAvatar(name, primaryTeal),
                         )
@@ -128,8 +144,8 @@ class ProfileHeaderCard extends StatelessWidget {
     final initials = parts.length >= 2
         ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
         : name.isNotEmpty
-            ? name[0].toUpperCase()
-            : '?';
+        ? name[0].toUpperCase()
+        : '?';
     return Container(
       width: 104,
       height: 104,

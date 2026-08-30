@@ -44,7 +44,7 @@ class CbtHeaderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'UJIAN BERBASIS KOMPUTER',
+                  'UJIAN',
                   style: TextStyle(
                     color: Color(0xFFECFDF5),
                     fontSize: 10,

@@ -1,4 +1,3 @@
-# app/features/attendance/router.py
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging

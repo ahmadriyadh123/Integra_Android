@@ -12,7 +12,6 @@ class ElearningViewModel extends ChangeNotifier {
     required this.localStorage,
   });
 
-  // ── Daftar kursus ─────────────────────────────────────────────────────────
 
   bool _isLoadingCourses = false;
   bool get isLoadingCourses => _isLoadingCourses;
@@ -36,15 +35,16 @@ class ElearningViewModel extends ChangeNotifier {
     _coursesError = null;
 
     if (!forceRefresh) {
+      // Tampilkan cache terlebih dahulu, lalu perbarui tanpa mengosongkan UI.
       final cached = await localStorage.loadCourses();
       if (cached != null && cached.isNotEmpty) {
         _courses = cached.map(CourseItem.fromJson).toList();
         _isRefreshingCourses = true;
         notifyListeners();
 
-        // Refresh di background tanpa loading indicator penuh
+        // Refresh berjalan di background karena data cache sudah tersedia.
         try {
-          final fresh = await repository.getCourses(token);
+          final fresh = await repository.getCourses(token, forceRefresh: true);
           _courses = fresh;
           await localStorage.saveCourses(
               fresh.map(_courseItemToMap).toList());
@@ -58,7 +58,7 @@ class ElearningViewModel extends ChangeNotifier {
       }
     }
 
-    // Tidak ada cache atau forceRefresh → loading penuh
+    // Tanpa cache, tampilkan loading penuh sampai data dari API tersedia.
     _isLoadingCourses = true;
     notifyListeners();
 
@@ -74,7 +74,6 @@ class ElearningViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Detail kursus ─────────────────────────────────────────────────────────
 
   bool _isLoadingDetail = false;
   bool get isLoadingDetail => _isLoadingDetail;
@@ -95,13 +94,18 @@ class ElearningViewModel extends ChangeNotifier {
     if (!forceRefresh) {
       final cached = await localStorage.loadCourseDetail(courseId);
       if (cached != null) {
+        // Detail lama tetap ditampilkan selama versi terbaru sedang diambil.
         _courseDetail = CourseDetail.fromJson(cached);
         _isRefreshingDetail = true;
         notifyListeners();
 
-        // Refresh di background
+        // Perbarui detail secara background agar tampilan tidak berkedip.
         try {
-          final fresh = await repository.getCourseDetail(token, courseId);
+          final fresh = await repository.getCourseDetail(
+            token,
+            courseId,
+            forceRefresh: true,
+          );
           _courseDetail = fresh;
           await localStorage.saveCourseDetail(courseId, _courseDetailToMap(fresh));
         } catch (_) {
@@ -114,7 +118,7 @@ class ElearningViewModel extends ChangeNotifier {
       }
     }
 
-    // Tidak ada cache atau forceRefresh → loading penuh
+    // Tanpa cache, detail harus menunggu hasil API sebelum ditampilkan.
     _isLoadingDetail = true;
     _courseDetail = null;
     notifyListeners();
@@ -131,7 +135,6 @@ class ElearningViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Cache management ──────────────────────────────────────────────────────
 
   Future<void> clearAllCache(String token) async {
     await localStorage.clearAll();
@@ -163,7 +166,6 @@ class ElearningViewModel extends ChangeNotifier {
     clearDetail();
   }
 
-  // ── Serialisasi untuk cache ───────────────────────────────────────────────
 
   Map<String, dynamic> _courseItemToMap(CourseItem c) => {
         'id': c.id,

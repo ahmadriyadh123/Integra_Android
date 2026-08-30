@@ -13,7 +13,7 @@ class ProfileLogoutButton extends StatelessWidget {
         onPressed: onLogoutTap,
         icon: const Icon(Icons.logout_rounded, size: 18),
         label: const Text(
-          'Keluar dari Aplikasi',
+          'Logout',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,

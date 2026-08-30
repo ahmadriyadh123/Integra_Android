@@ -51,6 +51,10 @@ class ElearningRepository {
     return detail;
   }
 
+  Future<String> getSlideContent(String token, int slideId) {
+    return apiService.fetchSlideContent(token, slideId);
+  }
+
   Map<String, dynamic> _courseItemToMap(CourseItem c) => {
         'id': c.id,
         'title': c.title,

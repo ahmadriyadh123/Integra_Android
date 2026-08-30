@@ -1,4 +1,3 @@
-# app/features/auth/router.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -24,7 +23,7 @@ async def login(
 ):
     repo = AuthRepository(db)
 
-    # 1. Cek apakah user/email ada di database
+    # Pastikan akun terdaftar sebelum memverifikasi password.
     user_exists = await repo.get_user_by_login(payload.username)
     
     if not user_exists:
@@ -34,7 +33,7 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 2. Verifikasi Kredensial via Query Database
+    # Verifikasi password menggunakan hash yang tersimpan di database.
     user_info = await repo.authenticate_user(
         login=payload.username, 
         password_plain=payload.password
@@ -47,7 +46,7 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 3. Buat Payload JWT (Bebas dari password mentah)
+    # Token hanya membawa identitas dan konteks akses pengguna.
     jwt_payload = {
         "uid": user_info["user_id"],
         "sub": str(user_info["user_id"]),
@@ -61,7 +60,7 @@ async def login(
 
     access_token = AuthService.create_access_token(data=jwt_payload)
 
-    # 4. Buat Response
+    # Kembalikan token bersama profil untuk inisialisasi session Flutter.
     response_data = TokenResponse(
         access_token=access_token,
         token_type="bearer",

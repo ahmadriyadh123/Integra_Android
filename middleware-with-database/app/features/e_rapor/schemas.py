@@ -1,4 +1,3 @@
-# app/features/e_rapor/schemas.py
 from pydantic import BaseModel
 from typing import List, Optional
 

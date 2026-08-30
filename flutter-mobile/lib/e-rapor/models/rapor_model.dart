@@ -1,4 +1,3 @@
-// lib/models/rapor_model.dart
 
 class SubjectGrade {
   final int id;
@@ -107,7 +106,8 @@ class ReportCardDetail {
       pdfUrl: json['file_rapor_pdf'] as String?,
       fileName: json['file_name'] as String?,
       subjects: (json['subjects'] as List<dynamic>?)
-          ?.map((e) => SubjectGrade.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => SubjectGrade.fromJson(
+              Map<String, dynamic>.from(e as Map)))
           .toList() ??
           [],
     );

@@ -1,4 +1,3 @@
-# main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,9 +7,9 @@ from app.core.database import engine  # Pastikan mengimpor AsyncEngine dari data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Inisialisasi pool koneksi database jika diperlukan
+    # Pool database tetap tersedia selama aplikasi berjalan.
     yield
-    # Shutdown: Tutup pool koneksi database saat aplikasi berhenti
+    # Lepaskan koneksi database saat aplikasi berhenti.
     await engine.dispose()
 
 app = FastAPI(

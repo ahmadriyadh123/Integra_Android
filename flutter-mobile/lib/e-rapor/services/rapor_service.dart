@@ -7,6 +7,7 @@ class RaporService {
 
   RaporService({required this.baseUrl});
 
+  // Header terpusat menjaga autentikasi konsisten di semua endpoint rapor.
   Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

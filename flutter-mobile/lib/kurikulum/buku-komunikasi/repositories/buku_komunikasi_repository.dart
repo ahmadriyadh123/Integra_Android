@@ -27,22 +27,21 @@ class BukuKomunikasiRepository {
     return BukuKomunikasiDetail.fromJson(data);
   }
 
-  Future<bool> submitFeedback({
-    required String token,
-    required int lineId,
-    required String day,
-    required String feedbackText,
-  }) async {
-    final result = await apiService.submitFeedback(
-      token: token,
-      lineId: lineId,
-      day: day,
-      feedbackText: feedbackText,
-    );
-    if (result) {
-      // Clear cache setelah submit feedback supaya data fresh di refresh berikutnya
-      await localStorage.clearCache();
-    }
-    return result;
+  Future<bool> submitDailyNote({
+      required String token,
+      required int lineId,
+      required String day,
+      required String noteText,
+    }) async {
+      final result = await apiService.submitDailyNote(
+        token: token,
+        lineId: lineId,
+        day: day,
+        noteText: noteText,
+      );
+      if (result) {
+        await localStorage.clearCache();
+      }
+      return result;
   }
 }

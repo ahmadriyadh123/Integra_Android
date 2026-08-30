@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/splash_screen.dart';
 import 'package:provider/provider.dart';
@@ -15,24 +12,14 @@ void main() async {
 }
 
 String getApiBaseUrl() {
-  const overrideBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-  if (overrideBaseUrl.isNotEmpty) {
-    return overrideBaseUrl;
+  // Setiap build sekolah harus menunjuk ke middleware sekolah tersebut.
+  const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  if (apiBaseUrl.isEmpty) {
+    throw StateError(
+      'API_BASE_URL belum dikonfigurasi. Gunakan --dart-define=API_BASE_URL=...',
+    );
   }
-
-  if (kIsWeb) {
-    return 'http://localhost:8000/api/v1';
-  }
-
-  if (Platform.isAndroid) {
-    return 'http://10.0.2.2:8000/api/v1';
-  }
-
-  if (Platform.isIOS) {
-    return 'http://127.0.0.1:8000/api/v1';
-  }
-
-  return 'http://localhost:8000/api/v1';
+  return apiBaseUrl;
 }
 
 class MyApp extends StatelessWidget {
@@ -49,7 +36,6 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.teal,
         ),
-        // Halaman pertama adalah LoginView
         home: const SplashScreen(),
       ),
     );

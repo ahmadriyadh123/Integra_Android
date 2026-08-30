@@ -27,9 +27,11 @@ class CbtExamCard extends StatelessWidget {
     const Color primaryColor = Color(0xFF059669);
     const Color successColor = Color(0xFF10B981);
     
-    final isActive = status == 'Aktif';
-    final isDone = status == 'Selesai';
+    final statusLower = status.trim().toLowerCase();
+    final isActive = statusLower == 'aktif' || statusLower == 'active' || statusLower == 'published' || statusLower == 'ongoing';
+    final isDone = statusLower == 'selesai' || statusLower == 'done' || statusLower == 'completed';
     final accentColor = isActive ? primaryColor : (isDone ? successColor : Colors.grey);
+
 
     return Container(
       decoration: BoxDecoration(
@@ -47,7 +49,6 @@ class CbtExamCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bagian Header Kartu
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
@@ -116,14 +117,14 @@ class CbtExamCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: isActive || isDone ? onActionTap : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDone ? const Color(0xFFECFDF5) : primaryColor,
-                      foregroundColor: isDone ? successColor : Colors.white,
+                      backgroundColor: isActive || isDone ? primaryColor : const Color(0xFFCBD5E1),
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: Text(
-                      isDone ? 'Lihat Hasil' : (isActive ? 'Mulai Ujian' : 'Belum Dimulai'),
+                      isActive || isDone ? 'Mulai Ujian' : 'Belum Dimulai',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),

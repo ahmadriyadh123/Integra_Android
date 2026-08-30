@@ -36,13 +36,13 @@ class BukuKomunikasiService {
     }
   }
 
-  Future<bool> submitFeedback({
+  Future<bool> submitDailyNote({
     required String token,
     required int lineId,
     required String day,
-    required String feedbackText,
+    required String noteText,
   }) async {
-    final url = Uri.parse('$baseUrl/buku-komunikasi/feedback');
+    final url = Uri.parse('$baseUrl/buku-komunikasi/note');
     try {
       final response = await http
           .post(
@@ -51,25 +51,24 @@ class BukuKomunikasiService {
             body: jsonEncode({
               'line_id': lineId,
               'day': day.toLowerCase(),
-              'feedback_text': feedbackText,
+              'note_text': noteText,
             }),
           )
           .timeout(const Duration(seconds: 15), onTimeout: () {
         throw TimeoutException('Waktu tunggu koneksi habis');
       });
-
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
         return true;
       }
-      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal menyimpan feedback');
+      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal menyimpan catatan');
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
       throw Exception('Gagal terhubung ke server: ${e.message}');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Terjadi kesalahan saat menyimpan feedback');
+      throw Exception('Terjadi kesalahan saat menyimpan catatan');
     }
   }
 }

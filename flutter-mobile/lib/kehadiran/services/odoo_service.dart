@@ -32,7 +32,7 @@ class OdooService {
             {
               'fields': fields,
               'limit': limit,
-              if (order != null) 'order': order,
+              'order': ?order,
             },
           ],
         },

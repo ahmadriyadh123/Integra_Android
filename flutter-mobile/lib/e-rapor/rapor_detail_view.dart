@@ -1,4 +1,3 @@
-// lib/rapor_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/rapor_viewmodel.dart';

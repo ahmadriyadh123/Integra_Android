@@ -14,6 +14,7 @@ security_scheme = HTTPBearer(auto_error=False)
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency untuk menyediakan sesi database PostgreSQL Async."""
+    # Satu session dipakai selama request lalu ditutup setelah response selesai.
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -38,7 +39,7 @@ async def get_current_user_credentials(
     token = credentials.credentials
 
     try:
-        # Decode token JWT menggunakan Secret Key & Algoritma dari settings
+        # Validasi signature dan masa berlaku token sebelum membaca identitasnya.
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
@@ -53,7 +54,7 @@ async def get_current_user_credentials(
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # Mengembalikan dictionary kredensial untuk digunakan di router
+        # Router menerima klaim yang diperlukan untuk membatasi akses data.
         return {
             "uid": payload.get("uid"),
             "sub": payload.get("sub"),

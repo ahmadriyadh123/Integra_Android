@@ -58,31 +58,34 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
       ),
       body: Consumer<CalendarViewModel>(
         builder: (context, vm, _) {
-          if (vm.isLoading) {
+          if (vm.isLoading && !vm.hasData) {
             return const Center(
               child: CircularProgressIndicator(color: primaryGreen),
             );
           }
 
-          if (vm.errorMessage != null) {
-            return _buildError(vm);
-          }
-
-          if (!vm.hasData) {
-            return _buildEmpty();
-          }
-
-          return _buildContent(vm.calendars);
+          return RefreshIndicator(
+            color: primaryGreen,
+            onRefresh: () => vm.fetchCalendars(widget.authToken),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: vm.errorMessage != null
+                  ? _buildError(vm)
+                  : !vm.hasData
+                      ? _buildEmpty()
+                      : _buildContentBody(vm.calendars),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildContent(List<CalendarItem> calendars) {
+  Widget _buildContentBody(List<CalendarItem> calendars) {
     // Ambil info kelas & tahun ajaran dari item pertama untuk header
     final firstItem = calendars.first;
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,7 +109,7 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: calendars.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) =>
                 _buildCalendarCard(calendars[index]),
           ),
@@ -230,72 +233,76 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
   }
 
   Widget _buildError(CalendarViewModel vm) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
-            const SizedBox(height: 16),
-            const Text(
-              'Gagal Memuat Data',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate),
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded,
+              size: 56, color: Color(0xFFCBD5E1)),
+          const SizedBox(height: 16),
+          const Text(
+            'Gagal Memuat Data',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: darkSlate),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            vm.errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: textSlate),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => vm.fetchCalendars(widget.authToken),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Coba Lagi'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 8),
-            Text(
-              vm.errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: textSlate),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => vm.fetchCalendars(widget.authToken),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Coba Lagi'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmpty() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.calendar_today_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
-            SizedBox(height: 16),
-            Text(
-              'Belum Ada Kalender',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Kalender akademik untuk kelas Anda belum tersedia.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: textSlate),
-            ),
-          ],
-        ),
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(32),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.calendar_today_rounded,
+              size: 56, color: Color(0xFFCBD5E1)),
+          SizedBox(height: 16),
+          Text(
+            'Belum Ada Kalender',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: darkSlate),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Kalender akademik untuk kelas Anda belum tersedia.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: textSlate),
+          ),
+        ],
       ),
     );
   }

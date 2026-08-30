@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-// --- Import View Tab Utama ---
+import '../auth/local/auth_local_storage.dart';
 import '../home/home_view.dart';
-import '../kehadiran/view/attendance_view.dart';
-import '../kehadiran/viewmodel/attendance_viewmodel.dart';
+import '../elearning/lesson_view.dart';
+import '../elearning/viewmodel/elearning_viewmodel.dart';
 import '../profile/profile_view.dart';
 
 class DashboardView extends StatefulWidget {
@@ -24,14 +25,35 @@ class _DashboardViewState extends State<DashboardView> {
   // Navigator key untuk nested navigation di dalam body
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-  static const int _attendanceTabIndex = 1;
+  static const int _elearningTabIndex = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreLastTab();
+  }
+
+  Future<void> _restoreLastTab() async {
+    final savedIndex = await AuthLocalStorage().loadLastTabIndex();
+    if (mounted && savedIndex >= 0 && savedIndex <= 2) {
+      setState(() {
+        _currentIndex = savedIndex;
+      });
+      if (savedIndex == _elearningTabIndex) {
+        final vm = context.read<ElearningViewModel>();
+        if (!vm.isLoadingCourses && !vm.hasCourses && vm.coursesError == null) {
+          vm.fetchCourses(widget.authToken);
+        }
+      }
+    }
+  }
 
   /// Dipakai oleh quick menu untuk switch tab bottom nav
   void switchTab(int index) {
-    if (index == _attendanceTabIndex) {
-      final vm = context.read<AttendanceViewModel>();
-      if (!vm.isLoading && vm.filteredRecords.isEmpty && vm.errorMessage == null) {
-        vm.fetchAttendance(widget.authToken);
+    if (index == _elearningTabIndex) {
+      final vm = context.read<ElearningViewModel>();
+      if (!vm.isLoadingCourses && !vm.hasCourses && vm.coursesError == null) {
+        vm.fetchCourses(widget.authToken);
       }
     }
     // Pop semua nested route dulu supaya kembali ke halaman utama tab
@@ -39,6 +61,7 @@ class _DashboardViewState extends State<DashboardView> {
     setState(() {
       _currentIndex = index;
     });
+    AuthLocalStorage().saveLastTabIndex(index);
   }
 
   /// Dipakai oleh quick menu untuk push halaman di dalam body (bottom nav tetap tampil)
@@ -69,9 +92,7 @@ class _DashboardViewState extends State<DashboardView> {
 
     // 2. Jika sedang tidak di tab Beranda (index 0), kembalikan ke tab Beranda
     if (_currentIndex != 0) {
-      setState(() {
-        _currentIndex = 0;
-      });
+      switchTab(0);
       return;
     }
 
@@ -105,8 +126,8 @@ class _DashboardViewState extends State<DashboardView> {
     );
 
     if (shouldExit == true && mounted) {
-      // Keluar dari aplikasi
-      Navigator.of(context).pop();
+      // Pindahkan aplikasi ke background tanpa menutup route stack
+      await SystemNavigator.pop();
     }
   }
 
@@ -119,7 +140,7 @@ class _DashboardViewState extends State<DashboardView> {
           onTabSwitch: switchTab,
         );
       case 1:
-        return AttendanceView(authToken: widget.authToken);
+        return PelajaranView(authToken: widget.authToken);
       case 2:
         return const ProfilTab();
       default:
@@ -178,9 +199,9 @@ class _DashboardViewState extends State<DashboardView> {
                 label: 'Beranda',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.event_available_rounded),
-                activeIcon: Icon(Icons.event_available_rounded),
-                label: 'Kehadiran',
+                icon: Icon(Icons.menu_book_rounded),
+                activeIcon: Icon(Icons.menu_book_rounded),
+                label: 'E-Learning',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_rounded),

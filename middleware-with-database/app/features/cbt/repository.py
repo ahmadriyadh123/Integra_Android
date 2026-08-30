@@ -1,4 +1,3 @@
-# app/features/cbt/repository.py
 import logging
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +11,16 @@ class CbtRepository:
 
     async def get_schedules(self, course_id: Optional[int] = None, student_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Ambil jadwal ujian CBT yang aktif.
-        Filter berdasarkan course_id (langsung) atau student_id (lewat relasi enrollment).
+        Ambil jadwal ujian CBT yang aktif khusus kelas siswa yang login.
         """
+        # Ambil grade (course_id) dari op_student jika course_id belum tersedia
+        if course_id is None and student_id is not None:
+            grade_query = text("SELECT grade FROM op_student WHERE id = :student_id LIMIT 1;")
+            res = await self.db.execute(grade_query, {"student_id": student_id})
+            row = res.fetchone()
+            if row and row[0]:
+                course_id = int(row[0])
+
         base_query = """
             SELECT DISTINCT
                 j.id, j.name, j.status, j.mata_pelajaran_id,
@@ -35,23 +41,20 @@ class CbtRepository:
         """
         params = {}
 
-        if student_id is not None:
-            # Prioritaskan filter berdasarkan enrollment student agar lebih akurat per kelas
+        if course_id is not None:
+            base_query += """
+                JOIN cbt_jadwal_ujian_op_course_rel rel ON rel.cbt_jadwal_ujian_id = j.id
+                WHERE j.active = TRUE AND rel.op_course_id = :course_id
+            """
+            params["course_id"] = course_id
+        elif student_id is not None:
             base_query += """
                 JOIN cbt_jadwal_ujian_op_course_rel rel ON rel.cbt_jadwal_ujian_id = j.id
                 JOIN op_student_course sc ON sc.course_id = rel.op_course_id
                 WHERE j.active = TRUE AND sc.student_id = :student_id
             """
             params["student_id"] = student_id
-        elif course_id is not None:
-            # Filter berdasarkan course_id langsung (misal dari payload token)
-            base_query += """
-                JOIN cbt_jadwal_ujian_op_course_rel rel ON rel.cbt_jadwal_ujian_id = j.id
-                WHERE j.active = TRUE AND rel.op_course_id = :course_id
-            """
-            params["course_id"] = course_id
         else:
-            # Fallback jika tidak ada filter kelas, kembalikan semua yang aktif
             base_query += " WHERE j.active = TRUE"
 
         base_query += " ORDER BY j.tanggal_mulai DESC, j.id DESC;"
@@ -81,9 +84,9 @@ class CbtRepository:
 
     async def get_questions_by_bank_id(self, bank_soal_id: int) -> List[Dict[str, Any]]:
         """Ambil soal beserta opsi jawabannya dalam 2 query (Mengatasi N+1 Query)."""
-        # 1. Ambil semua soal
+        # Ambil daftar soal ujian sesuai urutan tampilnya.
         query_soal = text("""
-            SELECT id, sequence, jenis_soal, pertanyaan, tingkat_kesulitan, bobot_nilai
+            SELECT id, bank_soal_id, mata_pelajaran_id, kelas_id, rombel_id, sequence, jenis_soal, pertanyaan, tingkat_kesulitan, bobot_nilai, active
             FROM cbt_soal
             WHERE bank_soal_id = :bank_soal_id AND active = TRUE
             ORDER BY sequence ASC, id ASC;
@@ -95,7 +98,7 @@ class CbtRepository:
 
         soal_ids = [s["id"] for s in soal_list]
 
-        # 2. Ambil semua opsi dalam 1 query sekaligus
+        # Ambil semua opsi sekaligus untuk menghindari query per soal.
         query_opsi = text("""
             SELECT id, soal_id, kode, teks_jawaban, sequence
             FROM cbt_soal_jawaban
@@ -105,7 +108,7 @@ class CbtRepository:
         res_opsi = await self.db.execute(query_opsi, {"soal_ids": soal_ids})
         all_options = [dict(o) for o in res_opsi.mappings().all()]
 
-        # Grouping opsi ke masing-masing soal
+        # Kelompokkan opsi berdasarkan question_id untuk response bertingkat.
         options_by_soal: Dict[int, List[Dict[str, Any]]] = {}
         for opt in all_options:
             sid = opt["soal_id"]
@@ -167,7 +170,7 @@ class CbtRepository:
                 :jawaban_pilihan_id, :jawaban_text
             ) RETURNING id;
         """)
-        # Fallback key opsional
+        # Gunakan key alternatif jika data lama belum memiliki key utama.
         data.setdefault("jawaban_pilihan_id", None)
         data.setdefault("jawaban_text", None)
 

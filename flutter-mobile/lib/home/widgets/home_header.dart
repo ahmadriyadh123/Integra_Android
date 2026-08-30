@@ -14,23 +14,20 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryTeal = Color(0xFF059669);
     const Color darkSlate = Color(0xFF0F172A);
-
-    // Ambil inisial dari nama (maks 2 huruf)
-    final parts = studentName.trim().split(' ');
-    final initials = parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-        : studentName.isNotEmpty
-            ? studentName[0].toUpperCase()
-            : '?';
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(24),
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFFE2E8F0),
+          ),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -38,19 +35,15 @@ class HomeHeader extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: const Color(0xFFECFDF5),
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: primaryTeal,
-                    ),
-                  ),
+                Image.asset(
+                  'assets/app_icon.png',
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.contain,
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +75,7 @@ class HomeHeader extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 10,
-                            color: primaryTeal,
+                            color: Color(0xFF059669),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -91,16 +84,6 @@ class HomeHeader extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          IconButton(
-            onPressed: onNotificationTap,
-            icon: const Icon(Icons.notifications_outlined, color: darkSlate),
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF1F5F9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
             ),
           ),
         ],

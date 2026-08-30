@@ -1,6 +1,7 @@
 class StudentProfile {
   final int id;
   final int userId;
+  final int? partnerId;
   final String photoUrl;
   final String name;
   final String nis;
@@ -14,6 +15,7 @@ class StudentProfile {
   const StudentProfile({
     required this.id,
     required this.userId,
+    this.partnerId,
     required this.photoUrl,
     required this.name,
     required this.nis,
@@ -29,6 +31,7 @@ class StudentProfile {
     return StudentProfile(
       id: _asInt(json['id']),
       userId: _asInt(json['user_id']),
+      partnerId: json['partner_id'] as int?,
       photoUrl: _asString(json['foto_siswa']),
       name: _asString(json['nama_lengkap']),
       nis: _asString(json['nis']),

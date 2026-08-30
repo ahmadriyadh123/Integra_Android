@@ -1,4 +1,3 @@
-# app/features/e_rapor/repository.py
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -150,3 +149,52 @@ class ERaporRepository:
         res_lines = await self.db.execute(query_subjects, {"rapor_id": rapor_id})
         report_dict['subjects'] = [dict(row) for row in res_lines.mappings().all()]
         return report_dict
+
+    async def get_rapor_attachment(
+        self, rapor_id: int, student_id: int
+    ):
+        """
+        Ambil binary PDF dari ir_attachment untuk rapor tertentu.
+        Filter student_id memastikan siswa hanya bisa akses rapor miliknya.
+        """
+        level = await self.get_student_level_from_course(student_id)
+
+        if level == 'sd':
+            header_table, line_table = "ledger_rapor_sd", "ledger_rapor_sd_lm1"
+            res_model = "ledger.rapor.sd"
+        elif level == 'smp':
+            header_table, line_table = "ledger_rapor_smp", "ledger_rapor_smp_lm1"
+            res_model = "ledger.rapor.smp"
+        elif level == 'tk':
+            header_table, line_table = "ledger_rapor_tk", "ledger_rapor_tk_lm1"
+            res_model = "ledger.rapor.tk"
+        else:
+            return None
+
+        # Cari attachment dari rapor milik student ini
+        query = text(f"""
+            SELECT
+                att.id,
+                att.name AS file_name,
+                att.mimetype,
+                att.store_fname,
+                att.db_datas
+            FROM {line_table} l
+            JOIN {header_table} h ON h.id = l.{header_table}_id
+            JOIN ir_attachment att ON (
+                att.id = h.message_main_attachment_id
+                OR (att.res_model = :res_model AND att.res_id = h.id)
+            )
+            WHERE l.id = :rapor_id
+              AND l.student_id = :student_id
+              AND att.mimetype = 'application/pdf'
+            ORDER BY att.id DESC
+            LIMIT 1;
+        """)
+
+        result = await self.db.execute(query, {
+            "rapor_id": rapor_id,
+            "student_id": student_id,
+            "res_model": res_model
+        })
+        return result.mappings().first()

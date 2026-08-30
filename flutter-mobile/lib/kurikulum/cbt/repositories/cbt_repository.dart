@@ -31,4 +31,25 @@ class CbtRepository {
 
     return schedules;
   }
+
+  /// Verifikasi token ke API
+  Future<bool> verifyToken(String token, int jadwalId, String tokenInput) async {
+    return await apiService.verifyExamToken(token, jadwalId, tokenInput);
+  }
+
+  /// Ambil soal ujian dari API
+  Future<Map<String, dynamic>> getExamQuestions(String token, int jadwalId) async {
+    return await apiService.fetchExamQuestions(token, jadwalId);
+  }
+
+  /// Submit jawaban ujian ke API
+  Future<Map<String, dynamic>> submitExam(
+    String token,
+    int jadwalId,
+    List<Map<String, dynamic>> answers,
+    String? waktuMulai,
+  ) async {
+    return await apiService.submitExam(token, jadwalId, answers, waktuMulai);
+  }
 }
+

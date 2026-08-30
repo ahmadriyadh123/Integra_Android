@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -10,13 +11,15 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getMyProfile(String token) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/profile/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/profile/me'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 && jsonResponse['success'] == true) {
@@ -38,5 +41,19 @@ class ProfileService {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat mengambil profil');
     }
+  }
+
+  Future<Uint8List> getProfileImage(String token, int partnerId) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/profile/image/$partnerId'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+      return response.bodyBytes;
+    }
+    throw Exception('Foto profil tidak ditemukan');
   }
 }

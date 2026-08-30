@@ -69,19 +69,6 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded,
-                color: primaryTeal, size: 22),
-            tooltip: 'Muat Ulang',
-            onPressed: () {
-              setState(() {
-                _isError = false;
-                _errorMsg = '';
-              });
-            },
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: borderColor, height: 1),
@@ -94,7 +81,9 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   Widget _buildPdfViewer() {
     return SfPdfViewer.network(
       _pdfUrl,
-      headers: widget.authToken.isNotEmpty ? {'Authorization': 'Bearer \${widget.authToken}'} : <String, String>{},
+      headers: widget.authToken.isNotEmpty
+          ? {'Authorization': 'Bearer ${widget.authToken}'}
+          : <String, String>{},
       controller: _pdfController,
       onDocumentLoadFailed: (details) {
         setState(() {
@@ -109,49 +98,64 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
     );
   }
 
+
   Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.picture_as_pdf_rounded,
-                size: 56, color: Color(0xFFCBD5E1)),
-            const SizedBox(height: 16),
-            const Text(
-              'Gagal Memuat PDF',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _errorMsg.isNotEmpty
-                  ? _errorMsg
-                  : 'File PDF belum tersedia untuk Weekly Plan ini.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF475569)),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => setState(() {
-                _isError = false;
-                _errorMsg = '';
-              }),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Coba Lagi'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryTeal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+    return RefreshIndicator(
+      color: primaryTeal,
+      onRefresh: () async {
+        setState(() {
+          _isError = false;
+          _errorMsg = '';
+        });
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.picture_as_pdf_rounded,
+                  size: 56, color: Color(0xFFCBD5E1)),
+              const SizedBox(height: 16),
+              const Text(
+                'Gagal Memuat PDF',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: darkSlate),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _errorMsg.isNotEmpty
+                    ? _errorMsg
+                    : 'File PDF belum tersedia untuk Weekly Plan ini.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => setState(() {
+                  _isError = false;
+                  _errorMsg = '';
+                }),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Coba Lagi'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryTeal,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

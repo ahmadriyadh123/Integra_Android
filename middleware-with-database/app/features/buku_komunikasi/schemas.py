@@ -1,4 +1,3 @@
-# app/features/buku_komunikasi/schemas.py
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -30,7 +29,7 @@ class APIResponseBukuKomunikasi(BaseModel):
     message: str
     data: Optional[BukuKomunikasiDetailResponse] = None
 
-class UpdateFeedbackRequest(BaseModel):
+class UpdateNoteRequest(BaseModel):
     line_id: int
     day: str
-    feedback_text: str
+    note_text: str

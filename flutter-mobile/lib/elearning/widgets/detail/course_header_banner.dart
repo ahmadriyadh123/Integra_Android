@@ -5,7 +5,8 @@ class CourseHeaderBanner extends StatelessWidget {
   final String? subtitle;
   final int? durasiMenit;
   final VoidCallback onBackTap;
-  final VoidCallback onPlayTap;
+  final VoidCallback? onPlayTap;
+  final bool showPlayButton;
 
   const CourseHeaderBanner({
     super.key,
@@ -13,7 +14,8 @@ class CourseHeaderBanner extends StatelessWidget {
     this.subtitle,
     this.durasiMenit,
     required this.onBackTap,
-    required this.onPlayTap,
+    this.onPlayTap,
+    this.showPlayButton = true,
   });
 
   @override
@@ -66,33 +68,34 @@ class CourseHeaderBanner extends StatelessWidget {
               ),
             ),
           ),
-          Center(
-            child: Material(
-              color: Colors.white.withValues(alpha: 0.3),
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: onPlayTap,
-                customBorder: const CircleBorder(),
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(shape: BoxShape.circle),
-                  child: Center(
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
+          if (showPlayButton && onPlayTap != null)
+            Center(
+              child: Material(
+                color: Colors.white.withValues(alpha: 0.3),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: onPlayTap,
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(shape: BoxShape.circle),
+                    child: Center(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded,
+                            color: primaryColor, size: 32),
                       ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: primaryColor, size: 32),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           Positioned(
             left: 20,
             right: 20,

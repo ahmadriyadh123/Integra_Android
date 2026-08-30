@@ -13,7 +13,7 @@ class TagihanRepository {
 
   /// Mengambil data ringkasan tagihan dengan strategi Cache-First dan fallback Offline.
   Future<TagihanSummary> getTagihan(String token, {String? paymentState, bool forceRefresh = false}) async {
-    // 1. Coba baca dari cache lokal terlebih dahulu (jika tidak forceRefresh)
+    // Gunakan cache yang masih berlaku kecuali refresh dipaksa.
     if (!forceRefresh) {
       try {
         final cachedData = await localStorage.loadTagihanSummary(paymentState);
@@ -21,20 +21,20 @@ class TagihanRepository {
           return TagihanSummary.fromJson(cachedData);
         }
       } catch (_) {
-        // Abaikan error cache, langsung fetch dari API
+        // Cache yang rusak tidak boleh menghentikan pengambilan data baru.
       }
     }
 
-    // 2. Ambil dari API Odoo jika cache kosong/expired
+    // Ambil data baru saat cache kosong atau sudah kedaluwarsa.
     try {
       final data = await apiService.fetchTagihan(token, paymentState: paymentState);
       
-      // Simpan ke cache lokal Hive
+      // Simpan response agar halaman tetap tersedia saat offline.
       await localStorage.saveTagihanSummary(paymentState, data);
       
       return TagihanSummary.fromJson(data);
     } catch (e) {
-      // 3. Fallback offline: kembalikan cache terakhir jika ada
+      // Saat API gagal, gunakan cache terakhir sebagai fallback offline.
       try {
         final cachedData = await localStorage.loadTagihanSummary(paymentState);
         if (cachedData != null) {

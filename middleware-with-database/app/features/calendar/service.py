@@ -1,4 +1,3 @@
-# app/features/calendar/service.py
 from typing import Dict, Any
 from app.features.calendar.repository import CalendarRepository
 

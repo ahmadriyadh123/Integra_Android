@@ -1,16 +1,10 @@
-# app/features/elearning/router.py
 import io
-import os
-import zipfile
 import logging
-import base64
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response, FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user_credentials
-from app.core.config import settings
 from app.features.elearning.schemas import APIResponseCourseList, APIResponseCourseDetail
 from app.features.elearning.repository import ElearningRepository
 from app.features.elearning.service import ElearningService
@@ -30,7 +24,7 @@ async def get_courses(
     try:
         repo = ElearningRepository(db)
         service = ElearningService(repo)
-        data = await service.get_courses_list()
+        data = await service.get_courses_list(partner_id=creds.get("partner_id"))
         return APIResponseCourseList(
             success=True,
             message="Berhasil mengambil daftar kursus E-Learning",
@@ -73,31 +67,93 @@ async def get_course_detail(
             detail=f"Gagal mengambil detail kursus: {str(e)}"
         )
 
-@router.get("/content/{attachment_id}/{path:path}")
-async def download_attachment_content(
-    attachment_id: int,
-    path: str,
+@router.get("/content/{slide_id}")
+@router.get("/content/slide/{slide_id}")
+async def get_slide_content(
+    slide_id: int,
+    creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db)
 ):
-    # Mapping manual ID attachment ke nama file ZIP lokal yang sudah Anda sediakan
-    local_files_map = {
-        2067: "SCORM_Pendidikan_Agama_Islam_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-        2061: "SCORM_Matematika_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-        2062: "SCORM_Bahasa_Inggris_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-        24: "SCORM_Pendidikan_Pancasila_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-        26: "SCORM_PJOK_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-        28: "SCORM_Bahasa_Indonesia_Kelas_1_SD_Kurikulum_Merdeka_Odoo16.zip",
-    }
+    try:
+        repo = ElearningRepository(db)
 
-    filename = local_files_map.get(attachment_id)
-    if not filename:
-        raise HTTPException(status_code=404, detail="File materi tidak terdaftar di server lokal.")
+        slide = await repo.get_slide_content(slide_id=slide_id)
 
-    # Arahkan ke folder penyimpanan lokal FastAPI
-    local_dir = os.path.join("app", "static", "scorm_files")
-    file_path = os.path.join(local_dir, filename)
+        if not slide:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Slide E-Learning tidak ditemukan."
+            )
 
-    if os.path.exists(file_path):
-        return FileResponse(path=file_path, media_type="application/zip", filename=filename)
+        is_scorm = (
+            str(slide.get("slide_type") or "").lower() == "scorm"
+            or str(slide.get("slide_category") or "").lower() == "scorm"
+        )
+        url = (
+            f"/api/v1/elearning/content/{slide_id}/download"
+            if is_scorm
+            else repo._slide_download_url(
+                slide_type=slide.get("slide_type"),
+                filename=slide.get("filename"),
+                slide_category=slide.get("slide_category"),
+            )
+        )
 
-    raise HTTPException(status_code=404, detail="File fisik ZIP tidak ditemukan di penyimpanan server.")
+        if not url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File materi tidak ditemukan."
+            )
+
+        return {
+            "success": True,
+            "slide_id": slide_id,
+            "type": slide.get("slide_type"),
+            "url": url,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception(f"[elearning/content/{slide_id}] Error uid={creds.get('uid')}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal mengambil konten slide: {str(e)}"
+        )
+
+@router.get("/content/{slide_id}/download")
+async def download_scorm(
+    slide_id: int,
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        service = ElearningService(ElearningRepository(db))
+        package = await service.get_scorm_package(slide_id)
+        if not package:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "Paket SCORM tercatat di database, tetapi filestore Odoo "
+                    "belum tersedia pada middleware. Mount atau salin filestore Odoo."
+                )
+            )
+
+        content, filename, mimetype = package
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type=mimetype,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(content)),
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[elearning/content/{slide_id}/download] Error uid={creds.get('uid')}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal mengunduh paket SCORM: {str(e)}"
+        )

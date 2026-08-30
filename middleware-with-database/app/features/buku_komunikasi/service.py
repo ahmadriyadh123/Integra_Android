@@ -1,4 +1,3 @@
-# app/features/buku_komunikasi/service.py
 from typing import Dict, Any, Optional
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
 
@@ -10,11 +9,11 @@ class BukuKomunikasiService:
         header = await self.repo.get_buku_catatan_header(student_id=student_id, jenjang=jenjang)
         if not header:
             return None
-
+        
         lines = await self.repo.get_buku_catatan_lines(
             bukpeng_id=header['id'], jenjang=jenjang
         )
-
+        
         formatted_lines = []
         for line in lines:
             formatted_lines.append({
@@ -32,24 +31,24 @@ class BukuKomunikasiService:
                 "jumat": str(line.get("jumat") or "-"),
                 "feedback_jumat": str(line.get("feedback_jumat") or "-"),
             })
-
+            
         return {
             "id": header.get("id"),
             "student_name": str(header.get("student_name") or "-"),
             "kelas": str(header.get("kelas_name") or "-"),
             "tahun_ajaran": str(header.get("tahun_name") or "-"),
-            "status": str(header.get("status") or "-"),
+            "status": "draft",
             "lines": formatted_lines
         }
 
-    async def save_feedback(self, line_id: int, day: str, feedback_text: str, jenjang: str = 'sd') -> bool:
+    async def save_daily_note(self, line_id: int, day: str, note_text: str, jenjang: str = 'sd') -> bool:
         allowed_days = ["senin", "selasa", "rabu", "kamis", "jumat"]
         if day.lower() not in allowed_days:
             raise ValueError(f"Hari '{day}' tidak valid. Pilih salah satu dari: {allowed_days}")
-
-        return await self.repo.update_parent_feedback(
+        
+        return await self.repo.update_daily_note(
             line_id=line_id,
             day=day,
-            feedback_text=feedback_text,
+            note_text=note_text,
             jenjang=jenjang
         )

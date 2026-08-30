@@ -48,11 +48,11 @@ class _CustomDropdownBelowFieldState extends State<CustomDropdownBelowField> {
               // Mengatur posisi dan ukuran menu pop-up
               style: MenuStyle(
                 // Memaksa lebar menu pop-up sama persis dengan lebar form
-                minimumSize: MaterialStateProperty.all(Size(constraints.maxWidth, 0)),
-                maximumSize: MaterialStateProperty.all(Size(constraints.maxWidth, 250)), // Max height agar bisa di-scroll
-                backgroundColor: MaterialStateProperty.all(Colors.white),
-                elevation: MaterialStateProperty.all(4),
-                shape: MaterialStateProperty.all(
+                minimumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 0)),
+                maximumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 250)), // Max height agar bisa di-scroll
+                backgroundColor: WidgetStateProperty.all(Colors.white),
+                elevation: WidgetStateProperty.all(4),
+                shape: WidgetStateProperty.all(
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),

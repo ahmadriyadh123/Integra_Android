@@ -1,4 +1,3 @@
-# app/features/buku_komunikasi/repository.py
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -37,13 +36,13 @@ class BukuKomunikasiRepository:
 
     async def get_buku_catatan_lines(self, bukpeng_id: int, jenjang: str = 'sd') -> List[Dict[str, Any]]:
         """
-        Mengambil baris catatan harian buku komunikasi.
+        Mengambil baris catatan harian siswa beserta feedback dari guru.
         """
         table_name = f"bukpeng_{jenjang.lower()}_line"
         fk_field = f"bukpeng_{jenjang.lower()}_id"
-        
+                
         query = text(f"""
-            SELECT 
+            SELECT                  
                 id,
                 pekan_ke,
                 bulan,
@@ -61,23 +60,23 @@ class BukuKomunikasiRepository:
             WHERE {fk_field} = :bukpeng_id
             ORDER BY pekan_ke ASC;
         """)
-        
+                
         result = await self.db.execute(query, {"bukpeng_id": bukpeng_id})
         return [dict(row) for row in result.mappings().all()]
 
-    async def update_parent_feedback(self, line_id: int, day: str, feedback_text: str, jenjang: str = 'sd') -> bool:
+    async def update_daily_note(self, line_id: int, day: str, note_text: str, jenjang: str = 'sd') -> bool:
         """
-        Memperbarui catatan/feedback orang tua pada hari tertentu.
+        Memperbarui catatan harian siswa pada hari tertentu.
         """
         table_name = f"bukpeng_{jenjang.lower()}_line"
-        field_name = f"feedback_{day.lower()}"
-
+        field_name = day.lower()  # Kolom catatan siswa ('senin', 'selasa', dll.)
+        
         query = text(f"""
             UPDATE {table_name}
-            SET {field_name} = :feedback_text
+            SET {field_name} = :note_text
             WHERE id = :line_id;
         """)
-        
-        result = await self.db.execute(query, {"feedback_text": feedback_text, "line_id": line_id})
+                
+        result = await self.db.execute(query, {"note_text": note_text, "line_id": line_id})
         await self.db.commit()
         return result.rowcount > 0

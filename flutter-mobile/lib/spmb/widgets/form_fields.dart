@@ -136,7 +136,7 @@ class SpmbFormFields {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           validator: validator,
           isExpanded: true,
           style: const TextStyle(fontSize: 14, color: Colors.black87),

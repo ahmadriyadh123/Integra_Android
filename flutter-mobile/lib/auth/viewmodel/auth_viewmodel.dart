@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../local/auth_local_storage.dart';
 import '../models/auth_model.dart';
@@ -72,13 +73,12 @@ class AuthViewModel extends ChangeNotifier {
   /// Hanya memvalidasi ke API jika ada koneksi internet.
   Future<bool> restoreSessionFromHive() async {
     try {
-      // 1. Coba load auth result dari Hive (offline)
+      // Pulihkan data lokal lebih dulu agar login tidak menunggu jaringan.
       final authData = await localStorage.loadAuth();
       if (authData == null) {
         return false;
       }
 
-      // 2. Parse auth result dari local storage
       try {
         _authResult = AuthResult.fromJson(authData);
       } catch (_) {
@@ -87,8 +87,7 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
-      // 3. Optional: Validasi ke API di background jika ada koneksi
-      // Jika validasi gagal, logout otomatis
+      // Validasi token berjalan terpisah agar pemulihan session tetap cepat.
       _validateSessionInBackground();
 
       return true;
@@ -97,21 +96,43 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Validasi session ke API di background (non-blocking).
-  /// Jika gagal, logout otomatis dan user harus login ulang.
+  /// Validasi session token secara lokal (decode JWT exp claim).
+  /// Tidak ada network request — aman untuk semua platform/device.
   Future<void> _validateSessionInBackground() async {
     if (token.isEmpty) return;
 
     try {
-      // Coba hit endpoint dummy untuk validasi token
-      // Bisa menggunakan GET /profile atau endpoint lain yang ringan
-      await repository.validateSession(token);
-      // Validasi berhasil, session masih valid
+      // Decode payload hanya untuk membaca masa berlaku token.
+      final parts = token.split('.');
+      if (parts.length != 3) {
+        await logout();
+        return;
+      }
+
+      // JWT memakai Base64 URL tanpa padding wajib.
+      String payload = parts[1];
+      final remainder = payload.length % 4;
+      if (remainder != 0) payload += '=' * (4 - remainder);
+
+      final decoded = String.fromCharCodes(
+          base64Url.decode(payload));
+      final Map<String, dynamic> claims =
+          json.decode(decoded) as Map<String, dynamic>;
+
+      final exp = claims['exp'];
+      if (exp == null) return; // Tidak ada exp → anggap valid
+
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
+      if (DateTime.now().isAfter(expiry)) {
+        // Token kedaluwarsa tidak boleh dipakai untuk melanjutkan session.
+        await logout();
+        _errorMessage = 'Session telah berakhir. Silakan login kembali.';
+        notifyListeners();
+      }
     } catch (_) {
-      // Token invalid atau expired, logout otomatis
-      await logout();
-      _errorMessage = 'Session expired. Silakan login kembali.';
-      notifyListeners();
+      // Jika decode gagal karena format aneh, biarkan session tetap aktif
+      // Tidak perlu logout karena bisa jadi false positive
     }
   }
 

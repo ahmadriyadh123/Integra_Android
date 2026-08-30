@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'form_fields.dart'; // Sesuaikan dengan lokasi file helper form Anda
 
 class StudentFormWidget extends StatelessWidget {
-  // --- Controllers ---
   final TextEditingController namaDepanController;
   final TextEditingController namaTengahController;
   final TextEditingController namaBelakangController;
@@ -25,7 +24,6 @@ class StudentFormWidget extends StatelessWidget {
   final TextEditingController waktuTempuhController;
   final TextEditingController jumlahSaudaraController;
 
-  // --- State Values ---
   final String? jenisKelaminValue;
   final String? agamaValue;
   final String? tempatTinggalValue;
@@ -37,7 +35,6 @@ class StudentFormWidget extends StatelessWidget {
   final String? negaraValue;
   final String? jarakKategoriValue;
 
-  // --- Callbacks ---
   final VoidCallback onSelectTanggalLahir;
   final ValueChanged<String?> onJenisKelaminChanged;
   final ValueChanged<String?> onAgamaChanged;

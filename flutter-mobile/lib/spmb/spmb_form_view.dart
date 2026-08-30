@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'widgets/supporting_data_form.dart';
 import 'widgets/student_form.dart';
 import 'widgets/parents_form.dart';
-import 'widgets/form_fields.dart';
 import '../widgets/shared_header.dart';
 
 class SpmbFormScreen extends StatefulWidget {
@@ -17,7 +16,6 @@ class _SpmbFormScreenState extends State<SpmbFormScreen> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
 
-  // --- Controllers - Data Siswa & Periodik ---
   final _namaDepanController = TextEditingController();
   final _namaTengahController = TextEditingController();
   final _namaBelakangController = TextEditingController();
@@ -51,7 +49,6 @@ class _SpmbFormScreenState extends State<SpmbFormScreen> {
   String? _negara;
   String? _jarakKategori;
 
-  // --- Controllers - Data Ayah ---
   final _namaAyahController = TextEditingController();
   final _nikAyahController = TextEditingController();
   final _tanggalLahirAyahController = TextEditingController();
@@ -64,7 +61,6 @@ class _SpmbFormScreenState extends State<SpmbFormScreen> {
   final _alamatKantorAyahController = TextEditingController();
   final _noKantorAyahController = TextEditingController();
 
-  // --- Controllers - Data Ibu ---
   final _namaIbuController = TextEditingController();
   final _nikIbuController = TextEditingController();
   final _tanggalLahirIbuController = TextEditingController();

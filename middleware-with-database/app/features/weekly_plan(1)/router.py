@@ -1,4 +1,3 @@
-# app/features/weekly_plan/router.py
 import logging
 import io
 from fastapi import APIRouter, Depends, HTTPException, status

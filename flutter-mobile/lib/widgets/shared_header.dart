@@ -13,7 +13,7 @@ class SharedHeader extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget? bottom;
 
   const SharedHeader({
-    Key? key,
+    super.key,
     this.title,
     this.titleWidget,
     this.centerTitle = true,
@@ -24,8 +24,7 @@ class SharedHeader extends StatelessWidget implements PreferredSizeWidget {
     this.onBack,
     this.actions,
     this.bottom,
-  })  : assert(title != null || titleWidget != null, 'Provide title or titleWidget'),
-        super(key: key);
+  })  : assert(title != null || titleWidget != null, 'Provide title or titleWidget');
 
   @override
   Size get preferredSize =>

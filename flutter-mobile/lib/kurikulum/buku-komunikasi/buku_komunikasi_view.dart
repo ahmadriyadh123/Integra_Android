@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import 'viewmodel/buku_komunikasi_viewmodel.dart';
 import 'models/buku_komunikasi_model.dart';
-import 'widgets/student_info_banner.dart';
 import 'widgets/month_week_filter.dart';
 import 'widgets/daily_note_card.dart';
 import '../../widgets/shared_header.dart';
@@ -20,6 +19,7 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
   static const Color primaryTeal = Color(0xFF059669);
+  
   static const List<String> _monthOptions = [
     'Januari',
     'Februari',
@@ -43,10 +43,10 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
 
   String? _selectedMonth;
   String? _selectedWeek;
-  int? _lastLineId;
+  String? _lastFormKey;
 
   // Map of controllers for each day
-  final Map<String, TextEditingController> _responseControllers = {
+  final Map<String, TextEditingController> _noteControllers = {
     'senin': TextEditingController(),
     'selasa': TextEditingController(),
     'rabu': TextEditingController(),
@@ -65,33 +65,45 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
 
   @override
   void dispose() {
-    for (var controller in _responseControllers.values) {
+    for (var controller in _noteControllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  void _submitFeedback(int lineId, String dayKey) async {
+  // Definisikan _submitNote dengan mendukung lineId = 0 (pekan baru)
+  void _submitNote(int? lineId, String dayKey, String? month, String? week) async {
     final token = context.read<AuthViewModel>().token;
-    final feedbackText = _responseControllers[dayKey]!.text;
-    
-    final success = await context.read<BukuKomunikasiViewModel>().submitFeedback(
+    final noteText = _noteControllers[dayKey]!.text.trim();
+
+    if (noteText.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Catatan tidak boleh kosong.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+         
+    final success = await context.read<BukuKomunikasiViewModel>().submitDailyNote(
       token: token,
-      lineId: lineId,
+      lineId: lineId ?? 0, // Jika lineId null, dikirim 0 agar backend memproses pemuatan baris pekan baru
       day: dayKey,
-      feedbackText: feedbackText.isEmpty ? '-' : feedbackText,
+      noteText: noteText,
     );
-    
+         
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Catatan/respons berhasil disimpan!'),
+            content: Text('Catatan harian berhasil dikirim!'),
             backgroundColor: primaryTeal,
           ),
         );
       } else {
-        final error = context.read<BukuKomunikasiViewModel>().errorMessage ?? 'Gagal menyimpan respons';
+        final error = context.read<BukuKomunikasiViewModel>().errorMessage ?? 'Gagal menyimpan catatan';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
@@ -108,11 +120,9 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     final detail = vm.detail;
     final lines = detail?.lines ?? [];
 
-    // Keep all calendar periods selectable, including periods without data.
     final List<String> months = _monthOptions;
     final List<String> weeks = _weekOptions;
 
-    // Determine current selections
     final String? currentMonth = months.contains(_selectedMonth)
       ? _selectedMonth
       : (months.isNotEmpty ? months.first : null);
@@ -120,7 +130,6 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
       ? _selectedWeek
       : weeks.first;
 
-    // Find current line matching criteria
     final selectedWeekNum = currentWeek != null ? int.tryParse(currentWeek.replaceAll('Pekan ', '')) : null;
     final matchingLines = lines.where(
           (l) => l.bulan.trim().toLowerCase() == currentMonth?.toLowerCase() &&
@@ -130,45 +139,57 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
       ? matchingLines.first
       : null;
 
-    // Update controllers value when selection changes
-    if (selectedLine != null && selectedLine.id != _lastLineId) {
-      _lastLineId = selectedLine.id;
+    final formKey = '${selectedLine?.id ?? 'empty'}|$currentMonth|$currentWeek';
+    if (_lastFormKey != formKey) {
+      _lastFormKey = formKey;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _responseControllers['senin']!.text = selectedLine.feedbackSenin == '-' ? '' : selectedLine.feedbackSenin;
-        _responseControllers['selasa']!.text = selectedLine.feedbackSelasa == '-' ? '' : selectedLine.feedbackSelasa;
-        _responseControllers['rabu']!.text = selectedLine.feedbackRabu == '-' ? '' : selectedLine.feedbackRabu;
-        _responseControllers['kamis']!.text = selectedLine.feedbackKamis == '-' ? '' : selectedLine.feedbackKamis;
-        _responseControllers['jumat']!.text = selectedLine.feedbackJumat == '-' ? '' : selectedLine.feedbackJumat;
+        if (!mounted) return;
+        if (selectedLine != null) {
+          _noteControllers['senin']!.text = selectedLine.senin == '-' ? '' : selectedLine.senin;
+          _noteControllers['selasa']!.text = selectedLine.selasa == '-' ? '' : selectedLine.selasa;
+          _noteControllers['rabu']!.text = selectedLine.rabu == '-' ? '' : selectedLine.rabu;
+          _noteControllers['kamis']!.text = selectedLine.kamis == '-' ? '' : selectedLine.kamis;
+          _noteControllers['jumat']!.text = selectedLine.jumat == '-' ? '' : selectedLine.jumat;
+        } else {
+          for (final controller in _noteControllers.values) {
+            controller.clear();
+          }
+        }
       });
     }
 
-    final List<Map<String, dynamic>> dailyNotes = selectedLine != null ? [
+    final List<Map<String, dynamic>> dailyNotes = [
       {
         'day': 'Senin',
         'key': 'senin',
-        'note': selectedLine.senin,
+        'note': selectedLine?.senin ?? '-',
+        'feedback': selectedLine?.feedbackSenin ?? '-',
       },
       {
         'day': 'Selasa',
         'key': 'selasa',
-        'note': selectedLine.selasa,
+        'note': selectedLine?.selasa ?? '-',
+        'feedback': selectedLine?.feedbackSelasa ?? '-',
       },
       {
         'day': 'Rabu',
         'key': 'rabu',
-        'note': selectedLine.rabu,
+        'note': selectedLine?.rabu ?? '-',
+        'feedback': selectedLine?.feedbackRabu ?? '-',
       },
       {
         'day': 'Kamis',
         'key': 'kamis',
-        'note': selectedLine.kamis,
+        'note': selectedLine?.kamis ?? '-',
+        'feedback': selectedLine?.feedbackKamis ?? '-',
       },
       {
         'day': 'Jumat',
         'key': 'jumat',
-        'note': selectedLine.jumat,
+        'note': selectedLine?.jumat ?? '-',
+        'feedback': selectedLine?.feedbackJumat ?? '-',
       },
-    ] : [];
+    ];
 
     return Scaffold(
       backgroundColor: backgroundSlate,
@@ -180,72 +201,74 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: primaryTeal, size: 22),
-            onPressed: () {
-              final token = context.read<AuthViewModel>().token;
-              context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(token);
-            },
-          ),
-        ],
       ),
-      body: vm.isLoading && detail == null
-          ? const Center(child: CircularProgressIndicator())
-          : vm.errorMessage != null && detail == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      vm.errorMessage!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+      body: RefreshIndicator(
+        color: primaryTeal,
+        onRefresh: () async {
+          final token = context.read<AuthViewModel>().token;
+          await context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(token);
+        },
+        child: vm.isLoading && detail == null
+            ? const Center(child: CircularProgressIndicator())
+            : vm.errorMessage != null && detail == null
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height * 0.7,
+                      ),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        vm.errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                )
-              : detail == null
-                  ? const Center(
-                      child: Text('Data buku komunikasi tidak ditemukan untuk siswa ini'),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          StudentInfoBanner(
-                            studentName: detail.studentName,
-                            className: detail.className,
-                            academicYear: detail.academicYear,
-                            status: detail.status,
+                  )
+                : detail == null
+                    ? SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height * 0.7,
                           ),
-                          const SizedBox(height: 16),
-                          if (months.isNotEmpty && weeks.isNotEmpty) ...[
-                            MonthWeekFilter(
-                              selectedMonth: currentMonth!,
-                              selectedWeek: currentWeek!,
-                              months: months,
-                              weeks: weeks,
-                              onMonthChanged: (val) {
-                                setState(() => _selectedMonth = val);
-                              },
-                              onWeekChanged: (val) => setState(() => _selectedWeek = val),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'CATATAN PEKANAN',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textSlate, letterSpacing: 0.5),
-                                ),
-                                Text(
-                                  '$currentMonth • $currentWeek',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primaryTeal),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            if (dailyNotes.isNotEmpty)
+                          alignment: Alignment.center,
+                          child: const Text('Data buku komunikasi tidak ditemukan untuk siswa ini'),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (months.isNotEmpty && weeks.isNotEmpty) ...[
+                              MonthWeekFilter(
+                                selectedMonth: currentMonth!,
+                                selectedWeek: currentWeek!,
+                                months: months,
+                                weeks: weeks,
+                                onMonthChanged: (val) {
+                                  setState(() => _selectedMonth = val);
+                                },
+                                onWeekChanged: (val) => setState(() => _selectedWeek = val),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'CATATAN PEKANAN',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textSlate, letterSpacing: 0.5),
+                                  ),
+                                  Text(
+                                    '$currentMonth • $currentWeek',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primaryTeal),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
                               ListView.separated(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
@@ -255,36 +278,36 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
                                   final note = dailyNotes[index];
                                   final dayKey = note['key'] as String;
                                   final noteText = note['note'] as String;
-                                  final hasDailyContent = noteText.trim().isNotEmpty && noteText != '-';
+                                  final feedbackText = note['feedback'] as String;
 
                                   return DailyNoteCard(
                                     day: note['day'] as String,
                                     date: '$currentWeek, $currentMonth',
-                                    hasTeacherNote: false,
-                                    savedResponse: hasDailyContent ? noteText : null,
-                                    responseController: _responseControllers[dayKey]!,
-                                    onSubmitResponse: () => _submitFeedback(selectedLine!.id, dayKey),
+                                    savedNote: noteText != '-' ? noteText : null,
+                                    teacherFeedback: feedbackText != '-' ? feedbackText : null,
+                                    noteController: _noteControllers[dayKey]!,
+                                    noLineRecord: false, // Diset false agar tombol kirim selalu aktif
+                                    onSubmitNote: () => _submitNote(
+                                      selectedLine?.id,
+                                      dayKey,
+                                      currentMonth,
+                                      currentWeek,
+                                    ),
                                   );
                                 },
-                              )
-                            else
+                              ),
+                            ] else
                               const Center(
                                 child: Padding(
                                   padding: EdgeInsets.symmetric(vertical: 40),
-                                  child: Text('Tidak ada rincian catatan harian untuk pekan ini.', style: TextStyle(color: Colors.grey)),
+                                  child: Text('Belum ada data catatan untuk kelas Anda.', style: TextStyle(color: Colors.grey)),
                                 ),
                               ),
-                          ] else
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 40),
-                                child: Text('Belum ada data catatan untuk kelas Anda.', style: TextStyle(color: Colors.grey)),
-                              ),
-                            ),
-                          const SizedBox(height: 24),
-                        ],
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
-                    ),
+      ),
     );
   }
 }

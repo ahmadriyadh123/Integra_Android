@@ -1,4 +1,3 @@
-# app/features/profile/service.py
 from typing import Dict, Any, Optional
 from datetime import date, datetime
 from app.features.profile.repository import ProfileRepository
@@ -7,17 +6,29 @@ class ProfileService:
     def __init__(self, repo: ProfileRepository):
         self.repo = repo
 
-    def _calculate_age_str(self, birth_date_raw: Any) -> str:
-        """Mengkalkulasi usia dalam format persis: '11y 2m 15d'"""
+    def _parse_many2one(self, val: Any, fallback: str = '-') -> str:
+        """Helper membaca nilai [id, name] bawaan Odoo Many2one"""
+        if isinstance(val, list) and len(val) > 1:
+            return str(val[1])
+        if isinstance(val, str):
+            return val
+        return fallback
+
+    def _calculate_age_str(self, birth_date_raw: Any, fallback_age: str = "") -> str:
+        """Mengkalkulasi usia dari tanggal lahir"""
+        if fallback_age and "y" in str(fallback_age):
+            return str(fallback_age)
+
         if not birth_date_raw:
-            return "0y 0m 0d"
+            return "-"
+
         try:
             if isinstance(birth_date_raw, str):
                 b_date = datetime.strptime(birth_date_raw, "%Y-%m-%d").date()
             elif isinstance(birth_date_raw, (date, datetime)):
                 b_date = birth_date_raw
             else:
-                return "0y 0m 0d"
+                return "-"
 
             today = date.today()
             years = today.year - b_date.year
@@ -33,7 +44,7 @@ class ProfileService:
 
             return f"{years}y {months}m {days}d"
         except Exception:
-            return "0y 0m 0d"
+            return "-"
 
     async def get_student_profile(
         self,
@@ -49,24 +60,21 @@ class ProfileService:
         if not record:
             return None
 
-        partner_id = record.get("partner_id")
+        p_id = record.get("partner_id")
         nama_lengkap = str(record.get("full_name") or "Siswa")
 
-        # Foto Profil
-        foto_url = None
-        if partner_id:
-            foto_url = await self.repo.get_partner_avatar_url(partner_id=partner_id)
+        foto_url = f"/api/v1/profile/image/{p_id}" if p_id else None
 
         # Tempat & Tanggal Lahir
         tempat_lahir = str(record.get("birth_place") or "-")
         b_date = record.get("birth_date")
         b_date_str = str(b_date) if b_date else "-"
-        ttl_str = f"{tempat_lahir}, {b_date_str}"
+        ttl_str = f"{tempat_lahir}, {b_date_str}" if tempat_lahir != "-" or b_date_str != "-" else "-"
 
         # Kalkulasi Usia
-        usia_str = str(record.get("age") or self._calculate_age_str(b_date))
-        kelas = record.get("kelas_name") or record.get("grade")
-        rombel = record.get("rombel_name") or record.get("rombel")
+        usia_str = self._calculate_age_str(b_date, str(record.get("age") or ""))
+        kelas = self._parse_many2one(record.get("kelas_name") or record.get("grade"), "-")
+        rombel = self._parse_many2one(record.get("rombel_name") or record.get("rombel"), "-")
 
         return {
             "profile": {

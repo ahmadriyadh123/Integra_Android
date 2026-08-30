@@ -1,4 +1,3 @@
-# app/features/elearning/repository.py
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -10,36 +9,26 @@ class ElearningRepository:
 
     def _slide_download_url(
         self, 
-        slide_id: int, 
-        slide_type: str, 
-        slide_category: str = '',
-        attachment_id: Optional[int] = None,
-        attachment_name: Optional[str] = None
+        slide_type: Optional[str] = None,
+        filename: Optional[str] = None,
+        slide_category: Optional[str] = None,
     ) -> Optional[str]:
         """
-        Buat URL download/akses materi slide via Proxy Middleware REST API.
-        Memastikan klien mobile dapat mengunduh berkas tanpa terhalang firewall port 8069.
+        Membuat URL akses materi berdasarkan filename yang disimpan Odoo.
         """
-        if attachment_id and attachment_name:
-            return f"/api/v1/elearning/content/{attachment_id}/{attachment_name}"
-        return f"/api/v1/elearning/content/slide/{slide_id}"
-
-    async def get_attachment_by_id(self, attachment_id: int) -> Optional[Dict[str, Any]]:
-        """Ambil metadata attachment dari tabel ir_attachment."""
-        query = text("""
-            SELECT id, name, mimetype, store_fname, db_datas
-            FROM ir_attachment
-            WHERE id = :id
-            LIMIT 1;
-        """)
-        result = await self.db.execute(query, {"id": attachment_id})
-        row = result.mappings().first()
-        return dict(row) if row else None
+        # Path relatif perlu diarahkan ke host Odoo sebelum dikirim ke client.
+        if not filename:
+            return None
+        if filename.startswith('http://') or filename.startswith('https://'):
+            return filename
+        if filename.startswith('/'):
+            return f"{settings.ODOO_URL}{filename}"
+        return f"{settings.ODOO_URL}/{filename}"
 
     async def get_published_courses(self, partner_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Ambil daftar channel/kursus yang dipublikasikan.
-        Filter hanya kursus yang user sudah di-enroll via slide_channel_partner.
+        Filter hanya kursus yang user sudah di-enroll via slide_channel_partner jika partner_id ada.
         """
         if partner_id:
             query = text("""
@@ -104,37 +93,51 @@ class ElearningRepository:
     async def get_slides_by_course_id(self, course_id: int) -> List[Dict[str, Any]]:
         """Ambil daftar slide dalam sebuah channel, lengkap dengan download URL."""
         query = text("""
-            SELECT DISTINCT ON (s.id)
+            SELECT
                 s.id,
+                s.message_main_attachment_id,
                 s.name,
                 s.slide_category,
                 s.slide_type,
                 s.sequence,
                 s.is_published,
-                a.id AS attachment_id,
-                a.name AS attachment_name
+                s.filename
             FROM slide_slide s
-            LEFT JOIN ir_attachment a ON (
-                a.res_model = 'slide.slide' 
-                AND a.res_id = s.id 
-                AND (a.mimetype = 'application/zip' OR a.name ILIKE '%.zip')
-            )
             WHERE s.channel_id = :course_id AND s.is_published = TRUE
-            ORDER BY s.id ASC, a.id DESC;
+            ORDER BY s.sequence ASC, s.id ASC;
         """)
         
         result = await self.db.execute(query, {"course_id": course_id})
         raw_slides = [dict(row) for row in result.mappings().all()]
-        raw_slides.sort(key=lambda x: (x.get('sequence') or 0, x['id']))
-
-        # Tambahkan download_url ke setiap slide
         for slide in raw_slides:
             slide['download_url'] = self._slide_download_url(
-                slide_id=slide['id'],
-                slide_type=str(slide.get('slide_type') or ''),
-                slide_category=str(slide.get('slide_category') or ''),
-                attachment_id=slide.get('attachment_id'),
-                attachment_name=slide.get('attachment_name')
+                slide_type=slide.get('slide_type'),
+                filename=slide.get('filename'),
+                slide_category=slide.get('slide_category'),
             )
 
         return raw_slides
+
+    async def get_slide_content(self, slide_id: int) -> Optional[Dict[str, Any]]:
+        """Ambil sumber konten dari slide_slide untuk endpoint content."""
+        query = text("""
+            SELECT id, message_main_attachment_id, slide_category, slide_type, filename
+            FROM slide_slide
+            WHERE id = :slide_id AND is_published = TRUE
+            LIMIT 1;
+        """)
+        result = await self.db.execute(query, {"slide_id": slide_id})
+        row = result.mappings().first()
+        return dict(row) if row else None
+
+    async def get_attachment(self, attachment_id: int) -> Optional[Dict[str, Any]]:
+        """Ambil metadata dan binary attachment Odoo untuk proxy file ke client."""
+        query = text("""
+            SELECT id, name, store_fname, db_datas, mimetype
+            FROM ir_attachment
+            WHERE id = :attachment_id
+            LIMIT 1;
+        """)
+        result = await self.db.execute(query, {"attachment_id": attachment_id})
+        row = result.mappings().first()
+        return dict(row) if row else None

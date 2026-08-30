@@ -1,11 +1,10 @@
-# app/features/buku_komunikasi/router.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.buku_komunikasi.service import BukuKomunikasiService
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
-from app.features.buku_komunikasi.schemas import APIResponseBukuKomunikasi, UpdateFeedbackRequest
+from app.features.buku_komunikasi.schemas import APIResponseBukuKomunikasi, UpdateNoteRequest
 
 router = APIRouter(
     prefix="/buku-komunikasi",
@@ -45,29 +44,29 @@ async def get_buku_komunikasi(
             detail=f"Gagal mengambil buku komunikasi: {str(e)}"
         )
 
-@router.post("/feedback")
-async def submit_parent_feedback(
-    payload: UpdateFeedbackRequest, 
+@router.post("/note")
+async def submit_daily_note(
+    payload: UpdateNoteRequest, 
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db)
 ):
     try:
         repo = BukuKomunikasiRepository(db)
         service = BukuKomunikasiService(repo)
-
-        success = await service.save_feedback(
+        
+        success = await service.save_daily_note(
             line_id=payload.line_id, 
             day=payload.day, 
-            feedback_text=payload.feedback_text,
+            note_text=payload.note_text,
             jenjang=creds.get('jenjang', 'sd')
         )
-
+        
         if success:
-            return {"success": True, "message": "Feedback orang tua berhasil disimpan"}
+            return {"success": True, "message": "Catatan harian berhasil disimpan"}
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Gagal menyimpan feedback. Periksa kembali data yang dikirim."
+                detail="Gagal menyimpan catatan. Periksa kembali data yang dikirim."
             )
     except ValueError as ve:
         raise HTTPException(
@@ -77,5 +76,5 @@ async def submit_parent_feedback(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan feedback: {str(e)}"
+            detail=f"Gagal menyimpan catatan: {str(e)}"
         )

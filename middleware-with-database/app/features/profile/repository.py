@@ -1,4 +1,3 @@
-# app/features/profile/repository.py
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -60,13 +59,17 @@ class ProfileRepository:
         row = result.mappings().first()
         return dict(row) if row else None
 
-    async def get_partner_avatar_url(self, partner_id: int) -> Optional[str]:
-        """
-        Mengembalikan URL foto partner Odoo.
-
-        Database ini tidak menyimpan kolom image_1920 di res_partner; foto
-        disajikan oleh endpoint /web/image berdasarkan partner_id.
-        """
-        if not partner_id:
-            return None
-        return f"{settings.ODOO_URL}/web/image?model=res.partner&id={partner_id}&field=avatar_128"
+    async def get_partner_image(self, partner_id: int) -> Optional[Dict[str, Any]]:
+        """Mengambil base64 foto partner dari attachment database."""
+        query = text("""
+            SELECT db_datas, mimetype
+            FROM ir_attachment
+            WHERE res_model = 'res.partner'
+              AND res_id = :partner_id
+              AND db_datas IS NOT NULL
+            ORDER BY id DESC
+            LIMIT 1;
+        """)
+        result = await self.db.execute(query, {"partner_id": partner_id})
+        row = result.mappings().first()
+        return dict(row) if row else None

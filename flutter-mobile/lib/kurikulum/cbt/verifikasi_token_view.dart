@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'viewmodel/cbt_viewmodel.dart';
 import 'widgets/token/token_info_banner.dart';
 import 'widgets/token/token_input_boxes.dart';
 import 'widgets/token/token_status_info.dart';
+import 'cbt_exam_view.dart';
 import '../../widgets/shared_header.dart';
+
 
 class VerifikasiTokenView extends StatefulWidget {
   final String subject;
@@ -46,37 +50,78 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
     super.dispose();
   }
 
-  void _handleTextChange(String value) {
-    // Logika sederhana untuk memindahkan fokus otomatis ke kotak berikutnya
-    for (int i = 0; i < 6; i++) {
-      if (_controllers[i].text.isNotEmpty && i < 5 && !_focusNodes[i + 1].hasFocus) {
-        FocusScope.of(context).requestFocus(_focusNodes[i + 1]);
-        break;
-      }
+  void _handleTextChange(int index, String value) {
+    if (value.isNotEmpty && index < 5) {
+      FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+    } else if (value.isEmpty && index > 0) {
+      FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
     }
   }
 
-  void _verifyToken() {
-    String token = _controllers.map((c) => c.text).join();
-    if (token.length < 6) {
+  bool _isSubmitting = false;
+
+  Future<void> _verifyToken() async {
+    final tokenInput = _controllers.map((c) => c.text).join().trim();
+    if (tokenInput.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mohon masukkan 6 digit token dengan lengkap.')),
+        const SnackBar(content: Text('Mohon masukkan token ujian dari pengawas.')),
       );
       return;
     }
 
-    // Simulasi verifikasi token berhasil
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Token $token valid! Memulai ujian...'),
-        backgroundColor: primaryColor,
-      ),
-    );
+    setState(() => _isSubmitting = true);
+
+    try {
+      final cbtVm = Provider.of<CbtViewModel>(context, listen: false);
+      final isSuccess = await cbtVm.verifyToken(
+        widget.authToken,
+        widget.jadwalId,
+        tokenInput,
+      );
+
+      if (mounted && isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Token valid! Memulai ujian...'),
+            backgroundColor: primaryColor,
+            duration: Duration(seconds: 1),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CbtExamView(
+              subject: widget.subject,
+              jadwalId: widget.jadwalId,
+              authToken: widget.authToken,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: backgroundSlate,
       appBar: SharedHeader(
         title: 'VERIFIKASI TOKEN UJIAN',
@@ -87,61 +132,76 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
         showBackButton: true,
         onBack: () => Navigator.pop(context),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              widget.subject,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: darkSlate,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Silakan masukkan token akses soal dari pengawas',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 24),
-            const TokenInfoBanner(),
-            const SizedBox(height: 32),
-            TokenInputBoxes(
-              controllers: _controllers,
-              focusNodes: _focusNodes,
-              onChanged: _handleTextChange,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _verifyToken,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset > 0 ? bottomInset + 20 : 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                widget.subject,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: darkSlate,
                 ),
-                child: const Text(
-                  'Verifikasi & Mulai Ujian',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Silakan masukkan token akses soal dari pengawas',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              const TokenInfoBanner(),
+              const SizedBox(height: 32),
+              TokenInputBoxes(
+                controllers: _controllers,
+                focusNodes: _focusNodes,
+                onChanged: _handleTextChange,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _verifyToken,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
                   ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Verifikasi & Mulai Ujian',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const TokenStatusInfo(),
-          ],
+              const SizedBox(height: 24),
+              const TokenStatusInfo(),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

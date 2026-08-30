@@ -19,18 +19,22 @@ class WeeklyPlanItem {
     required this.status,
   });
 
-  factory WeeklyPlanItem.fromJson(Map<String, dynamic> json) {
+  factory WeeklyPlanItem.fromJson(Map<dynamic, dynamic> json) {
+    final map = Map<String, dynamic>.from(json);
     return WeeklyPlanItem(
-      id: json['id'] as int,
-      kelas: json['kelas'] as String? ?? '-',
-      semester: json['semester'] as String? ?? '-',
-      tahunAjaran: json['tahun_ajaran'] as String? ?? '-',
-      pekan: json['pekan'] as String? ?? '-',
-      tema: json['tema'] as String? ?? '-',
-      namaGuru: json['nama_guru'] as String? ?? '-',
-      status: json['status'] as String? ?? 'draft',
+      id: (map['id'] is num)
+          ? (map['id'] as num).toInt()
+          : int.tryParse(map['id']?.toString() ?? '0') ?? 0,
+      kelas: map['kelas']?.toString() ?? '-',
+      semester: map['semester']?.toString() ?? '-',
+      tahunAjaran: map['tahun_ajaran']?.toString() ?? '-',
+      pekan: map['pekan']?.toString() ?? '-',
+      tema: map['tema']?.toString() ?? '-',
+      namaGuru: map['nama_guru']?.toString() ?? '-',
+      status: map['status']?.toString() ?? 'draft',
     );
   }
 
   bool get isSubmitted => status == 'submitted' || status == 'approved';
 }
+

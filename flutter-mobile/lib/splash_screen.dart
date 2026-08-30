@@ -46,7 +46,7 @@ class _SplashScreenState extends State {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/logo_integra.png',
+              'assets/app_icon.png',
               width: 100,
             ),
             const SizedBox(height: 24),

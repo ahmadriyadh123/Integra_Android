@@ -38,7 +38,6 @@ class DocumentBottomControls extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Kontrol Navigasi Halaman
             Row(
               children: [
                 IconButton(

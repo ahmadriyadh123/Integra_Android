@@ -1,4 +1,3 @@
-# app/features/auth/service.py
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any

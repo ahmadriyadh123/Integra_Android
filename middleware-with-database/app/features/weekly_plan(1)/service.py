@@ -1,4 +1,3 @@
-# app/features/weekly_plan/service.py
 import logging
 from typing import Dict, Any, List, Optional
 from app.features.weekly_plan.repository import WeeklyPlanRepository

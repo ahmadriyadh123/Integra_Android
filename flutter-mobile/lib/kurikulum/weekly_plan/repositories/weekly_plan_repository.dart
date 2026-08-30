@@ -17,20 +17,23 @@ class WeeklyPlanRepository {
       final cached = await localStorage.loadWeeklyPlanList();
       if (cached != null) {
         return cached
-            .map((e) => WeeklyPlanItem.fromJson(e as Map<String, dynamic>))
+            .whereType<Map>()
+            .map((e) => WeeklyPlanItem.fromJson(e))
             .toList();
       }
     }
 
     final data = await apiService.fetchWeeklyPlanList(token);
     final plans = data
-        .map((e) => WeeklyPlanItem.fromJson(e as Map<String, dynamic>))
+        .whereType<Map>()
+        .map((e) => WeeklyPlanItem.fromJson(e))
         .toList();
 
     await localStorage.saveWeeklyPlanList(data);
 
     return plans;
   }
+
 
   /// Kembalikan URL PDF yang bisa langsung dibuka oleh SfPdfViewer.network
   String getPdfUrl(int planId) {

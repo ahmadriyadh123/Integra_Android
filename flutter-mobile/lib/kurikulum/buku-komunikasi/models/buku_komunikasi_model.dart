@@ -29,26 +29,9 @@ class DailyNoteLine {
     required this.feedbackJumat,
   });
 
-  String feedbackForDay(String dayKey) {
-    switch (dayKey) {
-      case 'senin':
-        return feedbackSenin;
-      case 'selasa':
-        return feedbackSelasa;
-      case 'rabu':
-        return feedbackRabu;
-      case 'kamis':
-        return feedbackKamis;
-      case 'jumat':
-        return feedbackJumat;
-      default:
-        return '-';
-    }
-  }
-
   factory DailyNoteLine.fromJson(Map<String, dynamic> json) {
     return DailyNoteLine(
-      id: json['id'] as int,
+      id: json['id'] as int? ?? 0,
       pekanKe: json['pekan_ke'] as int? ?? 1,
       bulan: json['bulan'] as String? ?? '-',
       senin: json['senin'] as String? ?? '-',
@@ -84,7 +67,7 @@ class BukuKomunikasiDetail {
 
   factory BukuKomunikasiDetail.fromJson(Map<String, dynamic> json) {
     return BukuKomunikasiDetail(
-      id: json['id'] as int,
+      id: json['id'] as int? ?? 0,
       studentName: json['student_name'] as String? ?? '-',
       className: json['kelas'] as String? ?? '-',
       academicYear: json['tahun_ajaran'] as String? ?? '-',

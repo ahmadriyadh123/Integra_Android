@@ -18,7 +18,6 @@ class ElearningLocalStorage {
     return Hive.box(boxName);
   }
 
-  // ── Courses List ──────────────────────────────────────────────────────────
 
   /// Simpan daftar kursus ke cache.
   Future<void> saveCourses(List<Map<String, dynamic>> courses) async {
@@ -39,7 +38,6 @@ class ElearningLocalStorage {
     return null;
   }
 
-  // ── Course Detail ─────────────────────────────────────────────────────────
 
   /// Simpan detail kursus (beserta slides) ke cache.
   Future<void> saveCourseDetail(
@@ -62,7 +60,6 @@ class ElearningLocalStorage {
     return null;
   }
 
-  // ── Clear ─────────────────────────────────────────────────────────────────
 
   /// Hapus seluruh cache elearning.
   Future<void> clearAll() async {
@@ -82,7 +79,6 @@ class ElearningLocalStorage {
     await box.delete('$_keyCourseDetailTsPrefix$courseId');
   }
 
-  // ── Helper ────────────────────────────────────────────────────────────────
 
   bool _isFresh(Box box, String tsKey) {
     final ts = box.get(tsKey) as int?;

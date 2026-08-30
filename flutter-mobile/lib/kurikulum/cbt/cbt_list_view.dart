@@ -44,11 +44,22 @@ class _CbtListViewState extends State<CbtListView> {
     final rawExams = cbtVm.exams;
 
     final filteredExams = rawExams.where((exam) {
+      final st = (exam['status'] ?? '').toString().trim().toLowerCase();
       if (_selectedTab == 'Semua') return true;
-      return (exam['status'] ?? '').toString() == _selectedTab;
+      if (_selectedTab == 'Aktif') {
+        return st == 'aktif' || st == 'active' || st == 'published' || st == 'ongoing';
+      }
+      if (_selectedTab == 'Selesai') {
+        return st == 'selesai' || st == 'done' || st == 'completed';
+      }
+      return true;
     }).toList();
 
-    final activeCount = rawExams.where((e) => (e['status'] ?? '').toString().toLowerCase() == 'aktif' || (e['status'] ?? '').toString().toLowerCase() == 'active').length;
+    final activeCount = rawExams.where((e) {
+      final st = (e['status'] ?? '').toString().trim().toLowerCase();
+      return st == 'aktif' || st == 'active' || st == 'published' || st == 'ongoing';
+    }).length;
+
 
     return Scaffold(
       backgroundColor: backgroundSlate,
@@ -61,75 +72,86 @@ class _CbtListViewState extends State<CbtListView> {
         showBackButton: true,
         onBack: () => Navigator.pop(context),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CbtHeaderCard(activeExamCount: activeCount),
-            const SizedBox(height: 20),
-            CbtFilterTabs(
-              tabs: _tabs,
-              selectedTab: _selectedTab,
-              onTabChanged: (tab) => setState(() => _selectedTab = tab),
-            ),
-            const SizedBox(height: 20),
-            if (cbtVm.isLoading)
-              const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: CircularProgressIndicator()))
-            else if (cbtVm.errorMessage != null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Text(cbtVm.errorMessage!, style: const TextStyle(color: Colors.red)),
-                ),
-              )
-            else if (filteredExams.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Text('Tidak ada ujian pada kategori ini.', style: TextStyle(color: Colors.grey)),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: filteredExams.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final exam = filteredExams[index];
-                  final subject = exam['mata_pelajaran'] ?? exam['judul_ujian'] ?? '';
-                  final examType = exam['jenis_ujian'] ?? '';
-                  final rentang = exam['rentang_waktu'] ?? '';
-                  final duration = exam['durasi_menit'] ?? 0;
-                  final questionCount = exam['jumlah_soal'] ?? 0;
-                  final status = exam['status'] ?? '';
-
-                  return CbtExamCard(
-                    subject: subject.toString(),
-                    examType: examType.toString(),
-                    date: rentang.toString(),
-                    time: '',
-                    duration: int.tryParse(duration.toString()) ?? 0,
-                    questionCount: int.tryParse(questionCount.toString()) ?? 0,
-                    status: status.toString(),
-                    onActionTap: () {
-                      final token = Provider.of<AuthViewModel>(context, listen: false).token;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VerifikasiTokenView(
-                            subject: subject.toString(),
-                            jadwalId: exam['id'] as int? ?? 0,
-                            authToken: token,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+      body: RefreshIndicator(
+        color: const Color(0xFF059669),
+        onRefresh: () async {
+          final auth = Provider.of<AuthViewModel>(context, listen: false);
+          final token = auth.token;
+          if (token.isNotEmpty) {
+            await cbtVm.fetchCbtSchedules(token);
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CbtHeaderCard(activeExamCount: activeCount),
+              const SizedBox(height: 20),
+              CbtFilterTabs(
+                tabs: _tabs,
+                selectedTab: _selectedTab,
+                onTabChanged: (tab) => setState(() => _selectedTab = tab),
               ),
-          ],
+              const SizedBox(height: 20),
+              if (cbtVm.isLoading)
+                const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: CircularProgressIndicator()))
+              else if (cbtVm.errorMessage != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Text(cbtVm.errorMessage!, style: const TextStyle(color: Colors.red)),
+                  ),
+                )
+              else if (filteredExams.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Text('Tidak ada ujian pada kategori ini.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: filteredExams.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final exam = filteredExams[index];
+                    final subject = exam['mata_pelajaran'] ?? exam['judul_ujian'] ?? '';
+                    final examType = exam['jenis_ujian'] ?? '';
+                    final rentang = exam['rentang_waktu'] ?? '';
+                    final duration = exam['durasi_menit'] ?? 0;
+                    final questionCount = exam['jumlah_soal'] ?? 0;
+                    final status = exam['status'] ?? '';
+
+                    return CbtExamCard(
+                      subject: subject.toString(),
+                      examType: examType.toString(),
+                      date: rentang.toString(),
+                      time: '',
+                      duration: int.tryParse(duration.toString()) ?? 0,
+                      questionCount: int.tryParse(questionCount.toString()) ?? 0,
+                      status: status.toString(),
+                      onActionTap: () {
+                        final token = Provider.of<AuthViewModel>(context, listen: false).token;
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => VerifikasiTokenView(
+                              subject: subject.toString(),
+                              jadwalId: exam['id'] as int? ?? 0,
+                              authToken: token,
+                            ),
+                          ),
+                        );
+                      },
+
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );

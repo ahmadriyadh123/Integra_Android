@@ -11,20 +11,27 @@ class RaporRepository {
     required this.localStorage,
   });
 
+  /// Kembalikan URL endpoint PDF — langsung di-stream oleh middleware
+  String getPdfUrl(int raporId) {
+    return '${apiService.baseUrl}/e-rapor/pdf/$raporId';
+  }
+
   Future<List<ReportCardHeader>> getReportList(String token,
       {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await localStorage.loadRaporList();
       if (cached != null) {
         return cached
-            .map((e) => ReportCardHeader.fromJson(e as Map<String, dynamic>))
+            .map((e) => ReportCardHeader.fromJson(
+                Map<String, dynamic>.from(e as Map)))
             .toList();
       }
     }
 
     final data = await apiService.fetchReportList(token);
     final reports = data
-        .map((e) => ReportCardHeader.fromJson(e as Map<String, dynamic>))
+        .map((e) => ReportCardHeader.fromJson(
+            Map<String, dynamic>.from(e as Map)))
         .toList();
 
     await localStorage.saveRaporList(data);
@@ -37,7 +44,8 @@ class RaporRepository {
     if (!forceRefresh) {
       final cached = await localStorage.loadRaporDetail(raporId);
       if (cached != null) {
-        return ReportCardDetail.fromJson(cached);
+        return ReportCardDetail.fromJson(
+            Map<String, dynamic>.from(cached));
       }
     }
 

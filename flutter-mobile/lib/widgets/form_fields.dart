@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SectionLabel extends StatelessWidget {
   final String text;
-  const SectionLabel(this.text, {Key? key}) : super(key: key);
+  const SectionLabel(this.text, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +26,11 @@ class FormSection extends StatelessWidget {
   final List<Widget> children;
 
   const FormSection({
-    Key? key,
+    super.key,
     required this.title,
     required this.icon,
     required this.children,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,13 +80,13 @@ class LabeledTextFormField extends StatelessWidget {
   final String? Function(String?)? validator;
 
   const LabeledTextFormField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     required this.icon,
     this.keyboardType = TextInputType.text,
     this.validator,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -146,14 +146,14 @@ class DropdownFormFieldWidget extends StatelessWidget {
   final String? Function(String?)? validator;
 
   const DropdownFormFieldWidget({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.hint,
     required this.items,
     required this.onChanged,
     this.validator,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +170,7 @@ class DropdownFormFieldWidget extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           validator: validator,
           isExpanded: true,
           style: const TextStyle(fontSize: 14, color: Colors.black87),
@@ -219,12 +219,12 @@ class DateFormFieldWidget extends StatelessWidget {
   final String? Function(String?)? validator;
 
   const DateFormFieldWidget({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     required this.onTap,
     this.validator,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -282,11 +282,11 @@ class RadioChoiceField extends StatelessWidget {
   final void Function(bool?) onChanged;
 
   const RadioChoiceField({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

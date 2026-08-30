@@ -7,8 +7,8 @@ import '../../elearning/lesson_view.dart';
 import '../../kurikulum/cbt/cbt_list_view.dart';
 import '../../e-rapor/rapor_list_view.dart';
 import '../../kurikulum/buku-komunikasi/buku_komunikasi_view.dart';
+import '../../kehadiran/view/attendance_view.dart';
 
-const int _tabKehadiran = 1;
 const int _tabProfil = 2;
 
 class QuickMenuItem {
@@ -62,7 +62,7 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         title: 'Kehadiran',
         icon: Icons.event_available_rounded,
         color: const Color(0xFF0284C7),
-        tabIndex: _tabKehadiran,
+        destination: AttendanceView(authToken: widget.authToken),
       ),
       QuickMenuItem(
         title: 'E-Learning',
@@ -83,7 +83,7 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         destination: TagihanPage(authToken: widget.authToken),
       ),
       QuickMenuItem(
-        title: 'PPDB / SPMB',
+        title: 'PPDB',
         icon: Icons.edit_note_rounded,
         color: const Color(0xFF7C3AED),
         submenu: 'ppdb',
@@ -252,14 +252,16 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.95,
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: 96,
               ),
               itemCount: menus.length,
               itemBuilder: (context, index) {
                 final menu = menus[index];
+                final hasSubmenu = menu.submenu != null;
+
                 return InkWell(
                   onTap: () => _handleTap(context, menu),
                   borderRadius: BorderRadius.circular(12),
@@ -273,28 +275,46 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
                           color: menu.color.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(menu.icon, color: menu.color, size: 22),
+                        child: Icon(
+                          menu.icon,
+                          color: menu.color,
+                          size: 22,
+                        ),
                       ),
+
                       const SizedBox(height: 7),
-                      Text(
-                        menu.title,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF334155),
+
+                      SizedBox(
+                        height: 24,
+                        child: Align(
+                          alignment: Alignment.center,
+                          child: Text(
+                            menu.title,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
                         ),
                       ),
-                      if (menu.submenu != null)
-                        Icon(
-                          _expandedSubmenu == menu.submenu
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 16,
-                          color: const Color(0xFF94A3B8),
-                        ),
+
+                      // Area indikator selalu memiliki tinggi yang sama
+                      SizedBox(
+                        height: 16,
+                        child: hasSubmenu
+                            ? Icon(
+                                _expandedSubmenu == menu.submenu
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: const Color(0xFF94A3B8),
+                              )
+                            : null,
+                      ),
                     ],
                   ),
                 );
@@ -304,7 +324,7 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         ),
         const Divider(height: 24, color: Color(0xFFE2E8F0)),
         const SizedBox(height: 10),
-        _submenu('ppdb', 'PPDB / SPMB', Icons.edit_note_rounded,
+        _submenu('ppdb', 'PPDB', Icons.edit_note_rounded,
             const Color(0xFF7C3AED), [
           QuickMenuItem(
             title: 'STATUS',

@@ -1,10 +1,11 @@
-# app/features/e_rapor/router.py
+import io
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user_credentials
-from app.features.e_rapor.schemas import APIResponseReportList, APIResponseReportDetail
+from app.features.e_rapor.schemas import APIResponseReportList
 from app.features.e_rapor.repository import ERaporRepository
 from app.features.e_rapor.service import ERaporService
 
@@ -14,6 +15,7 @@ router = APIRouter(
     prefix="/e-rapor",
     tags=["Menu E-Rapor"]
 )
+
 
 @router.get("/list", response_model=APIResponseReportList)
 async def get_student_reports(
@@ -44,12 +46,17 @@ async def get_student_reports(
             detail=f"Gagal mengambil data e-rapor: {str(e)}"
         )
 
-@router.get("/{rapor_id}", response_model=APIResponseReportDetail)
-async def get_report_card_details(
+
+@router.get("/pdf/{rapor_id}")
+async def get_rapor_pdf(
     rapor_id: int,
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Ambil file PDF rapor dari ir_attachment dan stream ke mobile.
+    Mekanisme sama dengan weekly plan — tidak generate, langsung fetch binary.
+    """
     student_id = creds.get("student_id")
     if not student_id:
         raise HTTPException(
@@ -60,24 +67,33 @@ async def get_report_card_details(
     try:
         repo = ERaporRepository(db)
         service = ERaporService(repo)
-        data = await service.get_report_detail(rapor_id=rapor_id, student_id=student_id)
 
-        if not data:
+        result = await service.get_rapor_pdf_bytes(
+            rapor_id=rapor_id, student_id=student_id
+        )
+
+        if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Detail e-rapor tidak ditemukan."
+                detail="File PDF rapor tidak ditemukan. Hubungi admin untuk upload file."
             )
 
-        return APIResponseReportDetail(
-            success=True,
-            message="Berhasil mengambil detail e-rapor",
-            data=data
+        pdf_bytes, filename = result
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+            }
         )
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[e-rapor/{rapor_id}] Error uid={creds.get('uid')}: {e}")
+        logger.error(f"[e-rapor/pdf/{rapor_id}] Error uid={creds.get('uid')}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail e-rapor: {str(e)}"
+            detail=f"Gagal mengambil PDF rapor: {str(e)}"
         )
