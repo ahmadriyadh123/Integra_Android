@@ -1,0 +1,277 @@
+import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
+
+import 'auth/local/auth_local_storage.dart';
+import 'auth/services/auth_service.dart';
+import 'auth/repositories/auth_repository.dart';
+import 'auth/viewmodel/auth_viewmodel.dart';
+
+import 'profile/services/profile_service.dart';
+import 'profile/repositories/profile_repository.dart';
+import 'profile/viewmodel/profile_viewmodel.dart';
+
+import 'kehadiran/local/attendance_local_storage.dart';
+import 'kehadiran/services/attendance_service.dart';
+import 'kehadiran/repositories/attendance_repository.dart';
+import 'kehadiran/viewmodel/attendance_viewmodel.dart';
+
+import 'calendar/local/calendar_local_storage.dart';
+import 'calendar/services/calendar_service.dart';
+import 'calendar/repositories/calendar_repository.dart';
+import 'calendar/viewmodel/calendar_viewmodel.dart';
+
+import 'elearning/services/elearning_service.dart';
+import 'elearning/repositories/elearning_repository.dart';
+import 'elearning/viewmodel/elearning_viewmodel.dart';
+import 'elearning/local/elearning_local_storage.dart';
+
+import 'tagihan/services/tagihan_service.dart';
+import 'tagihan/local/tagihan_local_storage.dart';
+import 'tagihan/repositories/tagihan_repository.dart';
+import 'tagihan/viewmodel/tagihan_viewmodel.dart';
+
+import 'kurikulum/weekly_plan/local/weekly_plan_local_storage.dart';
+import 'kurikulum/weekly_plan/services/weekly_plan_service.dart';
+import 'kurikulum/weekly_plan/repositories/weekly_plan_repository.dart';
+import 'kurikulum/weekly_plan/viewmodel/weekly_plan_viewmodel.dart';
+
+import 'kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
+import 'kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
+import 'kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
+import 'kurikulum/buku-komunikasi/viewmodel/buku_komunikasi_viewmodel.dart';
+
+import 'e-rapor/local/rapor_local_storage.dart';
+import 'e-rapor/services/rapor_service.dart';
+import 'e-rapor/repositories/rapor_repository.dart';
+import 'e-rapor/viewmodel/rapor_viewmodel.dart';
+
+import 'kurikulum/cbt/local/cbt_local_storage.dart';
+import 'kurikulum/cbt/services/cbt_service.dart';
+import 'kurikulum/cbt/repositories/cbt_repository.dart';
+import 'kurikulum/cbt/viewmodel/cbt_viewmodel.dart';
+
+import 'kurikulum/assignment/local/assignment_local_storage.dart';
+import 'kurikulum/assignment/services/assignment_service.dart';
+import 'kurikulum/assignment/repositories/assignment_repository.dart';
+import 'kurikulum/assignment/viewmodel/assignment_viewmodel.dart';
+
+/// Mengembalikan daftar semua provider yang digunakan dalam aplikasi.
+/// Memisahkan logika ini dari main.dart menjaga agar struktur kode main.dart tetap bersih dan terorganisir.
+List<SingleChildWidget> getAppProviders(String baseUrl) {
+  return [
+    // Auth menjadi dependency dasar untuk repository dan view model lain.
+    Provider<AuthService>(
+      create: (_) => AuthService(baseUrl: baseUrl),
+    ),
+    Provider<AuthLocalStorage>(
+      create: (_) => AuthLocalStorage(),
+    ),
+    ProxyProvider2<AuthService, AuthLocalStorage, AuthRepository>(
+      update: (_, service, storage, _) => AuthRepository(
+        apiService: service,
+        localStorageService: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<AuthRepository, AuthViewModel>(
+      create: (context) => AuthViewModel(
+        repository: Provider.of<AuthRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? AuthViewModel(repository: repo),
+    ),
+
+    // Service profil memakai base URL yang sama dengan service autentikasi.
+    ProxyProvider<AuthService, ProfileService>(
+      update: (_, service, _) => ProfileService(baseUrl: service.baseUrl),
+    ),
+    ProxyProvider<ProfileService, ProfileRepository>(
+      update: (_, service, _) => ProfileRepository(apiService: service),
+    ),
+    ChangeNotifierProxyProvider<ProfileRepository, ProfileViewModel>(
+      create: (context) => ProfileViewModel(
+        repository: Provider.of<ProfileRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? ProfileViewModel(repository: repo),
+    ),
+
+    Provider<AttendanceService>(
+      create: (_) => AttendanceService(baseUrl: baseUrl),
+    ),
+    Provider<AttendanceLocalStorage>(
+      create: (_) => AttendanceLocalStorage(),
+    ),
+    ProxyProvider2<AttendanceService, AttendanceLocalStorage, AttendanceRepository>(
+      update: (_, service, storage, _) => AttendanceRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<AttendanceRepository, AttendanceViewModel>(
+      create: (context) => AttendanceViewModel(
+        repository: Provider.of<AttendanceRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? AttendanceViewModel(repository: repo),
+    ),
+
+    Provider<CalendarService>(
+      create: (_) => CalendarService(baseUrl: baseUrl),
+    ),
+    Provider<CalendarLocalStorage>(
+      create: (_) => CalendarLocalStorage(),
+    ),
+    ProxyProvider2<CalendarService, CalendarLocalStorage, CalendarRepository>(
+      update: (_, service, storage, _) => CalendarRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<CalendarRepository, CalendarViewModel>(
+      create: (context) => CalendarViewModel(
+        repository: Provider.of<CalendarRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? CalendarViewModel(repository: repo),
+    ),
+
+    Provider<ElearningService>(
+      create: (_) => ElearningService(baseUrl: baseUrl),
+    ),
+    Provider<ElearningLocalStorage>(
+      create: (_) => ElearningLocalStorage(),
+    ),
+    ProxyProvider2<ElearningService, ElearningLocalStorage, ElearningRepository>(
+      update: (_, service, storage, _) => ElearningRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<ElearningRepository, ElearningViewModel>(
+      create: (context) => ElearningViewModel(
+        repository: Provider.of<ElearningRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? ElearningViewModel(repository: repo),
+    ),
+
+    Provider<CbtService>(
+      create: (_) => CbtService(baseUrl: baseUrl),
+    ),
+    Provider<CbtLocalStorage>(
+      create: (_) => CbtLocalStorage(),
+    ),
+    ProxyProvider2<CbtService, CbtLocalStorage, CbtRepository>(
+      update: (_, service, storage, _) => CbtRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<CbtRepository, CbtViewModel>(
+      create: (context) => CbtViewModel(
+        repository: Provider.of<CbtRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) => previous ?? CbtViewModel(repository: repo),
+    ),
+
+    Provider<TagihanService>(
+      create: (_) => TagihanService(baseUrl: baseUrl),
+    ),
+    Provider<TagihanLocalStorage>(
+      create: (_) => TagihanLocalStorage(),
+    ),
+    ProxyProvider2<TagihanService, TagihanLocalStorage, TagihanRepository>(
+      update: (_, service, storage, _) => TagihanRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<TagihanRepository, TagihanViewModel>(
+      create: (context) => TagihanViewModel(
+        repository: Provider.of<TagihanRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? TagihanViewModel(repository: repo),
+    ),
+    Provider<WeeklyPlanService>(
+      create: (_) => WeeklyPlanService(baseUrl: baseUrl),
+    ),
+    Provider<WeeklyPlanLocalStorage>(
+      create: (_) => WeeklyPlanLocalStorage(),
+    ),
+    ProxyProvider2<WeeklyPlanService, WeeklyPlanLocalStorage, WeeklyPlanRepository>(
+      update: (_, service, storage, _) => WeeklyPlanRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<WeeklyPlanRepository, WeeklyPlanViewModel>(
+      create: (context) => WeeklyPlanViewModel(
+        repository:
+            Provider.of<WeeklyPlanRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? WeeklyPlanViewModel(repository: repo),
+    ),
+
+    Provider<BukuKomunikasiService>(
+      create: (_) => BukuKomunikasiService(baseUrl: baseUrl),
+    ),
+    Provider<BukuKomunikasiLocalStorage>(
+      create: (_) => BukuKomunikasiLocalStorage(),
+    ),
+    ProxyProvider2<BukuKomunikasiService, BukuKomunikasiLocalStorage, BukuKomunikasiRepository>(
+      update: (_, service, storage, _) => BukuKomunikasiRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<BukuKomunikasiRepository, BukuKomunikasiViewModel>(
+      create: (context) => BukuKomunikasiViewModel(
+        repository: Provider.of<BukuKomunikasiRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? BukuKomunikasiViewModel(repository: repo),
+    ),
+
+    Provider<RaporService>(
+      create: (_) => RaporService(baseUrl: baseUrl),
+    ),
+    Provider<RaporLocalStorage>(
+      create: (_) => RaporLocalStorage(),
+    ),
+    ProxyProvider2<RaporService, RaporLocalStorage, RaporRepository>(
+      update: (_, service, storage, _) => RaporRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<RaporRepository, RaporViewModel>(
+      create: (context) => RaporViewModel(
+        repository: Provider.of<RaporRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? RaporViewModel(repository: repo),
+    ),
+
+    Provider<AssignmentService>(
+      create: (_) => AssignmentService(baseUrl: baseUrl),
+    ),
+    Provider<AssignmentLocalStorage>(
+      create: (_) => AssignmentLocalStorage(),
+    ),
+    ProxyProvider2<AssignmentService, AssignmentLocalStorage, AssignmentRepository>(
+      update: (_, service, storage, _) => AssignmentRepository(
+        apiService: service,
+        localStorage: storage,
+      ),
+    ),
+    ChangeNotifierProxyProvider<AssignmentRepository, AssignmentViewModel>(
+      create: (context) => AssignmentViewModel(
+        repository: Provider.of<AssignmentRepository>(context, listen: false),
+      ),
+      update: (_, repo, previous) =>
+          previous ?? AssignmentViewModel(repository: repo),
+    ),
+  ];
+}

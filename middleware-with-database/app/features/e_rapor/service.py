@@ -1,4 +1,8 @@
+import base64
+import os
 from typing import List, Dict, Any, Optional
+
+from app.core.config import settings
 from app.features.e_rapor.repository import ERaporRepository
 
 class ERaporService:
@@ -6,7 +10,7 @@ class ERaporService:
         self.repo = repo
 
     def _str(self, val: Any, fallback: str = '-') -> str:
-        return str(val) if val and val is not None and val is not False else fallback
+        return str(val) if val is not None and val is not False else fallback
 
     async def get_student_reports(self, student_id: int) -> List[Dict[str, Any]]:
         raw_reports = await self.repo.get_student_reports(student_id=student_id)
@@ -15,7 +19,6 @@ class ERaporService:
             file_pdf = r.get("file_url")
             if not file_pdf and r.get("attachment_id"):
                 file_pdf = f"/web/content/{r.get('attachment_id')}?download=true"
-
             reports.append({
                 "id": r.get("id"),
                 "student_id": r.get("student_id"),
@@ -54,13 +57,6 @@ class ERaporService:
     async def get_rapor_pdf_bytes(
         self, rapor_id: int, student_id: int
     ):
-        """
-        Fetch binary PDF rapor dari ir_attachment.
-        Return tuple (pdf_bytes, filename) atau None jika tidak ada.
-        """
-        import base64, os
-        from app.core.config import settings
-
         attachment = await self.repo.get_rapor_attachment(
             rapor_id=rapor_id, student_id=student_id
         )
@@ -71,7 +67,7 @@ class ERaporService:
         if not filename.lower().endswith('.pdf'):
             filename += '.pdf'
 
-        # Odoo menyimpan file binary dalam db_datas (base64)
+        # 1. Coba decode dari db_datas (base64) jika tersimpan di DB
         db_datas = attachment.get("db_datas")
         if db_datas:
             try:
@@ -85,10 +81,10 @@ class ERaporService:
             except Exception:
                 pass
 
-        # Fallback: baca dari filestore jika ada store_fname
+        # 2. Fallback: baca dari filestore Odoo
         store_fname = attachment.get("store_fname")
         if store_fname and hasattr(settings, 'ODOO_FILESTORE_PATH'):
-            filepath = os.path.join(settings.ODOO_FILESTORE_PATH, store_fname)
+            filepath = os.path.join(settings.ODOO_FILESTORE_PATH, settings.ODOO_DB, store_fname)
             if os.path.exists(filepath):
                 with open(filepath, 'rb') as f:
                     return f.read(), filename

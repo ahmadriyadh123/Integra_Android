@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 class SubjectGradeLine(BaseModel):
@@ -8,6 +8,8 @@ class SubjectGradeLine(BaseModel):
     nilai_pengetahuan: float = 0.0
     nilai_keterampilan: float = 0.0
     predikat: Optional[str] = "-"
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ReportCardHeader(BaseModel):
     id: int
@@ -22,6 +24,8 @@ class ReportCardHeader(BaseModel):
     file_rapor_pdf: Optional[str] = None
     file_name: Optional[str] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
 class ReportCardDetailResponse(BaseModel):
     id: int
     student_id: int
@@ -32,6 +36,8 @@ class ReportCardDetailResponse(BaseModel):
     file_rapor_pdf: Optional[str] = None
     file_name: Optional[str] = None
     subjects: List[SubjectGradeLine] = []
+
+    model_config = ConfigDict(from_attributes=True)
 
 class APIResponseReportList(BaseModel):
     success: bool

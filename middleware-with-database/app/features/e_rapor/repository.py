@@ -17,10 +17,9 @@ class ERaporRepository:
         """)
         result = await self.db.execute(query, {"student_id": student_id})
         row = result.mappings().first()
-
         if not row or not row["course_name"]:
-            return None
-
+            return "sd"  # Default fallback ke SD jika tidak ditemukan
+            
         course_name = row["course_name"]
         if "smp" in course_name:
             return "smp"
@@ -28,12 +27,10 @@ class ERaporRepository:
             return "sd"
         elif "tk" in course_name or "paud" in course_name:
             return "tk"
-
-        return None
+        return "sd"
 
     async def get_student_reports(self, student_id: int) -> List[Dict[str, Any]]:
         level = await self.get_student_level_from_course(student_id)
-
         if level == 'sd':
             header_table, line_table, res_model_name = "ledger_rapor_sd", "ledger_rapor_sd_lm1", "ledger.rapor.sd"
         elif level == 'smp':
@@ -42,6 +39,8 @@ class ERaporRepository:
             header_table, line_table, res_model_name = "ledger_rapor_tk", "ledger_rapor_tk_lm1", "ledger.rapor.tk"
         else:
             return []
+
+        fk_col = f"{header_table}_id"
 
         query = text(f"""
             SELECT DISTINCT ON (l.id)
@@ -62,7 +61,7 @@ class ERaporRepository:
                 att.store_fname,
                 att.url AS file_url
             FROM {line_table} l
-            JOIN {header_table} h ON h.id = l.{header_table}_id
+            JOIN {header_table} h ON h.id = l.{fk_col}
             LEFT JOIN op_student s ON s.id = l.student_id
             LEFT JOIN res_partner p ON p.id = s.partner_id
             LEFT JOIN op_course c ON c.id = h.course_id
@@ -74,13 +73,11 @@ class ERaporRepository:
             WHERE l.student_id = :student_id
             ORDER BY l.id DESC;
         """)
-
         result = await self.db.execute(query, {"student_id": student_id, "res_model": res_model_name})
         return [dict(row) for row in result.mappings().all()]
 
     async def get_report_card_details(self, rapor_id: int, student_id: int) -> Optional[Dict[str, Any]]:
         level = await self.get_student_level_from_course(student_id)
-
         if level == 'sd':
             header_table, line_table, res_model_name = "ledger_rapor_sd", "ledger_rapor_sd_lm1", "ledger.rapor.sd"
         elif level == 'smp':
@@ -89,6 +86,8 @@ class ERaporRepository:
             header_table, line_table, res_model_name = "ledger_rapor_tk", "ledger_rapor_tk_lm1", "ledger.rapor.tk"
         else:
             return None
+
+        fk_col = f"{header_table}_id"
 
         query_header = text(f"""
             SELECT
@@ -108,7 +107,7 @@ class ERaporRepository:
                 att.store_fname,
                 att.url AS file_url
             FROM {line_table} l
-            JOIN {header_table} h ON h.id = l.{header_table}_id
+            JOIN {header_table} h ON h.id = l.{fk_col}
             LEFT JOIN op_student s ON s.id = l.student_id
             LEFT JOIN res_partner p ON p.id = s.partner_id
             LEFT JOIN op_course c ON c.id = h.course_id
@@ -120,7 +119,6 @@ class ERaporRepository:
             WHERE l.id = :rapor_id AND l.student_id = :student_id
             LIMIT 1;
         """)
-
         res_header = await self.db.execute(
             query_header,
             {"rapor_id": rapor_id, "student_id": student_id, "res_model": res_model_name}
@@ -131,47 +129,43 @@ class ERaporRepository:
 
         report_dict = dict(report)
 
-        # Mengambil daftar nilai matpel
+        # Mengambil daftar nilai mata pelajaran siswa pada semester & jenis rapor yang sama
         query_subjects = text(f"""
             SELECT
                 l.id,
                 h.subject_id,
                 sub.name AS subject_name,
-                COALESCE(l.tp1, 0) AS nilai_pengetahuan,
+                COALESCE(l.sts, 0) AS nilai_pengetahuan,
                 COALESCE(l.total_nilai, 0) AS nilai_keterampilan,
                 l.cp_kompetensi AS predikat
             FROM {line_table} l
-            JOIN {header_table} h ON h.id = l.{header_table}_id
+            JOIN {header_table} h ON h.id = l.{fk_col}
             LEFT JOIN op_subject sub ON sub.id = h.subject_id
-            WHERE l.id = :rapor_id;
+            WHERE l.student_id = :student_id
+              AND l.semester = :semester
+              AND l.jenis_rapor = :jenis_rapor;
         """)
-
-        res_lines = await self.db.execute(query_subjects, {"rapor_id": rapor_id})
+        res_lines = await self.db.execute(query_subjects, {
+            "student_id": student_id,
+            "semester": report_dict.get("semester"),
+            "jenis_rapor": report_dict.get("jenis_rapor")
+        })
         report_dict['subjects'] = [dict(row) for row in res_lines.mappings().all()]
         return report_dict
 
-    async def get_rapor_attachment(
-        self, rapor_id: int, student_id: int
-    ):
-        """
-        Ambil binary PDF dari ir_attachment untuk rapor tertentu.
-        Filter student_id memastikan siswa hanya bisa akses rapor miliknya.
-        """
+    async def get_rapor_attachment(self, rapor_id: int, student_id: int):
         level = await self.get_student_level_from_course(student_id)
-
         if level == 'sd':
-            header_table, line_table = "ledger_rapor_sd", "ledger_rapor_sd_lm1"
-            res_model = "ledger.rapor.sd"
+            header_table, line_table, res_model = "ledger_rapor_sd", "ledger_rapor_sd_lm1", "ledger.rapor.sd"
         elif level == 'smp':
-            header_table, line_table = "ledger_rapor_smp", "ledger_rapor_smp_lm1"
-            res_model = "ledger.rapor.smp"
+            header_table, line_table, res_model = "ledger_rapor_smp", "ledger_rapor_smp_lm1", "ledger.rapor.smp"
         elif level == 'tk':
-            header_table, line_table = "ledger_rapor_tk", "ledger_rapor_tk_lm1"
-            res_model = "ledger.rapor.tk"
+            header_table, line_table, res_model = "ledger_rapor_tk", "ledger_rapor_tk_lm1", "ledger.rapor.tk"
         else:
             return None
 
-        # Cari attachment dari rapor milik student ini
+        fk_col = f"{header_table}_id"
+
         query = text(f"""
             SELECT
                 att.id,
@@ -180,18 +174,16 @@ class ERaporRepository:
                 att.store_fname,
                 att.db_datas
             FROM {line_table} l
-            JOIN {header_table} h ON h.id = l.{header_table}_id
+            JOIN {header_table} h ON h.id = l.{fk_col}
             JOIN ir_attachment att ON (
                 att.id = h.message_main_attachment_id
                 OR (att.res_model = :res_model AND att.res_id = h.id)
             )
             WHERE l.id = :rapor_id
               AND l.student_id = :student_id
-              AND att.mimetype = 'application/pdf'
             ORDER BY att.id DESC
             LIMIT 1;
         """)
-
         result = await self.db.execute(query, {
             "rapor_id": rapor_id,
             "student_id": student_id,

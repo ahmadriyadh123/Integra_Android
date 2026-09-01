@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/elearning/models/elearning_model.dart';
+import 'package:flutter_application_1/features/elearning/models/elearning_model.dart';
 
 void main() {
   group('CourseDetail parsing', () {
