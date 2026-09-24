@@ -6,6 +6,7 @@ from jwt.exceptions import PyJWTError
 
 from app.core.config import settings
 from app.core.odoo_client import OdooRPCClient
+from app.features.auth.service import AuthService
 
 # Scheme untuk membaca token Bearer dari Header Authorization
 security_scheme = HTTPBearer(auto_error=False)
@@ -55,7 +56,7 @@ async def get_current_user_credentials(
             "uid": payload.get("uid"),
             "sub": payload.get("sub"),
             "username": payload.get("username"),
-            "password": payload.get("password", ""),
+            "password": AuthService.decrypt_odoo_password(payload.get("odoo_password", "")),
             "partner_id": payload.get("partner_id"),
             "student_id": payload.get("student_id"),
             "course_id": payload.get("course_id"),

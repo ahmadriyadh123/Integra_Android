@@ -34,7 +34,7 @@ def login(
     jwt_payload = {
         "uid": user_info["uid"],
         "username": user_info["username"],
-        "password": payload.password,
+        "odoo_password": AuthService.encrypt_odoo_password(payload.password),
         "partner_id": user_info["partner_id"],
         "student_id": user_info["student_id"],
         "jenjang": user_info["jenjang"],

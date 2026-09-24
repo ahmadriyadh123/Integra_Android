@@ -7,9 +7,13 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Middleware Odoo RPC"
+    APP_ENV: str = "development"
+    CORS_ALLOW_ORIGINS: str = ""
     
     ODOO_HOST: str
     ODOO_DB: str
+    ODOO_SCHEME: str = "https"
+    ODOO_PORT: int = 8069
     ODOO_ADMIN_USER: str = "admin"
     ODOO_ADMIN_PASS: str = ""
     ODOO_FILESTORE_PATH: str = ""
@@ -20,7 +24,11 @@ class Settings(BaseSettings):
 
     @property
     def ODOO_URL(self) -> str:
-        return f"http://{self.ODOO_HOST}:8069"
+        return f"{self.ODOO_SCHEME}://{self.ODOO_HOST}:{self.ODOO_PORT}"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ALLOW_ORIGINS.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -30,6 +38,12 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+if settings.APP_ENV.lower() == "production":
+    if len(settings.JWT_SECRET_KEY) < 32:
+        raise ValueError("JWT_SECRET_KEY production harus minimal 32 karakter")
+    if settings.ODOO_ADMIN_PASS in {"", "admin_password_here"}:
+        raise ValueError("ODOO_ADMIN_PASS production harus diisi dengan secret yang valid")
 
 def get_attachment_base64(store_fname: str) -> str | None:
     """Membaca file gambar dari Odoo Filestore dan mengonversinya ke Base64"""
