@@ -58,7 +58,7 @@ class ReportCardHeader {
   factory ReportCardHeader.fromJson(Map<String, dynamic> json) {
     return ReportCardHeader(
       id: json['id'] as int,
-      studentId: json['student_id'] as int,
+      studentId: (json['student_id'] as num?)?.toInt() ?? 0,      
       studentName: json['student_name'] as String? ?? '-',
       className: json['kelas'] as String? ?? '-',
       semester: json['semester'] as String? ?? '-',
@@ -98,7 +98,7 @@ class ReportCardDetail {
   factory ReportCardDetail.fromJson(Map<String, dynamic> json) {
     return ReportCardDetail(
       id: json['id'] as int,
-      studentId: json['student_id'] as int,
+      studentId: (json['student_id'] as num?)?.toInt() ?? 0,
       studentName: json['student_name'] as String? ?? '-',
       className: json['kelas'] as String? ?? '-',
       averageScore: (json['rata_rata_nilai'] as num?)?.toDouble() ?? 0.0,

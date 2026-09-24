@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.elearning.schemas import APIResponseCourseList, APIResponseCourseDetail
 from app.features.elearning.repository import ElearningRepository
-from app.features.elearning.service import ElearningService
+from app.features.elearning.service import ElearningService, ScormAccessDeniedError
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ async def download_scorm(
                 detail=(
                     "Paket SCORM tercatat di database, tetapi filestore Odoo "
                     "belum tersedia pada middleware. Mount atau salin filestore Odoo."
-                )
+                ),
             )
 
         content, filename, mimetype = package
@@ -148,6 +148,11 @@ async def download_scorm(
                 "Content-Disposition": f'attachment; filename="{filename}"',
                 "Content-Length": str(len(content)),
             },
+        )
+    except ScormAccessDeniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
         )
     except HTTPException:
         raise

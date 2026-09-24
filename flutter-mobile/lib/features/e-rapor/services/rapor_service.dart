@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -15,12 +16,20 @@ class RaporService {
 
   Future<List<dynamic>> fetchReportList(String token) async {
     final url = Uri.parse('$baseUrl/e-rapor/list');
+    // LOGGING UNTUK DEBUGGING
+    debugPrint('========== [API REQUEST] ==========');
+    debugPrint('URL: $url');
+    debugPrint('Token: $token');
     try {
       final response = await http
           .get(url, headers: _headers(token))
           .timeout(const Duration(seconds: 15), onTimeout: () {
         throw TimeoutException('Waktu tunggu koneksi habis');
       });
+
+      debugPrint('Response Status: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+      debugPrint('====================================');
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {

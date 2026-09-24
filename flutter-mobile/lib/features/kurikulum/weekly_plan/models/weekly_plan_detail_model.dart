@@ -1,3 +1,9 @@
+String _cleanHtml(String? text, {String fallback = '-'}) {
+  if (text == null || text.isEmpty) return fallback;
+  final cleaned = text.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&nbsp;', ' ').trim();
+  return cleaned.isEmpty ? fallback : cleaned;
+}
+
 class DailyActivity {
   final int id;
   final String waktu;
@@ -18,11 +24,11 @@ class DailyActivity {
   factory DailyActivity.fromJson(Map<String, dynamic> json) {
     return DailyActivity(
       id: json['id'] is num ? (json['id'] as num).toInt() : 0,
-      waktu: json['waktu']?.toString() ?? '-',
-      aktivitas: json['aktivitas']?.toString() ?? '-',
-      media: json['media']?.toString() ?? '-',
-      sumber: json['sumber']?.toString() ?? '-',
-      penilaian: json['penilaian']?.toString() ?? '-',
+      waktu: _cleanHtml(json['waktu']?.toString()),
+      aktivitas: _cleanHtml(json['aktivitas']?.toString()),
+      media: _cleanHtml(json['media']?.toString()),
+      sumber: _cleanHtml(json['sumber']?.toString()),
+      penilaian: _cleanHtml(json['penilaian']?.toString()),
     );
   }
 }
@@ -41,8 +47,8 @@ class TargetPembelajaran {
   factory TargetPembelajaran.fromJson(Map<String, dynamic> json) {
     return TargetPembelajaran(
       id: json['id'] is num ? (json['id'] as num).toInt() : 0,
-      subjectName: json['subject_name']?.toString() ?? 'Mata Pelajaran',
-      tp: json['tp']?.toString() ?? '-',
+      subjectName: _cleanHtml(json['subject_name']?.toString(), fallback: 'Mata Pelajaran'),
+      tp: _cleanHtml(json['tp']?.toString()),
     );
   }
 }
@@ -114,10 +120,10 @@ class WeeklyPlanDetailModel {
       kelas: json['kelas']?.toString() ?? '-',
       semester: json['semester']?.toString() ?? '-',
       tahunAjaran: json['tahun_ajaran']?.toString() ?? '-',
-      pekan: json['pekan']?.toString() ?? '-',
-      tema: json['tema']?.toString() ?? '-',
-      namaGuru: json['nama_guru']?.toString() ?? '-',
-      namaKepsek: json['nama_kepsek']?.toString() ?? '-',
+      pekan: _cleanHtml(json['pekan']?.toString()),
+      tema: _cleanHtml(json['tema']?.toString()),
+      namaGuru: _cleanHtml(json['nama_guru']?.toString()),
+      namaKepsek: _cleanHtml(json['nama_kepsek']?.toString()),
       status: json['status']?.toString() ?? 'draft',
       tujuanPembelajaran: parseTp(json['tujuan_pembelajaran']),
       senin: parseList(json['senin']),

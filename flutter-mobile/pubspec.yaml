@@ -46,6 +46,5 @@ flutter_native_splash:
 flutter:
   uses-material-design: true
   assets:
-    - assets/WeeklyPlan_Kelas_1_SD.pdf
     - assets/icon.png
     - assets/app_icon.png

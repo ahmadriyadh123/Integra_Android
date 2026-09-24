@@ -1,4 +1,6 @@
+import html
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from app.features.weekly_plan.repository import WeeklyPlanRepository
 
@@ -8,9 +10,20 @@ class WeeklyPlanService:
     def __init__(self, repo: WeeklyPlanRepository):
         self.repo = repo
 
+    def _clean_html(self, val: Any, fallback: str = '-') -> str:
+        if val is None or val is False:
+            return fallback
+        text = str(val)
+        # Strip tag HTML seperti <p>, </p>, <br>, dll.
+        text = re.sub(r'<[^>]+>', '', text)
+        # Unescape entitas HTML seperti &nbsp; dan &amp;
+        text = html.unescape(text)
+        text = text.strip()
+        return text if text else fallback
+
     def _str(self, val: Any, fallback: str = '-') -> str:
         if val and val is not False:
-            return str(val)
+            return self._clean_html(val, fallback)
         return fallback
 
     def _clean_daily_lines(self, raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

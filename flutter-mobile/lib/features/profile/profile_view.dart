@@ -159,24 +159,43 @@ class _ProfilTabState extends State<ProfilTab> {
 
               const SizedBox(height: 32),
               ProfileLogoutButton(
-                onLogoutTap: () {
-                  context.read<AuthViewModel>().logout();
-                  // Gunakan Navigator.of(context, rootNavigator: true)
-                  // agar logout keluar dari DashboardView sepenuhnya,
-                  // bukan hanya dari nested navigator di dalamnya
-                  Navigator.of(context, rootNavigator: true)
-                      .pushAndRemoveUntil(
-                    MaterialPageRoute(
-                        builder: (_) => const LoginView()),
-                    (route) => false,
-                  );
-                },
+                onLogoutTap: _confirmLogout,
               ),
               const SizedBox(height: 16),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi Logout'),
+        content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true || !mounted) return;
+
+    await context.read<AuthViewModel>().logout();
+    if (!mounted) return;
+
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (route) => false,
     );
   }
 

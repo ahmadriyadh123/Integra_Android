@@ -31,13 +31,13 @@ class RaporViewModel extends ChangeNotifier {
     return repository.generatePdf(detail, header, user);
   }
 
-  Future<void> fetchReportList(String token) async {
+  Future<void> fetchReportList(String token, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _reports = await repository.getReportList(token);
+      _reports = await repository.getReportList(token, forceRefresh: forceRefresh);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -46,14 +46,14 @@ class RaporViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchReportDetail(String token, int raporId) async {
+  Future<void> fetchReportDetail(String token, int raporId, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     _currentDetail = null;
     notifyListeners();
 
     try {
-      _currentDetail = await repository.getReportDetail(token, raporId);
+      _currentDetail = await repository.getReportDetail(token, raporId, forceRefresh: forceRefresh);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

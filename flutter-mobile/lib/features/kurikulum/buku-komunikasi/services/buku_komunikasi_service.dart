@@ -41,6 +41,8 @@ class BukuKomunikasiService {
     required int lineId,
     required String day,
     required String noteText,
+    String? month,
+    int? week,
   }) async {
     final url = Uri.parse('$baseUrl/buku-komunikasi/note');
     try {
@@ -52,20 +54,19 @@ class BukuKomunikasiService {
               'line_id': lineId,
               'day': day.toLowerCase(),
               'note_text': noteText,
+              'month': month,
+              'week': week,
             }),
           )
           .timeout(const Duration(seconds: 15), onTimeout: () {
         throw TimeoutException('Waktu tunggu koneksi habis');
       });
+      
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
         return true;
       }
       throw Exception(json['detail'] ?? json['message'] ?? 'Gagal menyimpan catatan');
-    } on TimeoutException {
-      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
-    } on http.ClientException catch (e) {
-      throw Exception('Gagal terhubung ke server: ${e.message}');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat menyimpan catatan');

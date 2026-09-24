@@ -141,3 +141,18 @@ class ElearningRepository:
         result = await self.db.execute(query, {"attachment_id": attachment_id})
         row = result.mappings().first()
         return dict(row) if row else None
+
+    async def get_scorm_attachment(self, slide_id: int) -> Optional[Dict[str, Any]]:
+        """Mencari attachment ZIP SCORM asli berdasarkan tabel relasi ir_attachment_slide_slide_rel."""
+        query = text("""
+            SELECT ia.id, ia.name, ia.store_fname, ia.db_datas, ia.mimetype, ia.file_size
+            FROM ir_attachment_slide_slide_rel rel
+            JOIN ir_attachment ia ON rel.ir_attachment_id = ia.id
+            WHERE rel.slide_slide_id = :slide_id
+              AND (ia.mimetype LIKE '%zip%' OR lower(ia.name) LIKE '%.zip' OR lower(ia.store_fname) LIKE '%.zip')
+            ORDER BY ia.id DESC
+            LIMIT 1;
+        """)
+        result = await self.db.execute(query, {"slide_id": slide_id})
+        row = result.mappings().first()
+        return dict(row) if row else None

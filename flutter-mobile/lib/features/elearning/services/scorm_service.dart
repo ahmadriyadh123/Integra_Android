@@ -89,7 +89,21 @@ class ScormService {
         await sink.close();
         return zipFile;
       }
-      throw Exception('Gagal mengunduh SCORM (HTTP ${streamedResponse.statusCode})');
+
+      final responseBody = await streamedResponse.stream.bytesToString();
+      String? detail;
+      try {
+        final decoded = jsonDecode(responseBody);
+        if (decoded is Map<String, dynamic>) {
+          detail = decoded['detail']?.toString() ?? decoded['message']?.toString();
+        }
+      } catch (_) {}
+
+      throw Exception(
+        detail?.isNotEmpty == true
+            ? detail
+            : 'Gagal mengunduh SCORM (HTTP ${streamedResponse.statusCode})',
+      );
     } finally {
       client.close();
     }
@@ -125,35 +139,32 @@ class ScormService {
 
   String findIndexPath(Directory extractDir) {
     final allFiles = extractDir.listSync(recursive: true);
-    String? indexPath;
+    
+    // 1. Cari file HTML utama standar paket SCORM
+    for (final f in allFiles) {
+      if (f is File) {
+        final name = f.path.split(Platform.pathSeparator).last.toLowerCase();
+        if (name == 'index.html' || 
+            name == 'index.htm' || 
+            name == 'story.html' || 
+            name == 'story.htm' ||
+            name == 'scorm.html') {
+          return f.path;
+        }
+      }
+    }
 
+    // 2. Fallback: Ambil file .html pertama di dalam folder mana saja
     for (final f in allFiles) {
       if (f is File) {
         final lower = f.path.toLowerCase();
-        if (lower.endsWith('index.html') ||
-            lower.endsWith('index.htm') ||
-            lower.endsWith('story.html') ||
-            lower.endsWith('story.htm')) {
-          indexPath = f.path;
-          break;
+        if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+          return f.path;
         }
       }
     }
 
-    if (indexPath == null) {
-      for (final f in allFiles) {
-        if (f is File) {
-          final lower = f.path.toLowerCase();
-          if (lower.endsWith('.html') || lower.endsWith('.htm') || lower.endsWith('.xhtml')) {
-            indexPath = f.path;
-            break;
-          }
-        }
-      }
-    }
-
-    if (indexPath == null) throw Exception('Tidak menemukan file HTML di dalam paket SCORM');
-    return indexPath;
+    throw Exception('Tidak menemukan file HTML di dalam paket SCORM');
   }
 
   Future<String> startLocalServer(Directory extractDir, String indexPath) async {

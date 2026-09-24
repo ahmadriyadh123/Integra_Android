@@ -35,31 +35,76 @@ class AttendanceHeatmapCard extends StatelessWidget {
               Text(
                 'Peta Presensi Bulanan ($totalDays Hari)',
                 style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF64748B),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF334155),
                 ),
               ),
               const Text(
-                'Klik tanggal untuk detail',
+                'STATUS HARI',
                 style: TextStyle(
                   fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.7,
+                  color: Color(0xFF64748B),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          const Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              _HeatmapLegendItem('Hadir', Color(0xFF10B981)),
+              _HeatmapLegendItem('Sakit', Color(0xFF0EA5E9)),
+              _HeatmapLegendItem('Izin', Color(0xFFF59E0B)),
+              _HeatmapLegendItem('Alpa', Color(0xFFEF4444)),
+            ],
+          ),
+          const SizedBox(height: 14),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 5,
-            childAspectRatio: 1.25,
+            childAspectRatio: 1.05,
             children: heatmapCells,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HeatmapLegendItem extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _HeatmapLegendItem(this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF475569),
+          ),
+        ),
+      ],
     );
   }
 }

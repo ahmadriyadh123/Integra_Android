@@ -36,12 +36,18 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Memanggil ViewModel melalui kaskade Clean Architecture
       context.read<WeeklyPlanViewModel>().fetchPdfFile(
             widget.planId,
             widget.authToken,
           );
     });
+  }
+
+  @override
+  void dispose() {
+    // Membersihkan state PDF agar tidak membekas saat buka dokumen lain
+    context.read<WeeklyPlanViewModel>().clearPdfState();
+    super.dispose();
   }
 
   @override

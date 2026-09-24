@@ -31,12 +31,11 @@ class RaporRepository {
       {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await localStorage.loadRaporList();
-      if (cached != null) {
-        return cached
-            .map((e) => ReportCardHeader.fromJson(
-                Map<String, dynamic>.from(e as Map)))
-            .toList();
-      }
+      if (cached != null && cached.isNotEmpty) {
+      return cached
+          .map((e) => ReportCardHeader.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
     }
 
     final data = await apiService.fetchReportList(token);

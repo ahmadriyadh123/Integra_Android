@@ -1,3 +1,9 @@
+String _cleanHtml(String? text, {String fallback = '-'}) {
+  if (text == null || text.isEmpty) return fallback;
+  final cleaned = text.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&nbsp;', ' ').trim();
+  return cleaned.isEmpty ? fallback : cleaned;
+}
+
 class WeeklyPlanItem {
   final int id;
   final String kelas;
@@ -25,12 +31,12 @@ class WeeklyPlanItem {
       id: (map['id'] is num)
           ? (map['id'] as num).toInt()
           : int.tryParse(map['id']?.toString() ?? '0') ?? 0,
-      kelas: map['kelas']?.toString() ?? '-',
-      semester: map['semester']?.toString() ?? '-',
-      tahunAjaran: map['tahun_ajaran']?.toString() ?? '-',
-      pekan: map['pekan']?.toString() ?? '-',
-      tema: map['tema']?.toString() ?? '-',
-      namaGuru: map['nama_guru']?.toString() ?? '-',
+      kelas: _cleanHtml(map['kelas']?.toString()),
+      semester: _cleanHtml(map['semester']?.toString()),
+      tahunAjaran: _cleanHtml(map['tahun_ajaran']?.toString()),
+      pekan: _cleanHtml(map['pekan']?.toString()),
+      tema: _cleanHtml(map['tema']?.toString()),
+      namaGuru: _cleanHtml(map['nama_guru']?.toString()),
       status: map['status']?.toString() ?? 'draft',
     );
   }

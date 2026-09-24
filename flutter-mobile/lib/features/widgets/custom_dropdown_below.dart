@@ -47,37 +47,54 @@ class _CustomDropdownBelowFieldState extends State<CustomDropdownBelowField> {
               controller: _menuController,
               // Mengatur posisi dan ukuran menu pop-up
               style: MenuStyle(
-                // Memaksa lebar menu pop-up sama persis dengan lebar form
+                padding: WidgetStateProperty.all(EdgeInsets.zero),
                 minimumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 0)),
-                maximumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 250)), // Max height agar bisa di-scroll
+                maximumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 250)),
                 backgroundColor: WidgetStateProperty.all(Colors.white),
                 elevation: WidgetStateProperty.all(4),
                 shape: WidgetStateProperty.all(
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              // Render Daftar Pilihan Dropdown
-              menuChildren: widget.items.map((item) {
-                final isSelected = item == widget.value;
-                return MenuItemButton(
-                  style: MenuItemButton.styleFrom(
-                    backgroundColor: isSelected ? Colors.teal.shade50 : Colors.transparent,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  onPressed: () {
-                    state.didChange(item); // Update validasi
-                    widget.onChanged(item); // Update parent UI
-                    _menuController.close();
-                  },
-                  child: Text(
-                    item,
-                    style: TextStyle(
-                      color: isSelected ? Colors.teal : const Color(0xFF0F172A),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              // Satu child dengan lebar terkunci membuat popup mengikuti form.
+              menuChildren: [
+                SizedBox(
+                  width: constraints.maxWidth,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.items.map((item) {
+                          final isSelected = item == widget.value;
+                          return SizedBox(
+                            width: double.infinity,
+                            child: MenuItemButton(
+                              style: MenuItemButton.styleFrom(
+                                backgroundColor: isSelected ? Colors.teal.shade50 : Colors.transparent,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              onPressed: () {
+                                state.didChange(item);
+                                widget.onChanged(item);
+                                _menuController.close();
+                              },
+                              child: Text(
+                                item,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.teal : const Color(0xFF0F172A),
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              ],
               
               // Render Form Tampilan Luar
               builder: (context, controller, child) {

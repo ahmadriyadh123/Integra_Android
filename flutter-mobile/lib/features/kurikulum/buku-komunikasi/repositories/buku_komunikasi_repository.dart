@@ -28,20 +28,24 @@ class BukuKomunikasiRepository {
   }
 
   Future<bool> submitDailyNote({
-      required String token,
-      required int lineId,
-      required String day,
-      required String noteText,
-    }) async {
-      final result = await apiService.submitDailyNote(
-        token: token,
-        lineId: lineId,
-        day: day,
-        noteText: noteText,
-      );
-      if (result) {
-        await localStorage.clearCache();
-      }
-      return result;
+    required String token,
+    required int lineId,
+    required String day,
+    required String noteText,
+    String? month,
+    int? week,
+  }) async {
+    final result = await apiService.submitDailyNote(
+      token: token,
+      lineId: lineId,
+      day: day,
+      noteText: noteText,
+      month: month,
+      week: week,
+    );
+    if (result) {
+      await localStorage.clearCache();
+    }
+    return result;
   }
 }

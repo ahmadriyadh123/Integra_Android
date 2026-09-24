@@ -3,7 +3,6 @@ import '../local/weekly_plan_local_storage.dart';
 import '../models/weekly_plan_model.dart';
 import '../models/weekly_plan_detail_model.dart';
 import '../services/weekly_plan_service.dart';
-import '../services/pdf_generator_service.dart';
 
 class WeeklyPlanRepository {
   final WeeklyPlanService apiService;
@@ -31,10 +30,6 @@ class WeeklyPlanRepository {
   Future<WeeklyPlanDetailModel> getWeeklyPlanDetail(int planId, String token) async {
     final data = await apiService.fetchWeeklyPlanDetail(planId, token);
     return WeeklyPlanDetailModel.fromJson(data);
-  }
-
-  Future<Uint8List> generatePdf(WeeklyPlanDetailModel detail) {
-    return PdfGeneratorService.generateWeeklyPlanPdf(detail);
   }
 
   /// Mengambil binary bytes PDF via Service

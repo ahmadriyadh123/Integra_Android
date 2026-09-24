@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/custom_dropdown_below.dart';
 
 class AttendanceHeader extends StatelessWidget {
   final bool showBackButton;
@@ -90,32 +91,12 @@ class AttendanceMonthFilter extends StatelessWidget {
     required IconData icon,
     required ValueChanged<String?> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF475569)),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-          onChanged: onChanged,
-          items: items.map((item) => DropdownMenuItem<String>(
-            value: item,
-            child: Row(
-              children: [
-                Icon(icon, size: 14, color: const Color(0xFF0284C7)),
-                const SizedBox(width: 8),
-                Text(item),
-              ],
-            ),
-          )).toList(),
-        ),
-      ),
+    return CustomDropdownBelowField(
+      value: value,
+      hint: '-- Pilih bulan --',
+      items: items,
+      onChanged: onChanged,
+      prefixIcon: icon,
     );
   }
 }

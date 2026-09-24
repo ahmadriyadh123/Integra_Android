@@ -148,22 +148,27 @@ class AttendanceViewModel extends ChangeNotifier {
       final dayNum = index + 1;
       final record = recordsByDay[dayNum];
 
-      Color cellBg = const Color(0xFFF1F5F9);
-      Color textColor = const Color(0xFF64748B);
+      Color cellBg = const Color(0xFFE2E8F0);
+      Color textColor = const Color(0xFF475569);
+      Color borderColor = const Color(0xFFCBD5E1);
 
       if (record != null) {
         if (record.alpha > 0) {
-          cellBg = const Color(0xFFFEF2F2);
-          textColor = const Color(0xFFDC2626);
+          cellBg = const Color(0xFFFCA5A5);
+          textColor = const Color(0xFF991B1B);
+          borderColor = const Color(0xFFEF4444);
         } else if (record.sakit > 0) {
-          cellBg = const Color(0xFFF0F9FF);
-          textColor = const Color(0xFF0284C7);
+          cellBg = const Color(0xFF7DD3FC);
+          textColor = const Color(0xFF075985);
+          borderColor = const Color(0xFF0EA5E9);
         } else if (record.izin > 0) {
-          cellBg = const Color(0xFFFEF3C7);
-          textColor = const Color(0xFFD97706);
+          cellBg = const Color(0xFFFCD34D);
+          textColor = const Color(0xFF92400E);
+          borderColor = const Color(0xFFF59E0B);
         } else {
-          cellBg = const Color(0xFFECFDF5);
-          textColor = const Color(0xFF059669);
+          cellBg = const Color(0xFF6EE7B7);
+          textColor = const Color(0xFF065F46);
+          borderColor = const Color(0xFF10B981);
         }
       }
 
@@ -171,14 +176,15 @@ class AttendanceViewModel extends ChangeNotifier {
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           color: cellBg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor, width: 1.2),
         ),
         child: Center(
           child: Text(
             '$dayNum',
             style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
               color: textColor,
             ),
           ),

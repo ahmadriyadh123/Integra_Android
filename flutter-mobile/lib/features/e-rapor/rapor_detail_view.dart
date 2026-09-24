@@ -44,8 +44,8 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
     final vm = context.read<RaporViewModel>();
     final authVm = context.read<AuthViewModel>();
 
-    // 1. Fetch data detail JSON dari ViewModel
-    await vm.fetchReportDetail(widget.authToken, widget.raporId);
+    // 1. Fetch data detail JSON dari ViewModel (force refresh dari API)
+    await vm.fetchReportDetail(widget.authToken, widget.raporId, forceRefresh: true);
 
     // 2. Jika data berhasil didapatkan, buat bytes PDF secara in-memory
     if (vm.currentDetail != null && mounted) {

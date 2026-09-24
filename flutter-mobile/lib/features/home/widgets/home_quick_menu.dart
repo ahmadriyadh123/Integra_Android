@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../kurikulum/weekly_plan/weekly_plan_view.dart';
 import '../../calendar/academic_calendar_view.dart';
-import '../../spmb/spmb_form_view.dart';
 import '../../tagihan/tagihan_view.dart';
 import '../../elearning/lesson_view.dart';
 import '../../kurikulum/cbt/cbt_list_view.dart';
@@ -82,12 +81,6 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         icon: Icons.receipt_long_rounded,
         color: const Color(0xFFF97316),
         destination: TagihanPage(authToken: widget.authToken),
-      ),
-      QuickMenuItem(
-        title: 'PPDB',
-        icon: Icons.edit_note_rounded,
-        color: const Color(0xFF7C3AED),
-        submenu: 'ppdb',
       ),
       QuickMenuItem(
         title: 'E-Rapor',
@@ -325,27 +318,6 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         ),
         const Divider(height: 24, color: Color(0xFFE2E8F0)),
         const SizedBox(height: 10),
-        _submenu('ppdb', 'PPDB', Icons.edit_note_rounded,
-            const Color(0xFF7C3AED), [
-          QuickMenuItem(
-            title: 'STATUS',
-            icon: Icons.info_outline,
-            color: const Color(0xFF7C3AED),
-            destination: const SpmbFormScreen(),
-          ),
-          QuickMenuItem(
-            title: 'RIWAYAT',
-            icon: Icons.history,
-            color: const Color(0xFF7C3AED),
-            destination: const SpmbFormScreen(),
-          ),
-          QuickMenuItem(
-            title: 'FORMULIR',
-            icon: Icons.description_outlined,
-            color: const Color(0xFF7C3AED),
-            destination: const SpmbFormScreen(),
-          ),
-        ]),
         _submenu('rapor', 'E-RAPOR', Icons.school_outlined,
             const Color(0xFF0D9488), [
           QuickMenuItem(

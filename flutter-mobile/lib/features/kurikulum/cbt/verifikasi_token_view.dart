@@ -7,7 +7,6 @@ import 'widgets/token/token_status_info.dart';
 import 'cbt_exam_view.dart';
 import '../../widgets/shared_header.dart';
 
-
 class VerifikasiTokenView extends StatefulWidget {
   final String subject;
   final int jadwalId;
@@ -29,42 +28,32 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
   static const Color primaryColor = Color(0xFF059669);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
 
-  late final List<TextEditingController> _controllers;
-  late final List<FocusNode> _focusNodes;
+  late final TextEditingController _tokenController;
+  late final FocusNode _tokenFocusNode;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(6, (index) => TextEditingController());
-    _focusNodes = List.generate(6, (index) => FocusNode());
+    _tokenController = TextEditingController();
+    _tokenFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
-    for (var c in _controllers) {
-      c.dispose();
-    }
-    for (var f in _focusNodes) {
-      f.dispose();
-    }
+    _tokenController.dispose();
+    _tokenFocusNode.dispose();
     super.dispose();
-  }
-
-  void _handleTextChange(int index, String value) {
-    if (value.isNotEmpty && index < 5) {
-      FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
-    } else if (value.isEmpty && index > 0) {
-      FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
-    }
   }
 
   bool _isSubmitting = false;
 
   Future<void> _verifyToken() async {
-    final tokenInput = _controllers.map((c) => c.text).join().trim();
+    final tokenInput = _tokenController.text.trim();
     if (tokenInput.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mohon masukkan token ujian dari pengawas.')),
+        const SnackBar(
+          content: Text('Mohon masukkan token ujian dari pengawas.'),
+        ),
       );
       return;
     }
@@ -103,10 +92,7 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
       if (mounted) {
         final errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -135,7 +121,12 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
       body: SafeArea(
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset > 0 ? bottomInset + 20 : 20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            bottomInset > 0 ? bottomInset + 20 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -159,9 +150,8 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
               const TokenInfoBanner(),
               const SizedBox(height: 32),
               TokenInputBoxes(
-                controllers: _controllers,
-                focusNodes: _focusNodes,
-                onChanged: _handleTextChange,
+                controller: _tokenController,
+                focusNode: _tokenFocusNode,
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -204,4 +194,3 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
     );
   }
 }
-

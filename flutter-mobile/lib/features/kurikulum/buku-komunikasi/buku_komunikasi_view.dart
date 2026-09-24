@@ -71,11 +71,10 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     super.dispose();
   }
 
-  // Definisikan _submitNote dengan mendukung lineId = 0 (pekan baru)
   void _submitNote(int? lineId, String dayKey, String? month, String? week) async {
     final token = context.read<AuthViewModel>().token;
     final noteText = _noteControllers[dayKey]!.text.trim();
-
+    
     if (noteText.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,14 +85,18 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
       );
       return;
     }
-         
+
+    final selectedWeekNum = week != null ? int.tryParse(week.replaceAll('Pekan ', '')) : 1;
+
     final success = await context.read<BukuKomunikasiViewModel>().submitDailyNote(
       token: token,
-      lineId: lineId ?? 0, // Jika lineId null, dikirim 0 agar backend memproses pemuatan baris pekan baru
+      lineId: lineId ?? 0,
       day: dayKey,
       noteText: noteText,
+      month: month,
+      week: selectedWeekNum,
     );
-         
+
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(

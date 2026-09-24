@@ -16,13 +16,12 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
   BukuKomunikasiDetail? _detail;
   BukuKomunikasiDetail? get detail => _detail;
 
-  Future<void> fetchBukuKomunikasi(String token) async {
+  Future<void> fetchBukuKomunikasi(String token, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
-
     try {
-      _detail = await repository.getBukuKomunikasi(token);
+      _detail = await repository.getBukuKomunikasi(token, forceRefresh: forceRefresh);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -36,6 +35,8 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     required int lineId,
     required String day,
     required String noteText,
+    String? month,
+    int? week,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -46,9 +47,11 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
         lineId: lineId,
         day: day,
         noteText: noteText,
+        month: month,
+        week: week,
       );
       if (success) {
-        await fetchBukuKomunikasi(token);
+        await fetchBukuKomunikasi(token, forceRefresh: true); // Paksa fetch ulang langsung ke API
         return true;
       }
       return false;
