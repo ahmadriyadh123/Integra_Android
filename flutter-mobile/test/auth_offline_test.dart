@@ -1,9 +1,86 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_1/features/auth/local/auth_local_storage.dart';
 import 'package:flutter_application_1/features/auth/models/auth_model.dart';
 import 'package:flutter_application_1/features/auth/repositories/auth_repository.dart';
 import 'package:flutter_application_1/features/auth/services/auth_service.dart';
 import 'package:flutter_application_1/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
+import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
+import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
+
+class FakeAuthService extends AuthService {
+  FakeAuthService() : super(baseUrl: 'https://example.com');
+
+  @override
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    throw const FormatException('offline');
+  }
+}
+
+class FakeLocalStorage extends AuthLocalStorage {
+  String? savedPassword;
+  String? lastUpdatedCurrentPassword;
+  String? lastUpdatedNewPassword;
+
+  @override
+  Future<void> updateSavedPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    lastUpdatedCurrentPassword = currentPassword;
+    lastUpdatedNewPassword = newPassword;
+    savedPassword = newPassword;
+  }
+
+  @override
+  Future<String> loadPassword() async => savedPassword ?? '';
+}
+
+class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
+  final List<Map<String, dynamic>> pendingNotes = [];
+
+  @override
+  Future<void> savePendingNote({
+    required int lineId,
+    required String day,
+    required String noteText,
+    String? month,
+    int? week,
+  }) async {
+    pendingNotes.add({
+      'line_id': lineId,
+      'day': day,
+      'note_text': noteText,
+      'month': month,
+      'week': week,
+    });
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> loadPendingNotes() async => List.from(pendingNotes);
+}
+
+class FakeBukuKomunikasiService extends BukuKomunikasiService {
+  FakeBukuKomunikasiService() : super(baseUrl: 'https://example.com');
+
+  @override
+  Future<bool> submitDailyNote({
+    required String token,
+    required int lineId,
+    required String day,
+    required String noteText,
+    String? month,
+    int? week,
+  }) async {
+    throw const SocketException('offline');
+  }
+}
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -128,6 +205,49 @@ void main() {
       expect(result, true);
       expect(fakeRepository.saveAuthCalled, true);
       expect(viewModel.token, 'new_token_456');
+    });
+
+    test('changePassword falls back to local storage when network is unavailable', () async {
+      final fakeService = FakeAuthService();
+      final fakeStorage = FakeLocalStorage();
+      fakeStorage.savedPassword = 'old-password';
+
+      final repository = AuthRepository(
+        apiService: fakeService,
+        localStorageService: fakeStorage,
+      );
+
+      await repository.changePassword(
+        token: 'token',
+        currentPassword: 'old-password',
+        newPassword: 'new-password-123',
+      );
+
+      expect(fakeStorage.lastUpdatedCurrentPassword, 'old-password');
+      expect(fakeStorage.lastUpdatedNewPassword, 'new-password-123');
+      expect(fakeStorage.savedPassword, 'new-password-123');
+    });
+
+    test('buku komunikasi saves pending note locally when offline', () async {
+      final storage = FakeBukuKomunikasiStorage();
+      final service = FakeBukuKomunikasiService();
+      final repository = BukuKomunikasiRepository(
+        apiService: service,
+        localStorage: storage,
+      );
+
+      final result = await repository.submitDailyNote(
+        token: 'token',
+        lineId: 12,
+        day: 'senin',
+        noteText: 'Saya hadir tepat waktu',
+        month: 'Januari',
+        week: 1,
+      );
+
+      expect(result, true);
+      expect(storage.pendingNotes.length, 1);
+      expect(storage.pendingNotes.first['note_text'], 'Saya hadir tepat waktu');
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../local/buku_komunikasi_local_storage.dart';
 import '../models/buku_komunikasi_model.dart';
 import '../services/buku_komunikasi_service.dart';
@@ -35,17 +37,40 @@ class BukuKomunikasiRepository {
     String? month,
     int? week,
   }) async {
-    final result = await apiService.submitDailyNote(
-      token: token,
-      lineId: lineId,
-      day: day,
-      noteText: noteText,
-      month: month,
-      week: week,
-    );
-    if (result) {
-      await localStorage.clearCache();
+    try {
+      final result = await apiService.submitDailyNote(
+        token: token,
+        lineId: lineId,
+        day: day,
+        noteText: noteText,
+        month: month,
+        week: week,
+      );
+
+      if (result) {
+        await localStorage.clearCache();
+      }
+      return result;
+    } on SocketException catch (_) {
+      await localStorage.savePendingNote(
+        lineId: lineId,
+        day: day,
+        noteText: noteText,
+        month: month,
+        week: week,
+      );
+      return true;
+    } on HttpException catch (_) {
+      await localStorage.savePendingNote(
+        lineId: lineId,
+        day: day,
+        noteText: noteText,
+        month: month,
+        week: week,
+      );
+      return true;
+    } catch (_) {
+      rethrow;
     }
-    return result;
   }
 }

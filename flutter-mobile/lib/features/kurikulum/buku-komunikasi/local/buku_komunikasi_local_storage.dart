@@ -5,7 +5,8 @@ class BukuKomunikasiLocalStorage {
   static const String boxName = 'buku_komunikasi_cache_box';
   static const String keyData = 'buku_komunikasi_data';
   static const String keyTimestamp = 'buku_komunikasi_ts';
-  
+  static const String keyPendingNotes = 'buku_komunikasi_pending_notes';
+
   // Waktu kedaluwarsa cache (TTL): 1 Jam
   static const Duration cacheTtl = Duration(hours: 1);
 
@@ -46,6 +47,46 @@ class BukuKomunikasiLocalStorage {
       return Map<String, dynamic>.from(rawData);
     }
     return null;
+  }
+
+  Future<void> savePendingNote({
+    required int lineId,
+    required String day,
+    required String noteText,
+    String? month,
+    int? week,
+  }) async {
+    final box = await _getBox();
+    final pending = box.get(keyPendingNotes) is List ? List<Map<String, dynamic>>.from(
+      (box.get(keyPendingNotes) as List).map((item) => Map<String, dynamic>.from(item as Map)),
+    ) : <Map<String, dynamic>>[];
+
+    pending.add({
+      'line_id': lineId,
+      'day': day,
+      'note_text': noteText,
+      'month': month,
+      'week': week,
+      'saved_at': DateTime.now().toIso8601String(),
+    });
+
+    await box.put(keyPendingNotes, pending);
+  }
+
+  Future<List<Map<String, dynamic>>> loadPendingNotes() async {
+    final box = await _getBox();
+    final raw = box.get(keyPendingNotes);
+
+    if (raw is! List) return <Map<String, dynamic>>[];
+
+    return raw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  Future<void> clearPendingNotes() async {
+    final box = await _getBox();
+    await box.delete(keyPendingNotes);
   }
 
   /// Hapus seluruh cache data buku komunikasi.

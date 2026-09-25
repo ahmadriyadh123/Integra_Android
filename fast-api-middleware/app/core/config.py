@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     ODOO_HOST: str
     ODOO_DB: str
-    ODOO_SCHEME: str = "https"
+    ODOO_SCHEME: str = "http"
     ODOO_PORT: int = 8069
     ODOO_ADMIN_USER: str = "admin"
     ODOO_ADMIN_PASS: str = ""

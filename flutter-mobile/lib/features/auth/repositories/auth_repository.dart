@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import '../local/auth_local_storage.dart';
 import '../models/auth_model.dart';
 import '../services/auth_service.dart';
@@ -34,12 +37,29 @@ class AuthRepository {
     required String token,
     required String currentPassword,
     required String newPassword,
-  }) {
-    return apiService.changePassword(
-      token: token,
-      currentPassword: currentPassword,
-      newPassword: newPassword,
-    );
+  }) async {
+    try {
+      await apiService.changePassword(
+        token: token,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (error) {
+      final message = error.toString().toLowerCase();
+      final isOfflineFallback = error is TimeoutException ||
+          error is SocketException ||
+          error is HttpException ||
+          error is FormatException && message.contains('offline');
+
+      if (!isOfflineFallback) {
+        rethrow;
+      }
+
+      await localStorageService.updateSavedPassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    }
   }
 
   /// Save auth data and credentials to local storage

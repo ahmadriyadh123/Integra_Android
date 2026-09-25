@@ -44,6 +44,25 @@ class AuthLocalStorage {
     return value is String ? value : '';
   }
 
+  Future<void> updateSavedPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final box = await _box();
+    final savedPassword = box.get(_keyPassword);
+
+    if (savedPassword is! String) {
+      await box.put(_keyPassword, newPassword);
+      return;
+    }
+
+    if (savedPassword != currentPassword) {
+      throw Exception('Password lama tidak sesuai dengan data lokal.');
+    }
+
+    await box.put(_keyPassword, newPassword);
+  }
+
   static const String _keyLastTabIndex = 'last_tab_index';
 
   Future<void> saveLastTabIndex(int index) async {
