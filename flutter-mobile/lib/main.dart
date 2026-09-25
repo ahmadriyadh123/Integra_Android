@@ -7,15 +7,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'features/app_providers.dart';
 
 const _apiBaseUrlKey = 'api_base_url';
+const _apiBaseUrlsKey = 'api_base_urls';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   final preferences = await SharedPreferences.getInstance();
+  final initialBaseUrl =
+      preferences.getString(_apiBaseUrlKey) ?? getApiBaseUrl();
+  final savedBaseUrls =
+      preferences.getStringList(_apiBaseUrlsKey) ?? <String>[];
+  if (initialBaseUrl.isNotEmpty && !savedBaseUrls.contains(initialBaseUrl)) {
+    savedBaseUrls.insert(0, initialBaseUrl);
+  }
   runApp(
     MyApp(
       preferences: preferences,
-      initialBaseUrl: preferences.getString(_apiBaseUrlKey) ?? getApiBaseUrl(),
+      initialBaseUrl: initialBaseUrl,
+      savedBaseUrls: savedBaseUrls,
     ),
   );
 }
@@ -29,10 +38,12 @@ class MyApp extends StatefulWidget {
     super.key,
     required this.preferences,
     required this.initialBaseUrl,
+    required this.savedBaseUrls,
   });
 
   final SharedPreferences preferences;
   final String initialBaseUrl;
+  final List<String> savedBaseUrls;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -40,10 +51,24 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late String _baseUrl = widget.initialBaseUrl;
+  late List<String> _savedBaseUrls = List<String>.from(widget.savedBaseUrls);
 
   Future<void> _saveBaseUrl(String baseUrl) async {
+    final updatedBaseUrls = <String>[
+      baseUrl,
+      ..._savedBaseUrls.where((savedUrl) => savedUrl != baseUrl),
+    ];
+    if (updatedBaseUrls.length > 10) {
+      updatedBaseUrls.removeRange(10, updatedBaseUrls.length);
+    }
     await widget.preferences.setString(_apiBaseUrlKey, baseUrl);
-    if (mounted) setState(() => _baseUrl = baseUrl);
+    await widget.preferences.setStringList(_apiBaseUrlsKey, updatedBaseUrls);
+    if (mounted) {
+      setState(() {
+        _baseUrl = baseUrl;
+        _savedBaseUrls = updatedBaseUrls;
+      });
+    }
   }
 
   @override
@@ -54,7 +79,11 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp(
         title: 'Aplikasi Sekolah',
         theme: ThemeData(primarySwatch: Colors.teal),
-        home: LoginView(initialBaseUrl: _baseUrl, onServerSaved: _saveBaseUrl),
+        home: LoginView(
+          initialBaseUrl: _baseUrl,
+          savedBaseUrls: _savedBaseUrls,
+          onServerSaved: _saveBaseUrl,
+        ),
       ),
     );
   }

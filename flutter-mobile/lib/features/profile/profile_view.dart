@@ -16,6 +16,8 @@ class ProfilTab extends StatefulWidget {
 }
 
 class _ProfilTabState extends State<ProfilTab> {
+  bool _isLogoutDialogOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,7 +72,10 @@ class _ProfilTabState extends State<ProfilTab> {
           final token = authViewModel.token;
           final partnerId = authViewModel.user?.partnerId;
           final profileViewModel = context.read<ProfileViewModel>();
-          await profileViewModel.loadProfile(token, fallbackPartnerId: partnerId);
+          await profileViewModel.loadProfile(
+            token,
+            fallbackPartnerId: partnerId,
+          );
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -158,9 +163,7 @@ class _ProfilTabState extends State<ProfilTab> {
               ),
 
               const SizedBox(height: 32),
-              ProfileLogoutButton(
-                onLogoutTap: _confirmLogout,
-              ),
+              ProfileLogoutButton(onLogoutTap: _confirmLogout),
               const SizedBox(height: 16),
             ],
           ),
@@ -170,33 +173,39 @@ class _ProfilTabState extends State<ProfilTab> {
   }
 
   Future<void> _confirmLogout() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+    if (_isLogoutDialogOpen) return;
+    _isLogoutDialogOpen = true;
+    try {
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Konfirmasi Logout'),
+          content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Logout'),
+            ),
+          ],
+        ),
+      );
 
-    if (shouldLogout != true || !mounted) return;
+      if (shouldLogout != true || !mounted) return;
 
-    await context.read<AuthViewModel>().logout();
-    if (!mounted) return;
+      await context.read<AuthViewModel>().logout();
+      if (!mounted) return;
 
-    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginView()),
-      (route) => false,
-    );
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginView()),
+        (route) => false,
+      );
+    } finally {
+      _isLogoutDialogOpen = false;
+    }
   }
 
   String _firstValue(String? profileValue, String? sessionValue) {
@@ -215,7 +224,9 @@ class _ProfilTabState extends State<ProfilTab> {
   String _resolveImageUrl(String baseUrl, String? photoUrl, int? partnerId) {
     if (photoUrl != null && photoUrl.isNotEmpty) {
       if (photoUrl.startsWith('http')) return photoUrl;
-      final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final cleanBase = baseUrl.endsWith('/')
+          ? baseUrl.substring(0, baseUrl.length - 1)
+          : baseUrl;
       final cleanPath = photoUrl.startsWith('/') ? photoUrl : '/$photoUrl';
       if (cleanBase.endsWith('/api/v1') && cleanPath.startsWith('/api/v1')) {
         return '${cleanBase.replaceAll(RegExp(r'/api/v1$'), '')}$cleanPath';

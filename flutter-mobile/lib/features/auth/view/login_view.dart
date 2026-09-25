@@ -9,9 +9,15 @@ import '../widgets/error_banner.dart';
 import '../widgets/primary_button.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key, this.initialBaseUrl = '', this.onServerSaved});
+  const LoginView({
+    super.key,
+    this.initialBaseUrl = '',
+    this.savedBaseUrls = const [],
+    this.onServerSaved,
+  });
 
   final String initialBaseUrl;
+  final List<String> savedBaseUrls;
   final Future<void> Function(String baseUrl)? onServerSaved;
 
   @override
@@ -148,12 +154,33 @@ class _LoginViewState extends State<LoginView> {
                 controller: _serverController,
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Alamat server API',
                   hintText: '192.168.1.7:8000',
-                  prefixIcon: Icon(Icons.dns_outlined),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.dns_outlined),
+                  border: const OutlineInputBorder(),
                   helperText: 'API path /api/v1 ditambahkan otomatis',
+                  suffixIcon: widget.savedBaseUrls.isEmpty
+                      ? null
+                      : PopupMenuButton<String>(
+                          tooltip: 'Pilih alamat tersimpan',
+                          icon: const Icon(Icons.arrow_drop_down),
+                          onSelected: (value) {
+                            _serverController.text = value;
+                            _serverFieldKey.currentState?.didChange(value);
+                          },
+                          itemBuilder: (context) => widget.savedBaseUrls
+                              .map(
+                                (url) => PopupMenuItem<String>(
+                                  value: url,
+                                  child: Text(
+                                    url,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
                 ),
                 validator: (value) {
                   final input = value?.trim() ?? '';

@@ -10,10 +10,7 @@ import '../profile/profile_view.dart';
 
 class DashboardView extends StatefulWidget {
   final String authToken;
-  const DashboardView({
-    super.key,
-    required this.authToken,
-  });
+  const DashboardView({super.key, required this.authToken});
 
   @override
   State<DashboardView> createState() => _DashboardViewState();
@@ -21,6 +18,7 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   int _currentIndex = 0;
+  bool _isExitDialogOpen = false;
 
   // Navigator key untuk nested navigation di dalam body
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -66,9 +64,7 @@ class _DashboardViewState extends State<DashboardView> {
 
   /// Dipakai oleh quick menu untuk push halaman di dalam body (bottom nav tetap tampil)
   void pushPage(Widget page) {
-    _navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => page),
-    );
+    _navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => page));
   }
 
   void _onTabTapped(int index) {
@@ -83,9 +79,11 @@ class _DashboardViewState extends State<DashboardView> {
   /// Menangani aksi tombol back (gesture/hardware back button)
   Future<void> _handlePopScope(bool didPop, dynamic result) async {
     if (didPop) return;
+    if (_isExitDialogOpen) return;
 
     // 1. Cek apakah ada sub-page di dalam nested Navigator yang bisa di-pop
-    if (_navigatorKey.currentState != null && _navigatorKey.currentState!.canPop()) {
+    if (_navigatorKey.currentState != null &&
+        _navigatorKey.currentState!.canPop()) {
       _navigatorKey.currentState!.pop();
       return;
     }
@@ -97,37 +95,49 @@ class _DashboardViewState extends State<DashboardView> {
     }
 
     // 3. Jika sudah di Beranda dan tidak ada sub-page, tampilkan dialog konfirmasi keluar
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Keluar Aplikasi',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B))),
+    _isExitDialogOpen = true;
+    try {
+      final shouldExit = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          title: const Text(
+            'Keluar Aplikasi',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Batal',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
             ),
-            child: const Text('Keluar'),
-          ),
-        ],
-      ),
-    );
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Keluar'),
+            ),
+          ],
+        ),
+      );
 
-    if (shouldExit == true && mounted) {
-      // Pindahkan aplikasi ke background tanpa menutup route stack
-      await SystemNavigator.pop();
+      if (shouldExit == true && mounted) {
+        // Pindahkan aplikasi ke background tanpa menutup route stack
+        await SystemNavigator.pop();
+      }
+    } finally {
+      _isExitDialogOpen = false;
     }
   }
 
