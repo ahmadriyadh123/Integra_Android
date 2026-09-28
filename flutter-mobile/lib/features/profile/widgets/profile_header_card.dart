@@ -1,14 +1,9 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
   final String name;
   final String className;
   final String rombel;
-  final String imageUrl;
-  final Uint8List? imageBytes;
-  final String authToken;
   final VoidCallback? onEditTap;
 
   const ProfileHeaderCard({
@@ -16,9 +11,6 @@ class ProfileHeaderCard extends StatelessWidget {
     required this.name,
     required this.className,
     required this.rombel,
-    required this.imageUrl,
-    this.imageBytes,
-    required this.authToken,
     this.onEditTap,
   });
 
@@ -30,26 +22,24 @@ class ProfileHeaderCard extends StatelessWidget {
 
     return Column(
       children: [
-          Stack(
-            children: [
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFECFDF5), width: 4),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x10000000),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: _buildProfileImage(primaryTeal),
-                ),
+        Stack(
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFECFDF5), width: 4),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x10000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
+              child: ClipOval(child: _buildProfileImage(primaryTeal)),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -97,52 +87,10 @@ class ProfileHeaderCard extends StatelessWidget {
     );
   }
 
-Widget _buildProfileImage(Color fallbackColor) {
-    // 1. Jika gambar dalam bentuk Uint8List (Base64 Byte dari Backend)
-    if (imageBytes != null && imageBytes!.isNotEmpty) {
-      return Image.memory(
-        imageBytes!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildFallbackAvatar(fallbackColor),
-      );
-    }
-
-    // 2. Jika gambar dalam bentuk Network URL
-    if (imageUrl.isNotEmpty) {
-      return Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        headers: authToken != null && authToken!.isNotEmpty
-            ? {'Authorization': 'Bearer $authToken'}
-            : null,
-        errorBuilder: (_, __, ___) => _buildFallbackAvatar(fallbackColor),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-              strokeWidth: 2,
-              color: fallbackColor,
-            ),
-          );
-        },
-      );
-    }
-  // 3. Fallback jika tidak ada foto profil
-    return _buildFallbackAvatar(fallbackColor);
-  }
-
-  Widget _buildFallbackAvatar(Color color) {
+  Widget _buildProfileImage(Color color) {
     return Container(
       color: color.withOpacity(0.1),
-      child: Icon(
-        Icons.person_rounded,
-        size: 48,
-        color: color,
-      ),
+      child: Icon(Icons.person_rounded, size: 48, color: color),
     );
   }
 }

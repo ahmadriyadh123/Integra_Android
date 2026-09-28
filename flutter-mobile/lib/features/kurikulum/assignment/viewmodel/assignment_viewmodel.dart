@@ -39,8 +39,7 @@ class AssignmentViewModel extends ChangeNotifier {
         final query = _searchQuery.toLowerCase();
         final matchTitle = item.title.toLowerCase().contains(query);
         final matchSubject = item.subject.name.toLowerCase().contains(query);
-        final matchType = item.assignmentType.toLowerCase().contains(query);
-        if (!matchTitle && !matchSubject && !matchType) {
+        if (!matchTitle && !matchSubject) {
           return false;
         }
       }

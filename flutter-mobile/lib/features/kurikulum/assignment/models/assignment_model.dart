@@ -93,7 +93,6 @@ class AssignmentItem {
   final int id;
   final int masterAssignmentId;
   final String title;
-  final String assignmentType;
   final SubjectInfo subject;
   final int facultyId;
   final int batchId;
@@ -109,7 +108,6 @@ class AssignmentItem {
     required this.id,
     required this.masterAssignmentId,
     required this.title,
-    required this.assignmentType,
     required this.subject,
     required this.facultyId,
     required this.batchId,
@@ -137,7 +135,6 @@ class AssignmentItem {
           ? json['master_assignment_id']
           : int.tryParse(json['master_assignment_id']?.toString() ?? '0') ?? 0,
       title: json['title'] as String? ?? 'Penugasan',
-      assignmentType: json['assignment_type'] as String? ?? 'Tugas',
       subject: json['subject'] != null && json['subject'] is Map<String, dynamic>
           ? SubjectInfo.fromJson(json['subject'] as Map<String, dynamic>)
           : SubjectInfo(name: 'Umum'),
@@ -164,7 +161,6 @@ class AssignmentItem {
         'id': id,
         'master_assignment_id': masterAssignmentId,
         'title': title,
-        'assignment_type': assignmentType,
         'subject': subject.toJson(),
         'faculty_id': facultyId,
         'batch_id': batchId,

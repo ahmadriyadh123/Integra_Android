@@ -38,8 +38,9 @@ class HomeView extends StatelessWidget {
         child: RefreshIndicator(
           color: const Color(0xFF059669),
           onRefresh: () async {
-            final token = context.read<AuthViewModel>().token;
-            await context.read<ProfileViewModel>().loadProfile(token);
+            context.read<ProfileViewModel>().setProfile(
+              context.read<AuthViewModel>().user,
+            );
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),

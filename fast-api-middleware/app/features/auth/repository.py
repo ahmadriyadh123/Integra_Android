@@ -6,6 +6,10 @@ from app.core.odoo_client import OdooRPCClient
 logger = logging.getLogger(__name__)
 
 
+class OdooUnavailableError(RuntimeError):
+    """Raised when Odoo cannot be reached during authentication."""
+
+
 class AuthRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
@@ -150,6 +154,9 @@ class AuthRepository:
                 "course_id": course_id,
                 "course_name": course_name,
             }
+        except (OSError, xmlrpc.client.ProtocolError) as e:
+            logger.warning("[auth] Odoo unavailable during login: %s", e)
+            raise OdooUnavailableError("Odoo authentication service unavailable") from e
         except Exception as e:
             logger.error(f"[auth] authenticate_odoo_user error: {e}")
             return None

@@ -14,12 +14,23 @@ class TagihanService:
         }
         return mapping.get(payment_state, "Belum Lunas")
 
-    def get_student_tagihan_summary(
-        self, uid: int, password: str, payment_state: str = None
-    ) -> Dict[str, Any]:
+    def get_student_tagihan_summary(self, uid: int, password: str, payment_state: str = None) -> Dict[str, Any]:
         raw_invoices = self.repo.get_student_invoices(
             uid=uid, password=password, payment_state=payment_state
         )
+
+        # 1. Kumpulkan seluruh line_ids dari semua invoice sekaligus
+        all_line_ids = []
+        for inv in raw_invoices:
+            all_line_ids.extend(inv.get("invoice_line_ids") or [])
+
+        # 2. Ambil seluruh data invoice lines dalam 1 kali request ke Odoo
+        raw_lines = self.repo.get_invoice_lines(
+            uid=uid, password=password, line_ids=all_line_ids
+        ) if all_line_ids else []
+
+        # 3. Kelompokkan lines berdasarkan ID-nya agar mudah diakses
+        lines_by_id = {line["id"]: line for line in raw_lines}
 
         total_unpaid = 0.0
         formatted_invoices = []
@@ -28,24 +39,21 @@ class TagihanService:
             amount_total = float(inv.get("amount_total") or 0.0)
             amount_residual = float(inv.get("amount_residual") or 0.0)
             state_code = str(inv.get("payment_state") or "not_paid")
-
             total_unpaid += amount_residual
 
-            # Ambil detail line item
-            line_ids = inv.get("invoice_line_ids") or []
-            raw_lines = self.repo.get_invoice_lines(
-                uid=uid, password=password, line_ids=line_ids
-            )
-
+            # Ambil line item dari dictionary lokal (tanpa memanggil Odoo lagi)
+            inv_line_ids = inv.get("invoice_line_ids") or []
             formatted_lines = []
-            for line in raw_lines:
-                formatted_lines.append({
-                    "id": line.get("id"),
-                    "product_name": str(line.get("name") or "Item Tagihan"),
-                    "quantity": float(line.get("quantity") or 1.0),
-                    "price_unit": float(line.get("price_unit") or 0.0),
-                    "subtotal": float(line.get("price_subtotal") or 0.0)
-                })
+            for lid in inv_line_ids:
+                line = lines_by_id.get(lid)
+                if line:
+                    formatted_lines.append({
+                        "id": line.get("id"),
+                        "product_name": str(line.get("name") or "Item Tagihan"),
+                        "quantity": float(line.get("quantity") or 1.0),
+                        "price_unit": float(line.get("price_unit") or 0.0),
+                        "subtotal": float(line.get("price_subtotal") or 0.0)
+                    })
 
             formatted_invoices.append({
                 "id": inv.get("id"),

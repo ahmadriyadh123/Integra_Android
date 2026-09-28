@@ -71,23 +71,6 @@ class TagihanSummaryCard extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 16),
-          Divider(color: Colors.white.withValues(alpha: 0.2), height: 1),
-          const SizedBox(height: 16),
-          const Row(
-            children: [
-              Icon(Icons.shield_outlined, color: Color(0xFFA7F3D0), size: 16),
-              SizedBox(width: 6),
-              Text(
-                'Virtual Account & QRIS Tersedia',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

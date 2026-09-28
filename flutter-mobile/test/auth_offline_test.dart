@@ -6,6 +6,7 @@ import 'package:flutter_application_1/features/auth/models/auth_model.dart';
 import 'package:flutter_application_1/features/auth/repositories/auth_repository.dart';
 import 'package:flutter_application_1/features/auth/services/auth_service.dart';
 import 'package:flutter_application_1/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:flutter_application_1/features/profile/viewmodel/profile_viewmodel.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
@@ -63,7 +64,8 @@ class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> loadPendingNotes() async => List.from(pendingNotes);
+  Future<List<Map<String, dynamic>>> loadPendingNotes() async =>
+      List.from(pendingNotes);
 }
 
 class FakeBukuKomunikasiService extends BukuKomunikasiService {
@@ -106,7 +108,11 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> saveAuth(Map<String, dynamic> data, {required String username, required String password}) async {
+  Future<void> saveAuth(
+    Map<String, dynamic> data, {
+    required String username,
+    required String password,
+  }) async {
     saveAuthCalled = true;
     mockAuthData = data;
   }
@@ -126,7 +132,11 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> validateSession(String token) async {}
 
   @override
-  Future<void> changePassword({required String token, required String currentPassword, required String newPassword}) async {}
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
 
   @override
   Future<int> getLastTabIndex() async => 0;
@@ -151,38 +161,44 @@ void main() {
       viewModel = AuthViewModel(repository: fakeRepository);
     });
 
-    test('restoreSessionFromHive loads auth from local storage without API call', () async {
-      fakeRepository.mockAuthData = {
-        'access_token': 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature',
-        'token_type': 'bearer',
-        'user': {
-          'user_id': 1,
-          'partner_id': 2,
-          'student_id': 3,
-          'nis': '12345',
-          'name': 'Test User',
-          'username': 'testuser',
-          'email': 'test@example.com',
-          'is_portal': false,
-        }
-      };
+    test(
+      'restoreSessionFromHive loads auth from local storage without API call',
+      () async {
+        fakeRepository.mockAuthData = {
+          'access_token': 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature',
+          'token_type': 'bearer',
+          'user': {
+            'user_id': 1,
+            'partner_id': 2,
+            'student_id': 3,
+            'nis': '12345',
+            'name': 'Test User',
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'is_portal': false,
+          },
+        };
 
-      final result = await viewModel.restoreSessionFromHive();
+        final result = await viewModel.restoreSessionFromHive();
 
-      expect(result, true);
-      expect(fakeRepository.loginCalled, false);
-      expect(viewModel.token, 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature');
-      expect(viewModel.user?.username, 'testuser');
-    });
+        expect(result, true);
+        expect(fakeRepository.loginCalled, false);
+        expect(viewModel.token, 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature');
+        expect(viewModel.user?.username, 'testuser');
+      },
+    );
 
-    test('restoreSessionFromHive returns false if no saved auth in Hive', () async {
-      fakeRepository.mockAuthData = null;
+    test(
+      'restoreSessionFromHive returns false if no saved auth in Hive',
+      () async {
+        fakeRepository.mockAuthData = null;
 
-      final result = await viewModel.restoreSessionFromHive();
+        final result = await viewModel.restoreSessionFromHive();
 
-      expect(result, false);
-      expect(fakeRepository.loginCalled, false);
-    });
+        expect(result, false);
+        expect(fakeRepository.loginCalled, false);
+      },
+    );
 
     test('login stores full auth result to Hive for offline restore', () async {
       fakeRepository.mockLoginResult = AuthResult(
@@ -193,9 +209,14 @@ void main() {
           partnerId: 3,
           studentId: 4,
           nis: '54321',
+          nisn: '9876543210',
           name: 'New User',
           username: 'newuser',
           email: 'new@example.com',
+          className: 'Kelas 4',
+          rombel: 'A',
+          tempatTanggalLahir: 'Bandung, 1 Januari 2015',
+          usia: '11 tahun',
           isPortal: false,
         ),
       );
@@ -205,28 +226,62 @@ void main() {
       expect(result, true);
       expect(fakeRepository.saveAuthCalled, true);
       expect(viewModel.token, 'new_token_456');
+      expect(fakeRepository.mockAuthData!['user']['nisn'], '9876543210');
+      expect(fakeRepository.mockAuthData!['user']['rombel'], 'A');
+      expect(
+        fakeRepository.mockAuthData!['user']['tempat_tanggal_lahir'],
+        'Bandung, 1 Januari 2015',
+      );
     });
 
-    test('changePassword falls back to local storage when network is unavailable', () async {
-      final fakeService = FakeAuthService();
-      final fakeStorage = FakeLocalStorage();
-      fakeStorage.savedPassword = 'old-password';
-
-      final repository = AuthRepository(
-        apiService: fakeService,
-        localStorageService: fakeStorage,
+    test('profile is built from the locally available user data', () {
+      final profileViewModel = ProfileViewModel();
+      final user = UserProfile(
+        userId: 2,
+        partnerId: 3,
+        studentId: 4,
+        name: 'New User',
+        username: 'newuser',
+        email: 'new@example.com',
+        nis: '54321',
+        nisn: '9876543210',
+        className: 'Kelas 4',
+        rombel: 'A',
+        tempatTanggalLahir: 'Bandung, 1 Januari 2015',
+        usia: '11 tahun',
       );
 
-      await repository.changePassword(
-        token: 'token',
-        currentPassword: 'old-password',
-        newPassword: 'new-password-123',
-      );
+      profileViewModel.setProfile(user);
 
-      expect(fakeStorage.lastUpdatedCurrentPassword, 'old-password');
-      expect(fakeStorage.lastUpdatedNewPassword, 'new-password-123');
-      expect(fakeStorage.savedPassword, 'new-password-123');
+      expect(profileViewModel.profile?.name, 'New User');
+      expect(profileViewModel.profile?.nisn, '9876543210');
+      expect(profileViewModel.profile?.rombel, 'A');
+      expect(profileViewModel.profile?.photoUrl, isEmpty);
     });
+
+    test(
+      'changePassword falls back to local storage when network is unavailable',
+      () async {
+        final fakeService = FakeAuthService();
+        final fakeStorage = FakeLocalStorage();
+        fakeStorage.savedPassword = 'old-password';
+
+        final repository = AuthRepository(
+          apiService: fakeService,
+          localStorageService: fakeStorage,
+        );
+
+        await repository.changePassword(
+          token: 'token',
+          currentPassword: 'old-password',
+          newPassword: 'new-password-123',
+        );
+
+        expect(fakeStorage.lastUpdatedCurrentPassword, 'old-password');
+        expect(fakeStorage.lastUpdatedNewPassword, 'new-password-123');
+        expect(fakeStorage.savedPassword, 'new-password-123');
+      },
+    );
 
     test('buku komunikasi saves pending note locally when offline', () async {
       final storage = FakeBukuKomunikasiStorage();

@@ -209,7 +209,10 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         color: primaryTeal,
         onRefresh: () async {
           final token = context.read<AuthViewModel>().token;
-          await context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(token);
+          await context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(
+            token,
+            forceRefresh: true,
+          );
         },
         child: vm.isLoading && detail == null
             ? const Center(child: CircularProgressIndicator())

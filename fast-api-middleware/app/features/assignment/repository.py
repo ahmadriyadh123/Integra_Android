@@ -1,3 +1,5 @@
+import base64
+from datetime import datetime
 from typing import List, Dict, Any
 from app.core.odoo_client import OdooRPCClient
 
@@ -7,20 +9,42 @@ class AssignmentRepository:
 
     def get_assignments_by_student(self, uid: int, password: str, student_id: int) -> List[Dict[str, Any]]:
         """
-        Mengambil daftar penugasan siswa dari Odoo via RPC (op.assignment).
+        Mengambil daftar penugasan siswa dari Odoo via RPC (op.assignment) berdasarkan batch_id.
         """
+        # 1. Cari batch_id siswa dari model op.student
+        batch_id = None
+        if student_id:
+            try:
+                student_records = self.odoo_client.search_read(
+                    uid=uid,
+                    password=password,
+                    model='op.student',
+                    domain=[('id', '=', student_id)],
+                    fields=['batch_id'],
+                    limit=1,
+                    use_sudo=True
+                )
+                if student_records:
+                    val = student_records[0].get('batch_id')
+                    if isinstance(val, (list, tuple)) and val:
+                        batch_id = val[0]
+                    elif isinstance(val, int):
+                        batch_id = val
+            except Exception:
+                pass
+
+        # 2. Susun domain untuk op.assignment menggunakan batch_id
         domain = [
             ('active', '=', True),
             ('state', '!=', 'cancel')
         ]
-        if student_id:
-            domain.append(('student_ids', 'in', [student_id]))
+        if batch_id:
+            domain.append(('batch_id', '=', batch_id))
 
         fields = [
             'id',
             'name',
             'grading_assignment_id',
-            'assignment_type_id',
             'subject_id',
             'faculty_id',
             'batch_id',
@@ -39,6 +63,27 @@ class AssignmentRepository:
             fields=fields,
             order='submission_date asc'
         )
+
+        grading_ids = [
+            grading_raw[0]
+            for assignment in assignments
+            if isinstance(grading_raw := assignment.get('grading_assignment_id'), (list, tuple))
+            and grading_raw
+        ]
+        grading_issued_dates = {}
+        if grading_ids:
+            grading_records = self.odoo_client.search_read(
+                uid=uid,
+                password=password,
+                model='grading.assignment',
+                domain=[('id', 'in', grading_ids)],
+                fields=['id', 'issued_date'],
+                limit=len(grading_ids),
+            )
+            grading_issued_dates = {
+                record.get('id'): record.get('issued_date')
+                for record in grading_records
+            }
 
         res = []
         for oa in assignments:
@@ -72,9 +117,7 @@ class AssignmentRepository:
 
             grading_raw = oa.get('grading_assignment_id')
             master_id = grading_raw[0] if isinstance(grading_raw, (list, tuple)) else (oa.get('id') or 0)
-
-            type_raw = oa.get('assignment_type_id')
-            type_name = type_raw[1] if isinstance(type_raw, (list, tuple)) else 'Tugas'
+            issued_date = grading_issued_dates.get(master_id) or oa.get('issued_date')
 
             subj_raw = oa.get('subject_id')
             subj_id = subj_raw[0] if isinstance(subj_raw, (list, tuple)) else None
@@ -83,20 +126,19 @@ class AssignmentRepository:
             fac_id = fac_raw[0] if isinstance(fac_raw, (list, tuple)) else 0
 
             batch_raw = oa.get('batch_id')
-            batch_id = batch_raw[0] if isinstance(batch_raw, (list, tuple)) else 0
+            batch_id_val = batch_raw[0] if isinstance(batch_raw, (list, tuple)) else 0
 
             res.append({
                 'assignment_id': oa.get('id'),
                 'master_assignment_id': master_id,
                 'title': oa.get('name') or 'Tugas',
-                'assignment_type_name': type_name,
                 'subject_id': subj_id,
                 'faculty_id': fac_id,
-                'batch_id': batch_id,
+                'batch_id': batch_id_val,
                 'description': oa.get('description') or '',
                 'assignment_state': oa.get('state') or 'draft',
                 'max_marks': oa.get('marks') or 100.0,
-                'issued_date': oa.get('issued_date'),
+                'issued_date': issued_date,
                 'deadline': oa.get('submission_date'),
                 'submission_id': submission_id,
                 'submission_state': submission_state,
@@ -133,9 +175,6 @@ class AssignmentRepository:
         """
         Mengunggah berkas pengumpulan tugas ke Odoo op.assignment.sub.line dan ir.attachment via RPC.
         """
-        import base64
-        from datetime import datetime
-
         now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # 1. Cari apakah baris submission (op.assignment.sub.line) sudah ada untuk siswa dan assignment ini
@@ -195,4 +234,3 @@ class AssignmentRepository:
             'state': 'submitted',
             'submitted_at': now_str
         }
-

@@ -1,7 +1,8 @@
 import base64
 import hashlib
 import jwt
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
+from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 
@@ -17,7 +18,16 @@ class AuthService:
 
     @staticmethod
     def decrypt_odoo_password(encrypted_password: str) -> str:
-        return AuthService._credential_cipher().decrypt(encrypted_password.encode()).decode()
+        if not encrypted_password:
+            return ""
+        try:
+            return AuthService._credential_cipher().decrypt(encrypted_password.encode()).decode()
+        except InvalidToken:
+            # Tangkap InvalidToken agar tidak memicu HTTP 500
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesi login tidak valid atau telah berakhir. Silakan login kembali."
+            )
 
     @staticmethod
     def create_access_token(data: dict, expires_delta: timedelta = None) -> str:

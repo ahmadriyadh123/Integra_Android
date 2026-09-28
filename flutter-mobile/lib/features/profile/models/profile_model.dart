@@ -1,3 +1,5 @@
+import '../../auth/models/auth_model.dart';
+
 class StudentProfile {
   final int id;
   final int userId;
@@ -26,6 +28,23 @@ class StudentProfile {
     required this.usia,
     required this.isActive,
   });
+
+  factory StudentProfile.fromUserProfile(UserProfile user) {
+    return StudentProfile(
+      id: user.studentId ?? user.userId,
+      userId: user.userId,
+      partnerId: user.partnerId,
+      photoUrl: '',
+      name: user.name,
+      nis: user.nis,
+      nisn: user.nisn,
+      className: user.className,
+      rombel: user.rombel,
+      tempatTanggalLahir: user.tempatTanggalLahir,
+      usia: user.usia,
+      isActive: true,
+    );
+  }
 
   factory StudentProfile.fromJson(Map<String, dynamic> json) {
     return StudentProfile(

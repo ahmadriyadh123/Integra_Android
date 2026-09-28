@@ -20,7 +20,7 @@ class AssignmentService:
             teacher_files_raw = self.repository.get_attachments_by_model(
                 uid=uid,
                 password=password,
-                res_model='op_assignment', 
+                res_model='op.assignment', 
                 res_id=row['assignment_id']
             )
             teacher_attachments = [
@@ -63,7 +63,6 @@ class AssignmentService:
                 id=row['assignment_id'],
                 master_assignment_id=row['master_assignment_id'],
                 title=row['title'],
-                assignment_type=row['assignment_type_name'],
                 subject=SubjectInfo(id=row['subject_id'], name="Mata Pelajaran" if row['subject_id'] else "Umum"),
                 faculty_id=row['faculty_id'],
                 batch_id=row['batch_id'],

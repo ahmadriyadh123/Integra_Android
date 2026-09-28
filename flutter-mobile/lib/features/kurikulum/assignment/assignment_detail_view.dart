@@ -25,10 +25,17 @@ class AssignmentDetailView extends StatelessWidget {
       appBar: SharedHeader(
         title: 'DETAIL PENUGASAN',
         backgroundColor: Colors.white,
-        foregroundColor: Colors.white,
+        foregroundColor: textDark,
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: const Color(0xFFE2E8F0),
+            height: 1,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -149,21 +156,6 @@ class AssignmentDetailView extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  assignment.assignmentType,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF475569),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -181,12 +173,6 @@ class AssignmentDetailView extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
           const SizedBox(height: 14),
 
-          _buildInfoRow(
-            icon: Icons.event_note_rounded,
-            label: 'Diberikan',
-            value: _formatDate(assignment.issuedDate),
-          ),
-          const SizedBox(height: 8),
           _buildInfoRow(
             icon: Icons.alarm_rounded,
             label: 'Batas Waktu',

@@ -47,10 +47,17 @@ class _AssignmentListViewState extends State<AssignmentListView> {
       appBar: SharedHeader(
         title: 'PENUGASAN',
         backgroundColor: Colors.white,
-        foregroundColor: Colors.white,
+        foregroundColor: textDark,
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: const Color(0xFFE2E8F0),
+            height: 1,
+          ),
+        ),
       ),
       body: Consumer<AssignmentViewModel>(
         builder: (context, vm, _) {
@@ -352,17 +359,6 @@ class _AssignmentListViewState extends State<AssignmentListView> {
                         style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
                       ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    item.assignmentType,
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
                   ),
                 ),
               ],

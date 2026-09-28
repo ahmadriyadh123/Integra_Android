@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.dependencies import get_current_user_credentials, get_odoo_client
 from app.core.odoo_client import OdooRPCClient
 from app.features.auth.schemas import LoginRequest, ChangePasswordRequest, APIResponseLogin, TokenResponse, UserProfileData
-from app.features.auth.repository import AuthRepository
+from app.features.auth.repository import AuthRepository, OdooUnavailableError
 from app.features.auth.service import AuthService
 
 router = APIRouter(
@@ -18,10 +18,16 @@ def login(
     repo = AuthRepository(odoo_client)
     
     # Verifikasi login ke Odoo sebelum token aplikasi dibuat.
-    user_info = repo.authenticate_odoo_user(
-        username=payload.username, 
-        password=payload.password
-    )
+    try:
+        user_info = repo.authenticate_odoo_user(
+            username=payload.username,
+            password=payload.password
+        )
+    except OdooUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Layanan autentikasi sedang tidak tersedia. Silakan coba lagi.",
+        ) from exc
     
     if not user_info:
         raise HTTPException(

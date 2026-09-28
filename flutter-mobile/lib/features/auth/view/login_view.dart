@@ -148,10 +148,11 @@ class _LoginViewState extends State<LoginView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.onServerSaved != null) ...[
+            if (widget.onServerSaved != null || widget.initialBaseUrl.isNotEmpty) ...[
               TextFormField(
                 key: _serverFieldKey,
                 controller: _serverController,
+                readOnly: widget.onServerSaved == null,
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
@@ -193,21 +194,23 @@ class _LoginViewState extends State<LoginView> {
                 },
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _isSavingServer ? null : _saveServer,
-                  icon: _isSavingServer
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Simpan alamat server'),
+              if (widget.onServerSaved != null) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSavingServer ? null : _saveServer,
+                    icon: _isSavingServer
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('Simpan alamat server'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
             ],
             CustomTextField(
               label: 'Email',

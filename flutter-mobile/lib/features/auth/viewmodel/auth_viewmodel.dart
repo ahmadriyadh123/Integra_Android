@@ -6,9 +6,7 @@ import '../repositories/auth_repository.dart';
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository repository;
 
-  AuthViewModel({
-    required this.repository,
-  });
+  AuthViewModel({required this.repository});
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -42,15 +40,7 @@ class AuthViewModel extends ChangeNotifier {
         {
           'access_token': result.accessToken,
           'token_type': result.tokenType,
-          'user': {
-            'user_id': result.user.userId,
-            'partner_id': result.user.partnerId,
-            'name': result.user.name,
-            'username': result.user.username,
-            'email': result.user.email,
-            'class_name': result.user.className,
-            'jenjang': result.user.jenjang,
-          },
+          'user': result.user.toJson(),
         },
         username: username.trim(),
         password: password,
@@ -111,16 +101,14 @@ class AuthViewModel extends ChangeNotifier {
       final remainder = payload.length % 4;
       if (remainder != 0) payload += '=' * (4 - remainder);
 
-      final decoded = String.fromCharCodes(
-          base64Url.decode(payload));
+      final decoded = String.fromCharCodes(base64Url.decode(payload));
       final Map<String, dynamic> claims =
           json.decode(decoded) as Map<String, dynamic>;
 
       final exp = claims['exp'];
       if (exp == null) return; // Tidak ada exp → anggap valid
 
-      final expiry =
-          DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
+      final expiry = DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
       if (DateTime.now().isAfter(expiry)) {
         // Token kedaluwarsa tidak boleh dipakai untuk melanjutkan session.
         await logout();

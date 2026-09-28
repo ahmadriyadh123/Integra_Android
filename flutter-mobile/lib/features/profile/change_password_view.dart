@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth/view/login_view.dart';
+import '../auth/services/auth_service.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
 
 class ChangePasswordView extends StatefulWidget {
@@ -60,8 +61,12 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       if (!mounted) return;
       await authViewModel.logout();
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginView()),
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => LoginView(
+            initialBaseUrl: context.read<AuthService>().baseUrl,
+          ),
+        ),
         (route) => false,
       );
     } catch (e) {

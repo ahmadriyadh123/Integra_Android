@@ -27,7 +27,6 @@ class AssignmentResponse(BaseModel):
     id: int
     master_assignment_id: int
     title: str
-    assignment_type: str
     subject: SubjectInfo
     faculty_id: int
     batch_id: int

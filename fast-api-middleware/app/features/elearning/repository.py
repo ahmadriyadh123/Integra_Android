@@ -50,8 +50,6 @@ class ElearningRepository:
             'is_published',
         ]
 
-        # Jangan memfilter melalui channel_partner_ids. Relasi tersebut
-        # memicu ACL slide.channel.partner untuk user portal biasa.
         domain = [('is_published', '=', True)]
 
         return self.odoo.search_read(
@@ -160,7 +158,7 @@ class ElearningRepository:
             password=password,
             model='ir.attachment',
             domain=[
-                ('res_model', 'in', ['slide.slide', 'slide.channel.slide']),
+                ('res_model', '=', 'slide.slide'),
                 ('res_id', '=', slide_id)
             ],
             fields=['id', 'name', 'datas', 'mimetype'],

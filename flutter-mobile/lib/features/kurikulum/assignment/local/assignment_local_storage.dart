@@ -23,7 +23,10 @@ class AssignmentLocalStorage {
       final box = await _getBox();
       final data = box.get(_keyAssignments);
       if (data is List) {
-        return data.cast<Map<String, dynamic>>();
+        return data
+            .whereType<Map>()
+            .map((entry) => Map<String, dynamic>.from(entry))
+            .toList();
       }
     } catch (_) {}
     return null;
