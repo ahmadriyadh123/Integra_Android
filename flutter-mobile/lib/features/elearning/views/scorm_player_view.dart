@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../repositories/scorm_repository.dart';
+import '../services/scorm_service.dart';
 import '../viewmodel/scorm_viewmodel.dart';
 import '../../widgets/shared_header.dart';
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class ScormPlayerView extends StatefulWidget {
   final String scormUrl;
@@ -35,7 +38,11 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
   @override
   void initState() {
     super.initState();
-    final repository = ScormRepository();
+    final repository = ScormRepository(
+      scormService: ScormService(
+        tenantApiConfig: context.read<TenantApiConfig>(),
+      ),
+    );
     _viewModel = ScormViewModel(repository: repository);
     _viewModel.addListener(_onViewModelUpdate);
     _viewModel.prepareScorm(
@@ -48,7 +55,9 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
   }
 
   void _onViewModelUpdate() {
-    if (!_viewModel.isLoading && _viewModel.error == null && _viewModel.startUrl != null) {
+    if (!_viewModel.isLoading &&
+        _viewModel.error == null &&
+        _viewModel.startUrl != null) {
       _initWebViewController(_viewModel.startUrl!);
     }
     if (mounted) setState(() {});
@@ -60,19 +69,23 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
     final controller = WebViewController();
     controller.setJavaScriptMode(JavaScriptMode.unrestricted);
 
-    controller.addJavaScriptChannel('ScormHost', onMessageReceived: (message) {
-      try {
-        final Map msg = jsonDecode(message.message) as Map;
-        _viewModel.handleBridgeMessage(
-          msg['type'] as String? ?? '',
-          msg['payload'] as Map?,
-        );
-      } catch (_) {}
-    });
+    controller.addJavaScriptChannel(
+      'ScormHost',
+      onMessageReceived: (message) {
+        try {
+          final Map msg = jsonDecode(message.message) as Map;
+          _viewModel.handleBridgeMessage(
+            msg['type'] as String? ?? '',
+            msg['payload'] as Map?,
+          );
+        } catch (_) {}
+      },
+    );
 
-    controller.setNavigationDelegate(NavigationDelegate(
-      onPageStarted: (url) async {
-        const scormBridge = r"""
+    controller.setNavigationDelegate(
+      NavigationDelegate(
+        onPageStarted: (url) async {
+          const scormBridge = r"""
 (function(){
   function send(type, payload){
     var msg = JSON.stringify({type:type, payload: payload||{}});
@@ -89,11 +102,12 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
   };
 })();
 """;
-        try {
-          await controller.runJavaScript(scormBridge);
-        } catch (_) {}
-      },
-    ));
+          try {
+            await controller.runJavaScript(scormBridge);
+          } catch (_) {}
+        },
+      ),
+    );
 
     controller.loadRequest(
       Uri.parse(url),
@@ -128,36 +142,43 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
                   const SizedBox(height: 16),
                   Text(
                     _viewModel.statusMessage ?? 'Memuat SCORM...',
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF475569)),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                 ],
               ),
             )
           : _viewModel.error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFEF4444)),
-                      const SizedBox(height: 16),
-                      Text(_viewModel.error!, textAlign: TextAlign.center),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () => _viewModel.prepareScorm(
-                          widget.scormUrl,
-                          widget.authToken,
-                          odooUsername: widget.odooUsername,
-                          odooPassword: widget.odooPassword,
-                          odooDb: widget.odooDb,
-                        ),
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 56,
+                    color: Color(0xFFEF4444),
                   ),
-                )
-              : _webController == null
-                  ? const Center(child: Text('Memuat viewer...'))
-                  : WebViewWidget(controller: _webController!),
+                  const SizedBox(height: 16),
+                  Text(_viewModel.error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => _viewModel.prepareScorm(
+                      widget.scormUrl,
+                      widget.authToken,
+                      odooUsername: widget.odooUsername,
+                      odooPassword: widget.odooPassword,
+                      odooDb: widget.odooDb,
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            )
+          : _webController == null
+          ? const Center(child: Text('Memuat viewer...'))
+          : WebViewWidget(controller: _webController!),
     );
   }
 }

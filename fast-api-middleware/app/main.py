@@ -1,10 +1,14 @@
 import socket
+import app.core.models
 
 from fastapi import FastAPI
 from fastapi import HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.config import settings
+from app.core.database import engine, Base
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Odoo Mobile Middleware API",

@@ -7,18 +7,23 @@ import '../widgets/app_logo.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/error_banner.dart';
 import '../widgets/primary_button.dart';
+import '../../../services/tenant_api_config.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({
     super.key,
     this.initialBaseUrl = '',
+    this.initialSchoolId = '',
     this.savedBaseUrls = const [],
     this.onServerSaved,
+    this.onSchoolIdSaved,
   });
 
   final String initialBaseUrl;
+  final String initialSchoolId;
   final List<String> savedBaseUrls;
   final Future<void> Function(String baseUrl)? onServerSaved;
+  final Future<void> Function(String schoolId)? onSchoolIdSaved;
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -27,7 +32,9 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
   final _serverFieldKey = GlobalKey<FormFieldState<String>>();
+  final _schoolIdFieldKey = GlobalKey<FormFieldState<String>>();
   late final TextEditingController _serverController;
+  late final TextEditingController _schoolIdController;
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
@@ -37,11 +44,13 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     _serverController = TextEditingController(text: widget.initialBaseUrl);
+    _schoolIdController = TextEditingController(text: widget.initialSchoolId);
   }
 
   @override
   void dispose() {
     _serverController.dispose();
+    _schoolIdController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -62,8 +71,12 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _saveServer() async {
     if (widget.onServerSaved == null) return;
     if (!_serverFieldKey.currentState!.validate()) return;
+    if (!_schoolIdFieldKey.currentState!.validate()) return;
 
     setState(() => _isSavingServer = true);
+    final schoolId = _schoolIdController.text.trim();
+    context.read<TenantApiConfig>().schoolId = schoolId;
+    await widget.onSchoolIdSaved?.call(schoolId);
     await widget.onServerSaved!(_normalizeBaseUrl(_serverController.text));
     if (mounted) setState(() => _isSavingServer = false);
   }
@@ -71,6 +84,11 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _onLoginPressed() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    final schoolId = _schoolIdController.text.trim();
+    context.read<TenantApiConfig>().schoolId = schoolId;
+    await widget.onSchoolIdSaved?.call(schoolId);
+    if (!mounted) return;
 
     final viewModel = context.read<AuthViewModel>();
     final success = await viewModel.login(
@@ -148,7 +166,8 @@ class _LoginViewState extends State<LoginView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.onServerSaved != null || widget.initialBaseUrl.isNotEmpty) ...[
+            if (widget.onServerSaved != null ||
+                widget.initialBaseUrl.isNotEmpty) ...[
               TextFormField(
                 key: _serverFieldKey,
                 controller: _serverController,
@@ -212,6 +231,28 @@ class _LoginViewState extends State<LoginView> {
                 const SizedBox(height: 16),
               ],
             ],
+            TextFormField(
+              key: _schoolIdFieldKey,
+              controller: _schoolIdController,
+              readOnly: widget.onSchoolIdSaved == null,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'ID sekolah',
+                hintText: 'Contoh: 1',
+                prefixIcon: Icon(Icons.business_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'ID tenant yang diberikan administrator',
+              ),
+              validator: (value) {
+                final schoolId = int.tryParse(value?.trim() ?? '');
+                if (schoolId == null || schoolId <= 0) {
+                  return 'ID sekolah harus berupa angka positif';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
             CustomTextField(
               label: 'Email',
               hint: 'Masukkan email',

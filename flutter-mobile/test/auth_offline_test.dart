@@ -10,9 +10,14 @@ import 'package:flutter_application_1/features/profile/viewmodel/profile_viewmod
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class FakeAuthService extends AuthService {
-  FakeAuthService() : super(baseUrl: 'https://example.com');
+  FakeAuthService()
+    : super(
+        baseUrl: 'https://example.com',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      );
 
   @override
   Future<void> changePassword({
@@ -69,7 +74,11 @@ class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
 }
 
 class FakeBukuKomunikasiService extends BukuKomunikasiService {
-  FakeBukuKomunikasiService() : super(baseUrl: 'https://example.com');
+  FakeBukuKomunikasiService()
+    : super(
+        baseUrl: 'https://example.com',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      );
 
   @override
   Future<bool> submitDailyNote({

@@ -2,17 +2,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class RaporService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
 
-  RaporService({required this.baseUrl});
+  RaporService({required this.baseUrl, required this.tenantApiConfig});
 
-  // Header terpusat menjaga autentikasi konsisten di semua endpoint rapor.
-  Map<String, String> _headers(String token) => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+  Map<String, String> _headers(String token) =>
+      tenantApiConfig.headers(token: token);
 
   Future<List<dynamic>> fetchReportList(String token) async {
     final url = Uri.parse('$baseUrl/e-rapor/list');
@@ -23,9 +22,12 @@ class RaporService {
     try {
       final response = await http
           .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException('Waktu tunggu koneksi habis');
-      });
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
 
       debugPrint('Response Status: ${response.statusCode}');
       debugPrint('Response Body: ${response.body}');
@@ -35,7 +37,9 @@ class RaporService {
       if (response.statusCode == 200 && json['success'] == true) {
         return json['data'] as List<dynamic>? ?? [];
       }
-      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil daftar E-Rapor');
+      throw Exception(
+        json['detail'] ?? json['message'] ?? 'Gagal mengambil daftar E-Rapor',
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -46,20 +50,28 @@ class RaporService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchReportDetail(String token, int raporId) async {
+  Future<Map<String, dynamic>> fetchReportDetail(
+    String token,
+    int raporId,
+  ) async {
     final url = Uri.parse('$baseUrl/e-rapor/$raporId');
     try {
       final response = await http
           .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException('Waktu tunggu koneksi habis');
-      });
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
         return json['data'] as Map<String, dynamic>;
       }
-      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil detail E-Rapor');
+      throw Exception(
+        json['detail'] ?? json['message'] ?? 'Gagal mengambil detail E-Rapor',
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -70,5 +82,3 @@ class RaporService {
     }
   }
 }
-
-

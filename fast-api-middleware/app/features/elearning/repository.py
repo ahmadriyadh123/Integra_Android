@@ -1,5 +1,4 @@
 from app.core.odoo_client import OdooRPCClient
-from app.core.config import settings
 from typing import List, Dict, Any, Optional
 
 
@@ -24,15 +23,14 @@ class ElearningRepository:
 
         return self._odoo_url(filename)
 
-    @staticmethod
-    def _odoo_url(value: Optional[str]) -> Optional[str]:
+    def _odoo_url(self, value: Optional[str]) -> Optional[str]:
         if not value:
             return None
         if value.startswith('http://') or value.startswith('https://'):
             return value
         if value.startswith('/'):
-            return f"{settings.ODOO_URL}{value}"
-        return f"{settings.ODOO_URL}/{value}"
+            return f"{self.odoo.url}{value}"
+        return f"{self.odoo.url}/{value}"
 
     def get_published_courses(
         self,

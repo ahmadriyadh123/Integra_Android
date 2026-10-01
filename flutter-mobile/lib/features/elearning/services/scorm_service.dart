@@ -6,8 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class ScormService {
+  final TenantApiConfig tenantApiConfig;
+
+  ScormService({required this.tenantApiConfig});
+
   HttpServer? _server;
   Directory? _extractDir;
 
@@ -16,9 +21,7 @@ class ScormService {
 
   Map<String, String> getAuthHeaders(String token) {
     final h = <String, String>{'User-Agent': 'FlutterApp/1.0'};
-    if (token.isNotEmpty) {
-      h['Authorization'] = 'Bearer $token';
-    }
+    h.addAll(tenantApiConfig.headers(token: token, includeContentType: false));
     return h;
   }
 
@@ -36,18 +39,20 @@ class ScormService {
     );
 
     try {
-      final response = await http.post(
-        sessionUri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'jsonrpc': '2.0',
-          'params': {
-            'db': odooDb,
-            'login': odooUsername,
-            'password': odooPassword,
-          },
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            sessionUri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'jsonrpc': '2.0',
+              'params': {
+                'db': odooDb,
+                'login': odooUsername,
+                'password': odooPassword,
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final result = body['result'];
@@ -55,14 +60,18 @@ class ScormService {
           ? result['session_id'] as String?
           : null;
 
-      if (response.statusCode == 200 && sessionId != null && sessionId.isNotEmpty) {
+      if (response.statusCode == 200 &&
+          sessionId != null &&
+          sessionId.isNotEmpty) {
         final cookieManager = WebViewCookieManager();
-        await cookieManager.setCookie(WebViewCookie(
-          name: 'session_id',
-          value: sessionId,
-          domain: targetUri.host,
-          path: '/',
-        ));
+        await cookieManager.setCookie(
+          WebViewCookie(
+            name: 'session_id',
+            value: sessionId,
+            domain: targetUri.host,
+            path: '/',
+          ),
+        );
       }
     } catch (e) {
       debugPrint('[SCORM-SERVICE] Web session login error: $e');
@@ -71,17 +80,22 @@ class ScormService {
 
   Future<File> downloadZipFile(Uri uri, String token) async {
     final tempDir = await getTemporaryDirectory();
-    final zipFile = File('${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}.zip');
+    final zipFile = File(
+      '${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}.zip',
+    );
     final client = http.Client();
 
     try {
       final request = http.Request('GET', uri);
       request.headers.addAll(getAuthHeaders(token));
 
-      final streamedResponse = await client.send(request).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () => throw TimeoutException('Waktu koneksi unduh habis (timeout)'),
-      );
+      final streamedResponse = await client
+          .send(request)
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () =>
+                throw TimeoutException('Waktu koneksi unduh habis (timeout)'),
+          );
 
       if (streamedResponse.statusCode == 200) {
         final sink = zipFile.openWrite();
@@ -95,7 +109,8 @@ class ScormService {
       try {
         final decoded = jsonDecode(responseBody);
         if (decoded is Map<String, dynamic>) {
-          detail = decoded['detail']?.toString() ?? decoded['message']?.toString();
+          detail =
+              decoded['detail']?.toString() ?? decoded['message']?.toString();
         }
       } catch (_) {}
 
@@ -114,7 +129,9 @@ class ScormService {
     final archive = ZipDecoder().decodeBytes(bytes);
 
     final tempDir = await getTemporaryDirectory();
-    final extractDir = Directory('${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}');
+    final extractDir = Directory(
+      '${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}',
+    );
     if (!await extractDir.exists()) await extractDir.create(recursive: true);
 
     for (final file in archive) {
@@ -139,14 +156,14 @@ class ScormService {
 
   String findIndexPath(Directory extractDir) {
     final allFiles = extractDir.listSync(recursive: true);
-    
+
     // 1. Cari file HTML utama standar paket SCORM
     for (final f in allFiles) {
       if (f is File) {
         final name = f.path.split(Platform.pathSeparator).last.toLowerCase();
-        if (name == 'index.html' || 
-            name == 'index.htm' || 
-            name == 'story.html' || 
+        if (name == 'index.html' ||
+            name == 'index.htm' ||
+            name == 'story.html' ||
             name == 'story.htm' ||
             name == 'scorm.html') {
           return f.path;
@@ -167,7 +184,10 @@ class ScormService {
     throw Exception('Tidak menemukan file HTML di dalam paket SCORM');
   }
 
-  Future<String> startLocalServer(Directory extractDir, String indexPath) async {
+  Future<String> startLocalServer(
+    Directory extractDir,
+    String indexPath,
+  ) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.autoCompress = true;
 
@@ -176,11 +196,16 @@ class ScormService {
         var requestPath = Uri.decodeComponent(request.uri.path);
         if (requestPath.startsWith('/')) requestPath = requestPath.substring(1);
 
-        final fileToServe = File('${extractDir.path}${Platform.pathSeparator}$requestPath');
+        final fileToServe = File(
+          '${extractDir.path}${Platform.pathSeparator}$requestPath',
+        );
         if (await fileToServe.exists()) {
-          final ext = fileToServe.path.contains('.') ? fileToServe.path.split('.').last.toLowerCase() : '';
+          final ext = fileToServe.path.contains('.')
+              ? fileToServe.path.split('.').last.toLowerCase()
+              : '';
           final contentType = _contentTypeForExt(ext);
-          if (contentType != null) request.response.headers.contentType = contentType;
+          if (contentType != null)
+            request.response.headers.contentType = contentType;
           request.response.add(await fileToServe.readAsBytes());
           await request.response.close();
           return;
@@ -197,9 +222,18 @@ class ScormService {
     });
 
     _server = server;
-    final pathFromExtract = indexPath.substring(extractDir.path.length).replaceAll('\\', '/');
-    final normalizedPath = pathFromExtract.startsWith('/') ? pathFromExtract.substring(1) : pathFromExtract;
-    return Uri(scheme: 'http', host: '127.0.0.1', port: server.port, path: normalizedPath).toString();
+    final pathFromExtract = indexPath
+        .substring(extractDir.path.length)
+        .replaceAll('\\', '/');
+    final normalizedPath = pathFromExtract.startsWith('/')
+        ? pathFromExtract.substring(1)
+        : pathFromExtract;
+    return Uri(
+      scheme: 'http',
+      host: '127.0.0.1',
+      port: server.port,
+      path: normalizedPath,
+    ).toString();
   }
 
   ContentType? _contentTypeForExt(String ext) {

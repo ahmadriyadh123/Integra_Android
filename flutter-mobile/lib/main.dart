@@ -5,9 +5,11 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/app_providers.dart';
+import 'services/tenant_api_config.dart';
 
 const _apiBaseUrlKey = 'api_base_url';
 const _apiBaseUrlsKey = 'api_base_urls';
+const _schoolIdKey = 'school_id';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +17,7 @@ void main() async {
   final preferences = await SharedPreferences.getInstance();
   final initialBaseUrl =
       preferences.getString(_apiBaseUrlKey) ?? getApiBaseUrl();
+  final initialSchoolId = preferences.getString(_schoolIdKey) ?? getSchoolId();
   final savedBaseUrls =
       preferences.getStringList(_apiBaseUrlsKey) ?? <String>[];
   if (initialBaseUrl.isNotEmpty && !savedBaseUrls.contains(initialBaseUrl)) {
@@ -24,6 +27,7 @@ void main() async {
     MyApp(
       preferences: preferences,
       initialBaseUrl: initialBaseUrl,
+      initialSchoolId: initialSchoolId,
       savedBaseUrls: savedBaseUrls,
     ),
   );
@@ -33,16 +37,22 @@ String getApiBaseUrl() {
   return const String.fromEnvironment('API_BASE_URL');
 }
 
+String getSchoolId() {
+  return const String.fromEnvironment('SCHOOL_ID');
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({
     super.key,
     required this.preferences,
     required this.initialBaseUrl,
+    required this.initialSchoolId,
     required this.savedBaseUrls,
   });
 
   final SharedPreferences preferences;
   final String initialBaseUrl;
+  final String initialSchoolId;
   final List<String> savedBaseUrls;
 
   @override
@@ -51,7 +61,9 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late String _baseUrl = widget.initialBaseUrl;
+  late String _schoolId = widget.initialSchoolId;
   late List<String> _savedBaseUrls = List<String>.from(widget.savedBaseUrls);
+  late final _tenantApiConfig = TenantApiConfig(schoolId: _schoolId);
 
   Future<void> _saveBaseUrl(String baseUrl) async {
     final updatedBaseUrls = <String>[
@@ -71,18 +83,27 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _saveSchoolId(String schoolId) async {
+    final normalizedSchoolId = schoolId.trim();
+    _tenantApiConfig.schoolId = normalizedSchoolId;
+    await widget.preferences.setString(_schoolIdKey, normalizedSchoolId);
+    if (mounted) setState(() => _schoolId = normalizedSchoolId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       key: ValueKey(_baseUrl),
-      providers: getAppProviders(_baseUrl),
+      providers: getAppProviders(_baseUrl, _tenantApiConfig),
       child: MaterialApp(
         title: 'Aplikasi Sekolah',
         theme: ThemeData(primarySwatch: Colors.teal),
         home: LoginView(
           initialBaseUrl: _baseUrl,
+          initialSchoolId: _schoolId,
           savedBaseUrls: _savedBaseUrls,
           onServerSaved: _saveBaseUrl,
+          onSchoolIdSaved: _saveSchoolId,
         ),
       ),
     );

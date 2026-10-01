@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'auth/view/login_view.dart';
 import 'auth/viewmodel/auth_viewmodel.dart';
 import 'dashboard/dashboard_view.dart';
+import '../services/tenant_api_config.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,7 +30,9 @@ class _SplashScreenState extends State {
 
     final targetPage = hasSession
         ? DashboardView(authToken: authViewModel.token)
-        : const LoginView();
+        : LoginView(
+            initialSchoolId: context.read<TenantApiConfig>().schoolId,
+          );
 
     Navigator.pushReplacement(
       context,

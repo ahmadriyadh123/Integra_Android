@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class ElearningService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
 
-  ElearningService({required this.baseUrl});
+  ElearningService({required this.baseUrl, required this.tenantApiConfig});
 
-    Map<String, String> _headers(String token) {
-    final headers = <String, String>{'Content-Type': 'application/json'};
-    if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-    return headers;
-  }
+  Map<String, String> _headers(String token) =>
+      tenantApiConfig.headers(token: token);
 
   Future<List<dynamic>> fetchCourses(String token) async {
     // Semua request e-learning membawa token session yang sama.
@@ -19,15 +18,20 @@ class ElearningService {
     try {
       final response = await http
           .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException('Waktu tunggu koneksi habis');
-      });
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
         return json['data'] as List<dynamic>;
       }
-      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil kursus');
+      throw Exception(
+        json['detail'] ?? json['message'] ?? 'Gagal mengambil kursus',
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -39,20 +43,27 @@ class ElearningService {
   }
 
   Future<Map<String, dynamic>> fetchCourseDetail(
-      String token, int courseId) async {
+    String token,
+    int courseId,
+  ) async {
     final url = Uri.parse('$baseUrl/elearning/courses/$courseId');
     try {
       final response = await http
           .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException('Waktu tunggu koneksi habis');
-      });
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
         return json['data'] as Map<String, dynamic>;
       }
-      throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil detail kursus');
+      throw Exception(
+        json['detail'] ?? json['message'] ?? 'Gagal mengambil detail kursus',
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -74,7 +85,8 @@ class ElearningService {
       final contentUrl = json['url'] as String?;
       if (contentUrl != null && contentUrl.isNotEmpty) return contentUrl;
     }
-    throw Exception(json['detail'] ?? json['message'] ?? 'Gagal mengambil konten materi');
+    throw Exception(
+      json['detail'] ?? json['message'] ?? 'Gagal mengambil konten materi',
+    );
   }
 }
-

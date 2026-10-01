@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class CbtService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
 
-  CbtService({required this.baseUrl});
+  CbtService({required this.baseUrl, required this.tenantApiConfig});
 
   /// Ambil daftar jadwal ujian CBT dari middleware
   Future<Map<String, dynamic>> fetchCbtSchedules(String token) async {
@@ -19,13 +21,7 @@ class CbtService {
 
     try {
       final response = await http
-          .get(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
+          .get(url, headers: tenantApiConfig.headers(token: token))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -65,10 +61,7 @@ class CbtService {
       final response = await http
           .post(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+            headers: tenantApiConfig.headers(token: token),
             body: json.encode({
               'jadwal_ujian_id': jadwalId,
               'token_input': tokenInput.trim(),
@@ -115,13 +108,7 @@ class CbtService {
     final url = Uri.parse('$baseUrl/cbt/questions/$jadwalId');
     try {
       final response = await http
-          .get(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
+          .get(url, headers: tenantApiConfig.headers(token: token))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -162,10 +149,7 @@ class CbtService {
       final response = await http
           .post(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+            headers: tenantApiConfig.headers(token: token),
             body: json.encode({
               'jadwal_ujian_id': jadwalId,
               'answers': answers,

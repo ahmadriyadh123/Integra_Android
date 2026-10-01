@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class AssignmentService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
 
-  AssignmentService({required this.baseUrl});
+  AssignmentService({required this.baseUrl, required this.tenantApiConfig});
 
   Future<List<Map<String, dynamic>>> fetchAssignments(String token) async {
-    String cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    String cleanBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     String fullUrl = '$cleanBase/assignments';
 
     while (fullUrl.contains('/api/v1/api/v1/')) {
@@ -19,10 +23,7 @@ class AssignmentService {
     try {
       final response = await http.get(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: tenantApiConfig.headers(token: token),
       );
 
       if (response.statusCode == 200) {
@@ -33,7 +34,10 @@ class AssignmentService {
         try {
           decoded = json.decode(response.body);
         } catch (_) {}
-        final msg = decoded['detail'] ?? decoded['message'] ?? 'Gagal mengambil data penugasan';
+        final msg =
+            decoded['detail'] ??
+            decoded['message'] ??
+            'Gagal mengambil data penugasan';
         throw Exception(msg);
       }
     } catch (e) {

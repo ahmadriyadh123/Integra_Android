@@ -120,9 +120,7 @@ class AuthRepository:
         student_id, dan jenjang untuk disimpan ke JWT.
         """
         try:
-            common = xmlrpc.client.ServerProxy(f"{self.odoo.url}/xmlrpc/2/common")
-
-            uid = common.authenticate(self.odoo.db, username, password, {})
+            uid = self.odoo.common.authenticate(self.odoo.db, username, password, {})
             if not uid:
                 return None
 

@@ -3,24 +3,27 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class ProfileService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
   final http.Client? _client;
   final Map<String, Uint8List> _profileImageCache = {};
   final Map<String, Future<Uint8List>> _pendingProfileImages = {};
 
-  ProfileService({required this.baseUrl, http.Client? client}) : _client = client;
+  ProfileService({
+    required this.baseUrl,
+    required this.tenantApiConfig,
+    http.Client? client,
+  }) : _client = client;
 
   Future<Map<String, dynamic>> getMyProfile(String token) async {
     try {
       final response = await http
           .get(
             Uri.parse('$baseUrl/profile/me'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+            headers: tenantApiConfig.headers(token: token),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -47,15 +50,19 @@ class ProfileService {
   }
 
   Future<Uint8List> getProfileImage(String token, int partnerId) {
-    final cacheKey = '$partnerId:$token';
+    final cacheKey = '${tenantApiConfig.schoolId}:$partnerId:$token';
     final cachedImage = _profileImageCache[cacheKey];
     if (cachedImage != null) return Future.value(cachedImage);
 
     return _pendingProfileImages.putIfAbsent(cacheKey, () async {
       try {
         final uri = Uri.parse('$baseUrl/profile/image/$partnerId');
-        final headers = {'Authorization': 'Bearer $token'};
-        final request = _client?.get(uri, headers: headers) ??
+        final headers = tenantApiConfig.headers(
+          token: token,
+          includeContentType: false,
+        );
+        final request =
+            _client?.get(uri, headers: headers) ??
             http.get(uri, headers: headers);
         final response = await request.timeout(const Duration(seconds: 15));
 

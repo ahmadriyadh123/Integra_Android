@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../../services/tenant_api_config.dart';
 
 class AuthService {
   final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
 
-  AuthService({required this.baseUrl});
+  AuthService({required this.baseUrl, required this.tenantApiConfig});
 
   Future<Map<String, dynamic>> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/auth/login');
@@ -14,22 +16,23 @@ class AuthService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'username': username,
-              'password': password,
-            }),
+            headers: tenantApiConfig.headers(),
+            body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 15), onTimeout: () {
-            throw TimeoutException('Waktu tunggu koneksi habis');
-          });
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
 
       final jsonResponse = json.decode(response.body);
 
       if (response.statusCode == 200 && jsonResponse['success'] == true) {
         return jsonResponse['data'] as Map<String, dynamic>;
       } else {
-        final message = jsonResponse['detail'] ?? jsonResponse['message'] ?? 'Login gagal';
+        final message =
+            jsonResponse['detail'] ?? jsonResponse['message'] ?? 'Login gagal';
         throw Exception(message);
       }
     } on TimeoutException {
@@ -49,16 +52,13 @@ class AuthService {
 
     try {
       final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
+          .post(url, headers: tenantApiConfig.headers(token: token))
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException('Validasi token timeout');
             },
-          )
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-            throw TimeoutException('Validasi token timeout');
-          });
+          );
 
       final jsonResponse = json.decode(response.body);
 
@@ -87,10 +87,7 @@ class AuthService {
       final response = await http
           .post(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+            headers: tenantApiConfig.headers(token: token),
             body: json.encode({
               'current_password': currentPassword,
               'new_password': newPassword,
@@ -100,7 +97,11 @@ class AuthService {
 
       final jsonResponse = json.decode(response.body);
       if (response.statusCode != 200 || jsonResponse['success'] != true) {
-        throw Exception(jsonResponse['detail'] ?? jsonResponse['message'] ?? 'Gagal mengganti password');
+        throw Exception(
+          jsonResponse['detail'] ??
+              jsonResponse['message'] ??
+              'Gagal mengganti password',
+        );
       }
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
@@ -112,5 +113,3 @@ class AuthService {
     }
   }
 }
-
-

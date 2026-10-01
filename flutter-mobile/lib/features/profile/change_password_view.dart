@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../auth/view/login_view.dart';
 import '../auth/services/auth_service.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
+import '../../services/tenant_api_config.dart';
 
 class ChangePasswordView extends StatefulWidget {
   const ChangePasswordView({super.key});
@@ -36,7 +37,9 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     final confirmation = _confirmationController.text;
 
     setState(() => _errorMessage = null);
-    if (currentPassword.isEmpty || newPassword.isEmpty || confirmation.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmation.isEmpty) {
       setState(() => _errorMessage = 'Semua field password wajib diisi.');
       return;
     }
@@ -65,6 +68,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         MaterialPageRoute(
           builder: (_) => LoginView(
             initialBaseUrl: context.read<AuthService>().baseUrl,
+            initialSchoolId: context.read<TenantApiConfig>().schoolId,
           ),
         ),
         (route) => false,
@@ -104,14 +108,19 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
             const SizedBox(height: 8),
             const Text(
               'Gunakan password minimal 6 karakter dan jangan bagikan kepada orang lain.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 24),
             _passwordField(
               controller: _currentController,
               label: 'Password lama',
               obscureText: _obscureCurrent,
-              onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
+              onToggle: () =>
+                  setState(() => _obscureCurrent = !_obscureCurrent),
             ),
             const SizedBox(height: 16),
             _passwordField(
@@ -125,7 +134,8 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
               controller: _confirmationController,
               label: 'Konfirmasi password baru',
               obscureText: _obscureConfirmation,
-              onToggle: () => setState(() => _obscureConfirmation = !_obscureConfirmation),
+              onToggle: () =>
+                  setState(() => _obscureConfirmation = !_obscureConfirmation),
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 16),
@@ -188,7 +198,11 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         suffixIcon: IconButton(
           tooltip: obscureText ? 'Tampilkan password' : 'Sembunyikan password',
           onPressed: onToggle,
-          icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+          icon: Icon(
+            obscureText
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
         ),
       ),
     );

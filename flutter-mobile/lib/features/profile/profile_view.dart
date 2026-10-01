@@ -9,6 +9,7 @@ import 'viewmodel/profile_viewmodel.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/profile_section_card.dart';
 import 'widgets/profile_logout_button.dart';
+import '../../services/tenant_api_config.dart';
 
 class ProfilTab extends StatefulWidget {
   const ProfilTab({super.key});
@@ -183,8 +184,10 @@ class _ProfilTabState extends State<ProfilTab> {
 
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) =>
-              LoginView(initialBaseUrl: context.read<AuthService>().baseUrl),
+          builder: (_) => LoginView(
+            initialBaseUrl: context.read<AuthService>().baseUrl,
+            initialSchoolId: context.read<TenantApiConfig>().schoolId,
+          ),
         ),
         (route) => false,
       );

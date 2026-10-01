@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
+import '../services/tenant_api_config.dart';
 
 import 'auth/local/auth_local_storage.dart';
 import 'auth/services/auth_service.dart';
@@ -57,10 +58,17 @@ import 'kurikulum/assignment/viewmodel/assignment_viewmodel.dart';
 
 /// Mengembalikan daftar semua provider yang digunakan dalam aplikasi.
 /// Memisahkan logika ini dari main.dart menjaga agar struktur kode main.dart tetap bersih dan terorganisir.
-List<SingleChildWidget> getAppProviders(String baseUrl) {
+List<SingleChildWidget> getAppProviders(
+  String baseUrl,
+  TenantApiConfig tenantApiConfig,
+) {
   return [
+    Provider<TenantApiConfig>.value(value: tenantApiConfig),
     // Auth menjadi dependency dasar untuk repository dan view model lain.
-    Provider<AuthService>(create: (_) => AuthService(baseUrl: baseUrl)),
+    Provider<AuthService>(
+      create: (_) =>
+          AuthService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     Provider<AuthLocalStorage>(create: (_) => AuthLocalStorage()),
     ProxyProvider2<AuthService, AuthLocalStorage, AuthRepository>(
       update: (_, service, storage, _) =>
@@ -74,7 +82,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? AuthViewModel(repository: repo),
     ),
 
-    Provider<ProfileService>(create: (_) => ProfileService(baseUrl: baseUrl)),
+    Provider<ProfileService>(
+      create: (_) =>
+          ProfileService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     ProxyProvider<ProfileService, ProfileRepository>(
       update: (_, service, _) => ProfileRepository(apiService: service),
     ),
@@ -87,7 +98,8 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     ),
 
     Provider<AttendanceService>(
-      create: (_) => AttendanceService(baseUrl: baseUrl),
+      create: (_) =>
+          AttendanceService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
     ),
     Provider<AttendanceLocalStorage>(create: (_) => AttendanceLocalStorage()),
     ProxyProvider2<
@@ -106,7 +118,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? AttendanceViewModel(repository: repo),
     ),
 
-    Provider<CalendarService>(create: (_) => CalendarService(baseUrl: baseUrl)),
+    Provider<CalendarService>(
+      create: (_) =>
+          CalendarService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     Provider<CalendarLocalStorage>(create: (_) => CalendarLocalStorage()),
     ProxyProvider2<CalendarService, CalendarLocalStorage, CalendarRepository>(
       update: (_, service, storage, _) =>
@@ -121,7 +136,8 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     ),
 
     Provider<ElearningService>(
-      create: (_) => ElearningService(baseUrl: baseUrl),
+      create: (_) =>
+          ElearningService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
     ),
     Provider<ElearningLocalStorage>(create: (_) => ElearningLocalStorage()),
     ProxyProvider2<
@@ -140,7 +156,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? ElearningViewModel(repository: repo),
     ),
 
-    Provider<CbtService>(create: (_) => CbtService(baseUrl: baseUrl)),
+    Provider<CbtService>(
+      create: (_) =>
+          CbtService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     Provider<CbtLocalStorage>(create: (_) => CbtLocalStorage()),
     ProxyProvider2<CbtService, CbtLocalStorage, CbtRepository>(
       update: (_, service, storage, _) =>
@@ -153,7 +172,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
       update: (_, repo, previous) => previous ?? CbtViewModel(repository: repo),
     ),
 
-    Provider<TagihanService>(create: (_) => TagihanService(baseUrl: baseUrl)),
+    Provider<TagihanService>(
+      create: (_) =>
+          TagihanService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     Provider<TagihanLocalStorage>(create: (_) => TagihanLocalStorage()),
     ProxyProvider2<TagihanService, TagihanLocalStorage, TagihanRepository>(
       update: (_, service, storage, _) =>
@@ -167,7 +189,8 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? TagihanViewModel(repository: repo),
     ),
     Provider<WeeklyPlanService>(
-      create: (_) => WeeklyPlanService(baseUrl: baseUrl),
+      create: (_) =>
+          WeeklyPlanService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
     ),
     Provider<WeeklyPlanLocalStorage>(create: (_) => WeeklyPlanLocalStorage()),
     ProxyProvider2<
@@ -187,7 +210,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     ),
 
     Provider<BukuKomunikasiService>(
-      create: (_) => BukuKomunikasiService(baseUrl: baseUrl),
+      create: (_) => BukuKomunikasiService(
+        baseUrl: baseUrl,
+        tenantApiConfig: tenantApiConfig,
+      ),
     ),
     Provider<BukuKomunikasiLocalStorage>(
       create: (_) => BukuKomunikasiLocalStorage(),
@@ -214,7 +240,10 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? BukuKomunikasiViewModel(repository: repo),
     ),
 
-    Provider<RaporService>(create: (_) => RaporService(baseUrl: baseUrl)),
+    Provider<RaporService>(
+      create: (_) =>
+          RaporService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
+    ),
     Provider<RaporLocalStorage>(create: (_) => RaporLocalStorage()),
     ProxyProvider2<RaporService, RaporLocalStorage, RaporRepository>(
       update: (_, service, storage, _) =>
@@ -229,7 +258,8 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
     ),
 
     Provider<AssignmentService>(
-      create: (_) => AssignmentService(baseUrl: baseUrl),
+      create: (_) =>
+          AssignmentService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
     ),
     Provider<AssignmentLocalStorage>(create: (_) => AssignmentLocalStorage()),
     ProxyProvider2<

@@ -4,8 +4,7 @@ import '../services/scorm_service.dart';
 class ScormRepository {
   final ScormService scormService;
 
-  ScormRepository({ScormService? scormService})
-      : scormService = scormService ?? ScormService();
+  ScormRepository({required this.scormService});
 
   /// Authenticate Odoo web session
   Future<void> authenticateOdooWebSession({
@@ -38,7 +37,10 @@ class ScormRepository {
   }
 
   /// Start local HTTP server to serve SCORM content
-  Future<String> startLocalServer(Directory extractDir, String indexPath) async {
+  Future<String> startLocalServer(
+    Directory extractDir,
+    String indexPath,
+  ) async {
     return scormService.startLocalServer(extractDir, indexPath);
   }
 

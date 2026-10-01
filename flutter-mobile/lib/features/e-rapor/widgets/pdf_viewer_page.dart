@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/custom_pdf_viewer.dart';
 import '../../widgets/shared_header.dart';
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class PdfViewerPage extends StatefulWidget {
   final String pdfUrl;
@@ -40,7 +42,12 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
     try {
       final uri = Uri.parse(widget.pdfUrl);
-      final isOdooWebDirect = uri.path.contains('/web/content/') || uri.port == 8069;
+      final isOdooWebDirect =
+          uri.path.contains('/web/content/') || uri.port == 8069;
+      final tenantHeaders = context.read<TenantApiConfig>().headers(
+        token: widget.authToken,
+        includeContentType: false,
+      );
 
       List<Map<String, String>> headerAttempts = [];
       if (isOdooWebDirect) {
@@ -49,9 +56,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
           headerAttempts.add({'Authorization': 'Bearer ${widget.authToken}'});
         }
       } else {
-        if (widget.authToken.isNotEmpty) {
-          headerAttempts.add({'Authorization': 'Bearer ${widget.authToken}'});
-        }
+        headerAttempts.add(tenantHeaders);
         headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
       }
 
@@ -62,9 +67,9 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
       for (final headers in headerAttempts) {
         try {
-          response = await http.get(uri, headers: headers).timeout(
-            const Duration(seconds: 30),
-          );
+          response = await http
+              .get(uri, headers: headers)
+              .timeout(const Duration(seconds: 30));
           if (response.statusCode == 200) {
             break;
           }
@@ -75,7 +80,9 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
       if (response != null && response.statusCode == 200) {
         final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/rapor_temp_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        final file = File(
+          '${dir.path}/rapor_temp_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        );
         await file.writeAsBytes(response.bodyBytes);
 
         if (mounted) {
@@ -118,7 +125,12 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
-          ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
+          ? Center(
+              child: Text(
+                errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            )
           : CustomPdfViewer(
               filePath: localFilePath!,
               fileName: '${widget.title}.pdf',
@@ -126,7 +138,3 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
     );
   }
 }
-
-
-
-
