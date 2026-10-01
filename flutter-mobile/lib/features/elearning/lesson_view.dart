@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 
 import 'models/elearning_model.dart';
@@ -78,6 +79,7 @@ class _PelajaranViewState extends State<PelajaranView> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: '/elearning/course-detail'),
         builder: (_) => DetailCourseView(
           courseId: course.id,
           title: course.title,
@@ -113,16 +115,17 @@ class _PelajaranViewState extends State<PelajaranView> {
                     child: CircularProgressIndicator(color: _green),
                   );
                 }
-                return RefreshIndicator(
+                return AppRefreshIndicator(
                   color: _green,
-                  onRefresh: () => vm.fetchCourses(widget.authToken, forceRefresh: true),
+                  onRefresh: () =>
+                      vm.fetchCourses(widget.authToken, forceRefresh: true),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: vm.coursesError != null
                         ? _buildError(vm)
                         : !vm.hasCourses
-                            ? _buildEmpty()
-                            : _buildBodyContent(vm),
+                        ? _buildEmpty()
+                        : _buildBodyContent(vm),
                   ),
                 );
               },
@@ -342,7 +345,8 @@ class _PelajaranViewState extends State<PelajaranView> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchCourses(widget.authToken),
+            onPressed: () =>
+                vm.fetchCourses(widget.authToken, forceRefresh: true),
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text('Coba Lagi'),
             style: ElevatedButton.styleFrom(

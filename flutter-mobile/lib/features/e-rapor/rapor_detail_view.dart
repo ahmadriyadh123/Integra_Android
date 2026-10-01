@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'viewmodel/rapor_viewmodel.dart';
@@ -45,7 +46,11 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
     final authVm = context.read<AuthViewModel>();
 
     // 1. Fetch data detail JSON dari ViewModel (force refresh dari API)
-    await vm.fetchReportDetail(widget.authToken, widget.raporId, forceRefresh: true);
+    await vm.fetchReportDetail(
+      widget.authToken,
+      widget.raporId,
+      forceRefresh: true,
+    );
 
     // 2. Jika data berhasil didapatkan, buat bytes PDF secara in-memory
     if (vm.currentDetail != null && mounted) {
@@ -123,9 +128,7 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
           }
 
           if (_generatedPdfBytes == null) {
-            return const Center(
-              child: Text('Detail rapor tidak ditemukan.'),
-            );
+            return const Center(child: Text('Detail rapor tidak ditemukan.'));
           }
 
           final studentName = vm.currentDetail?.studentName ?? 'Siswa';
@@ -139,7 +142,7 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
   }
 
   Widget _buildError(String errorMessage) {
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       color: primaryTeal,
       onRefresh: _loadDataAndGeneratePdf,
       child: SingleChildScrollView(
@@ -164,7 +167,10 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
               ElevatedButton(
                 onPressed: _loadDataAndGeneratePdf,
                 style: ElevatedButton.styleFrom(backgroundColor: primaryTeal),
-                child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Coba Lagi',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),

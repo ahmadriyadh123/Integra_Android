@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
 import '../profile/viewmodel/profile_viewmodel.dart';
@@ -23,24 +24,30 @@ class HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().user;
+    final profile = context.watch<ProfileViewModel>().profile;
 
-    final String studentName = user?.name.isNotEmpty == true
+    final String studentName = profile?.name.isNotEmpty == true
+      ? profile!.name
+      : user?.name.isNotEmpty == true
         ? user!.name
         : user?.username ?? 'Siswa';
 
-    final String className = user?.className.isNotEmpty == true
+    final String className = profile?.className.isNotEmpty == true
+      ? profile!.className
+      : user?.className.isNotEmpty == true
         ? user!.className
         : '';
 
     return Scaffold(
       backgroundColor: backgroundSlate,
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefreshIndicator(
           color: const Color(0xFF059669),
           onRefresh: () async {
-            context.read<ProfileViewModel>().setProfile(
-              context.read<AuthViewModel>().user,
-            );
+            final authViewModel = context.read<AuthViewModel>();
+            final profileViewModel = context.read<ProfileViewModel>();
+            profileViewModel.setProfile(authViewModel.user);
+            await profileViewModel.refreshProfile(authToken);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),

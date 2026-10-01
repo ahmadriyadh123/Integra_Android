@@ -1,13 +1,24 @@
 import xmlrpc.client
 from typing import List, Dict, Any
 from app.core.config import settings
+from app.core.models import SchoolTenant
 
 class OdooRPCClient:
-    def __init__(self, session_or_token: str = None):
-        self.url = settings.ODOO_URL
-        self.db = settings.ODOO_DB
+    def __init__(self, url: str = None, db: str = None):
+        # Jika url/db tidak dioper, gunakan fallback dari config
+        self.url = (url or settings.ODOO_URL).rstrip("/")
+        self.db = db or settings.ODOO_DB
+        
         self.common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
         self.models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+
+    @classmethod
+    def get_client(cls, tenant: SchoolTenant) -> "OdooRPCClient":
+        """Factory method untuk instansiasi OdooRPCClient berdasarkan data Tenant"""
+        return cls(
+            url=tenant.odoo_url,
+            db=tenant.odoo_db
+        )
 
     def execute_kw(
         self, 
@@ -19,15 +30,11 @@ class OdooRPCClient:
         kwargs: dict = None,
         use_sudo: bool = False
     ):
-        """
-        Meneruskan panggilan ke Odoo ORM.
-        Jika use_sudo=True, gunakan kredensial ODOO_ADMIN untuk bypass ACL & Record Rules Odoo.
-        """
         if kwargs is None:
             kwargs = {}
-
         exec_uid = uid
         exec_pass = password
+
         if use_sudo and settings.ODOO_ADMIN_USER and settings.ODOO_ADMIN_PASS:
             try:
                 admin_uid = self.common.authenticate(
@@ -54,14 +61,12 @@ class OdooRPCClient:
         order: str = None,
         use_sudo: bool = False
     ) -> List[Dict[str, Any]]:
-        """Query search_read."""
         kwargs = {
             'fields': fields or [],
             'limit': limit
         }
         if order:
             kwargs['order'] = order
-
         return self.execute_kw(
             uid=uid,
             password=password,
@@ -86,10 +91,10 @@ class OdooRPCClient:
         )
 
     def create(
-        self,
-        uid: int,
-        password: str,
-        model: str,
+        self, 
+        uid: int, 
+        password: str, 
+        model: str, 
         values: dict,
         use_sudo: bool = False
     ) -> int:

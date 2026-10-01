@@ -7,6 +7,8 @@ import 'auth/repositories/auth_repository.dart';
 import 'auth/viewmodel/auth_viewmodel.dart';
 
 import 'profile/viewmodel/profile_viewmodel.dart';
+import 'profile/services/profile_service.dart';
+import 'profile/repositories/profile_repository.dart';
 
 import 'kehadiran/local/attendance_local_storage.dart';
 import 'kehadiran/services/attendance_service.dart';
@@ -72,7 +74,17 @@ List<SingleChildWidget> getAppProviders(String baseUrl) {
           previous ?? AuthViewModel(repository: repo),
     ),
 
-    ChangeNotifierProvider<ProfileViewModel>(create: (_) => ProfileViewModel()),
+    Provider<ProfileService>(create: (_) => ProfileService(baseUrl: baseUrl)),
+    ProxyProvider<ProfileService, ProfileRepository>(
+      update: (_, service, _) => ProfileRepository(apiService: service),
+    ),
+    ChangeNotifierProxyProvider<ProfileRepository, ProfileViewModel>(
+      create: (context) => ProfileViewModel(
+        repository: Provider.of<ProfileRepository>(context, listen: false),
+      ),
+      update: (_, repository, previous) =>
+          previous ?? ProfileViewModel(repository: repository),
+    ),
 
     Provider<AttendanceService>(
       create: (_) => AttendanceService(baseUrl: baseUrl),

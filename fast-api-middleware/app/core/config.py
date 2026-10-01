@@ -9,15 +9,19 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Middleware Odoo RPC"
     APP_ENV: str = "development"
     CORS_ALLOW_ORIGINS: str = ""
-    
-    ODOO_HOST: str
-    ODOO_DB: str
+
+    # Database PostgreSQL khusus Middleware (Tenant Registry)
+    DATABASE_URL: str = "postgresql://user:password@localhost:5432/middleware_db"
+
+    # Default/Fallback Odoo Config (Opsional jika tenant tidak spesifik)
+    ODOO_HOST: str = "localhost"
+    ODOO_DB: str = "odoo_db"
     ODOO_SCHEME: str = "http"
     ODOO_PORT: int = 8069
     ODOO_ADMIN_USER: str = "admin"
     ODOO_ADMIN_PASS: str = ""
     ODOO_FILESTORE_PATH: str = ""
-    
+
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 30
@@ -45,24 +49,24 @@ if settings.APP_ENV.lower() == "production":
     if settings.ODOO_ADMIN_PASS in {"", "admin_password_here"}:
         raise ValueError("ODOO_ADMIN_PASS production harus diisi dengan secret yang valid")
 
-def get_attachment_base64(store_fname: str) -> str | None:
-    """Membaca file gambar dari Odoo Filestore dan mengonversinya ke Base64"""
+
+def get_attachment_base64(store_fname: str, odoo_db: str = None) -> str | None:
+    """Membaca file gambar dari Odoo Filestore berdasarkan nama DB Tenant"""
     if not store_fname or not settings.ODOO_FILESTORE_PATH:
         return None
-
     try:
-        # Normalisasi path sesuai OS
         clean_store_fname = os.path.normpath(store_fname)
         base_filestore = os.path.normpath(settings.ODOO_FILESTORE_PATH)
-
-        # Coba path dengan DB name
-        file_path = os.path.join(base_filestore, settings.ODOO_DB, clean_store_fname)
         
+        # Gunakan odoo_db spesifik dari tenant jika ada
+        target_db = odoo_db or settings.ODOO_DB
+        file_path = os.path.join(base_filestore, target_db, clean_store_fname)
+
         if os.path.exists(file_path) and os.path.isfile(file_path):
             with open(file_path, "rb") as image_file:
                 encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
                 return f"data:image/png;base64,{encoded_string}"
     except Exception as e:
         logger.error(f"[config] Gagal membaca file fisik: {e}")
-    
+
     return None

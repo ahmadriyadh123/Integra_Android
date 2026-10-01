@@ -6,8 +6,11 @@ import 'package:http/http.dart' as http;
 
 class ProfileService {
   final String baseUrl;
+  final http.Client? _client;
+  final Map<String, Uint8List> _profileImageCache = {};
+  final Map<String, Future<Uint8List>> _pendingProfileImages = {};
 
-  ProfileService({required this.baseUrl});
+  ProfileService({required this.baseUrl, http.Client? client}) : _client = client;
 
   Future<Map<String, dynamic>> getMyProfile(String token) async {
     try {
@@ -43,17 +46,27 @@ class ProfileService {
     }
   }
 
-  Future<Uint8List> getProfileImage(String token, int partnerId) async {
-    final response = await http
-        .get(
-          Uri.parse('$baseUrl/profile/image/$partnerId'),
-          headers: {'Authorization': 'Bearer $token'},
-        )
-        .timeout(const Duration(seconds: 15));
+  Future<Uint8List> getProfileImage(String token, int partnerId) {
+    final cacheKey = '$partnerId:$token';
+    final cachedImage = _profileImageCache[cacheKey];
+    if (cachedImage != null) return Future.value(cachedImage);
 
-    if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-      return response.bodyBytes;
-    }
-    throw Exception('Foto profil tidak ditemukan');
+    return _pendingProfileImages.putIfAbsent(cacheKey, () async {
+      try {
+        final uri = Uri.parse('$baseUrl/profile/image/$partnerId');
+        final headers = {'Authorization': 'Bearer $token'};
+        final request = _client?.get(uri, headers: headers) ??
+            http.get(uri, headers: headers);
+        final response = await request.timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          _profileImageCache[cacheKey] = response.bodyBytes;
+          return response.bodyBytes;
+        }
+        throw Exception('Foto profil tidak ditemukan');
+      } finally {
+        _pendingProfileImages.remove(cacheKey);
+      }
+    });
   }
 }

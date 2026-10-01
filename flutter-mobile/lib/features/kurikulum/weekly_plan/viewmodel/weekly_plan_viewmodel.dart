@@ -41,12 +41,15 @@ class WeeklyPlanViewModel extends ChangeNotifier {
   Uint8List? get pdfBytes => _pdfBytes;
 
   // Fetch List
-  Future<void> fetchList(String token) async {
+  Future<void> fetchList(String token, {bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      _items = await repository.getWeeklyPlanList(token);
+      _items = await repository.getWeeklyPlanList(
+        token,
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 
 import 'models/weekly_plan_model.dart';
@@ -16,12 +17,12 @@ class WeeklyPlanScreen extends StatefulWidget {
 }
 
 class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
-  static const Color primaryTeal  = Color(0xFF059669);
-  static const Color darkSlate    = Color(0xFF0F172A);
-  static const Color bgSlate      = Color(0xFFF8FAFC);
-  static const Color textSlate    = Color(0xFF475569);
-  static const Color textMuted    = Color(0xFF94A3B8);
-  static const Color borderColor  = Color(0xFFE2E8F0);
+  static const Color primaryTeal = Color(0xFF059669);
+  static const Color darkSlate = Color(0xFF0F172A);
+  static const Color bgSlate = Color(0xFFF8FAFC);
+  static const Color textSlate = Color(0xFF475569);
+  static const Color textMuted = Color(0xFF94A3B8);
+  static const Color borderColor = Color(0xFFE2E8F0);
 
   @override
   void initState() {
@@ -55,18 +56,19 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
         builder: (context, vm, _) {
           if (vm.isLoading && !vm.hasData) {
             return const Center(
-                child: CircularProgressIndicator(color: primaryTeal));
+              child: CircularProgressIndicator(color: primaryTeal),
+            );
           }
-          return RefreshIndicator(
+          return AppRefreshIndicator(
             color: primaryTeal,
-            onRefresh: () => vm.fetchList(widget.authToken),
+            onRefresh: () => vm.fetchList(widget.authToken, forceRefresh: true),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: vm.errorMessage != null
                   ? _buildError(vm)
                   : !vm.hasData
-                      ? _buildEmpty()
-                      : _buildListBody(vm),
+                  ? _buildEmpty()
+                  : _buildListBody(vm),
             ),
           );
         },
@@ -96,8 +98,8 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
     final statusLabel = item.status == 'approved'
         ? 'Disetujui'
         : item.status == 'submitted'
-            ? 'Diajukan'
-            : 'Draft';
+        ? 'Diajukan'
+        : 'Draft';
 
     return Container(
       decoration: BoxDecoration(
@@ -116,9 +118,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
         borderRadius: BorderRadius.circular(15),
         child: Container(
           decoration: const BoxDecoration(
-            border: Border(
-              left: BorderSide(color: primaryTeal, width: 4),
-            ),
+            border: Border(left: BorderSide(color: primaryTeal, width: 4)),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -130,8 +130,11 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.school_rounded,
-                          size: 14, color: primaryTeal),
+                      const Icon(
+                        Icons.school_rounded,
+                        size: 14,
+                        color: primaryTeal,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         item.tahunAjaran,
@@ -145,7 +148,9 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -177,13 +182,15 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
               // Semester & Pekan
               Row(
                 children: [
-                  const Icon(Icons.date_range_rounded,
-                      size: 13, color: Color(0xFF94A3B8)),
+                  const Icon(
+                    Icons.date_range_rounded,
+                    size: 13,
+                    color: Color(0xFF94A3B8),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${item.semester}  •  Pekan: ${item.pekan}',
-                    style: const TextStyle(
-                        fontSize: 12, color: textSlate),
+                    style: const TextStyle(fontSize: 12, color: textSlate),
                   ),
                 ],
               ),
@@ -193,14 +200,16 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.bookmark_outline_rounded,
-                        size: 13, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.bookmark_outline_rounded,
+                      size: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         item.tema,
-                        style: const TextStyle(
-                            fontSize: 12, color: textSlate),
+                        style: const TextStyle(fontSize: 12, color: textSlate),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -222,27 +231,23 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     MaterialPageRoute(
                       builder: (_) => WeeklyPlanDetailScreen(
                         planId: item.id,
-                        title:
-                            '${item.kelas} — Pekan ${item.pekan}',
+                        title: '${item.kelas} — Pekan ${item.pekan}',
                         authToken: widget.authToken,
                       ),
                     ),
                   ),
-                  icon: const Icon(
-                      Icons.picture_as_pdf_rounded,
-                      size: 16),
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                   label: const Text(
                     'Lihat Weekly Plan',
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: primaryTeal,
                     side: const BorderSide(color: primaryTeal),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -263,22 +268,29 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded,
-              size: 56, color: Color(0xFFCBD5E1)),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 56,
+            color: Color(0xFFCBD5E1),
+          ),
           const SizedBox(height: 16),
-          const Text('Gagal Memuat Data',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate)),
+          const Text(
+            'Gagal Memuat Data',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(vm.errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 13, color: textSlate)),
+          Text(
+            vm.errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: textSlate),
+          ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchList(widget.authToken),
+            onPressed: () => vm.fetchList(widget.authToken, forceRefresh: true),
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text('Coba Lagi'),
             style: ElevatedButton.styleFrom(
@@ -286,7 +298,8 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -304,14 +317,16 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.description_outlined,
-              size: 56, color: Color(0xFFCBD5E1)),
+          Icon(Icons.description_outlined, size: 56, color: Color(0xFFCBD5E1)),
           SizedBox(height: 16),
-          Text('Belum Ada Weekly Plan',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate)),
+          Text(
+            'Belum Ada Weekly Plan',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
+          ),
           SizedBox(height: 8),
           Text(
             'Weekly Plan untuk kelas Anda belum tersedia.',

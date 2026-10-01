@@ -1,3 +1,22 @@
-# Database module tidak digunakan karena middleware ini menggunakan Odoo RPC untuk komunikasi data
-# Gunakan OdooRPCClient dari app.core.odoo_client sebagai gantinya
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from app.core.config import settings
 
+# Engine untuk Database Tenant Registry Middleware
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_db():
+    """Dependency Injection untuk sesi Database PostgreSQL Pusat"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

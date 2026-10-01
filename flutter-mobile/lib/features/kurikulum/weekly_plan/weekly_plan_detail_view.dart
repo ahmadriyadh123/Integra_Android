@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'viewmodel/weekly_plan_viewmodel.dart';
@@ -24,8 +25,8 @@ class WeeklyPlanDetailScreen extends StatefulWidget {
 
 class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   static const Color primaryTeal = Color(0xFF059669);
-  static const Color darkSlate   = Color(0xFF0F172A);
-  static const Color bgSlate     = Color(0xFFF8FAFC);
+  static const Color darkSlate = Color(0xFF0F172A);
+  static const Color bgSlate = Color(0xFFF8FAFC);
   static const Color borderColor = Color(0xFFE2E8F0);
 
   Uint8List? _generatedPdfBytes;
@@ -37,9 +38,9 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WeeklyPlanViewModel>().fetchPdfFile(
-            widget.planId,
-            widget.authToken,
-          );
+        widget.planId,
+        widget.authToken,
+      );
     });
   }
 
@@ -102,9 +103,7 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
 
           // 3. Empty State
           if (vm.pdfBytes == null) {
-            return const Center(
-              child: Text('Dokumen PDF tidak ditemukan.'),
-            );
+            return const Center(child: Text('Dokumen PDF tidak ditemukan.'));
           }
 
           // 4. Success State (Render PDF Bytes dengan Tools Unduh, Zoom, & Halaman)
@@ -119,7 +118,7 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
 
   // Tipe parameter disesuaikan dari WeeklyPlanViewModel menjadi String errorMessage
   Widget _buildError(String errorMessage, WeeklyPlanViewModel vm) {
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       color: primaryTeal,
       onRefresh: () => vm.fetchPdfFile(widget.planId, widget.authToken),
       child: SingleChildScrollView(
@@ -133,11 +132,19 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFCBD5E1)),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 56,
+                color: Color(0xFFCBD5E1),
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Gagal Memuat PDF',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: darkSlate),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: darkSlate,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -147,14 +154,17 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => vm.fetchPdfFile(widget.planId, widget.authToken),
+                onPressed: () =>
+                    vm.fetchPdfFile(widget.planId, widget.authToken),
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text('Coba Lagi'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryTeal,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],

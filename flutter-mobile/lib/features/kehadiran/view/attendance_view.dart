@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/attendance_viewmodel.dart';
@@ -10,10 +11,7 @@ import '../widgets/attendance_summary_section.dart';
 class AttendanceView extends StatefulWidget {
   final String authToken;
 
-  const AttendanceView({
-    super.key,
-    required this.authToken,
-  });
+  const AttendanceView({super.key, required this.authToken});
 
   @override
   State<AttendanceView> createState() => _AttendanceViewState();
@@ -40,16 +38,17 @@ class _AttendanceViewState extends State<AttendanceView> {
           builder: (context, viewModel, _) {
             if (viewModel.isLoading) {
               return const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF0284C7),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF0284C7)),
               );
             }
 
             if (viewModel.errorMessage != null) {
-              return RefreshIndicator(
+              return AppRefreshIndicator(
                 color: const Color(0xFF0284C7),
-                onRefresh: () => viewModel.fetchAttendance(widget.authToken),
+                onRefresh: () => viewModel.fetchAttendance(
+                  widget.authToken,
+                  forceRefresh: true,
+                ),
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: Container(
@@ -78,8 +77,10 @@ class _AttendanceViewState extends State<AttendanceView> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () =>
-                              viewModel.fetchAttendance(widget.authToken),
+                          onPressed: () => viewModel.fetchAttendance(
+                            widget.authToken,
+                            forceRefresh: true,
+                          ),
                           icon: const Icon(Icons.refresh_rounded, size: 18),
                           label: const Text('Coba Lagi'),
                           style: ElevatedButton.styleFrom(
@@ -97,18 +98,19 @@ class _AttendanceViewState extends State<AttendanceView> {
               );
             }
 
-            return RefreshIndicator(
+            return AppRefreshIndicator(
               color: const Color(0xFF0284C7),
-              onRefresh: () => viewModel.fetchAttendance(widget.authToken),
+              onRefresh: () => viewModel.fetchAttendance(
+                widget.authToken,
+                forceRefresh: true,
+              ),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AttendanceHeader(
-                      showBackButton: Navigator.canPop(context),
-                    ),
+                    AttendanceHeader(showBackButton: Navigator.canPop(context)),
                     const SizedBox(height: 16),
                     AttendanceMonthFilter(
                       activeMonthLabel: viewModel.activeMonthLabel,
@@ -149,9 +151,8 @@ class _AttendanceViewState extends State<AttendanceView> {
                             size: 20,
                             color: const Color(0xFF0284C7),
                           ),
-                          onPressed: () => setState(
-                            () => _showCalendar = !_showCalendar,
-                          ),
+                          onPressed: () =>
+                              setState(() => _showCalendar = !_showCalendar),
                         ),
                       ],
                     ),

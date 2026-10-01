@@ -8,8 +8,18 @@ class AttendanceViewModel extends ChangeNotifier {
   AttendanceViewModel({required this.repository});
 
   static const List<String> _monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
   ];
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -25,7 +35,9 @@ class AttendanceViewModel extends ChangeNotifier {
   List<String> get availableMonths {
     final year = _allRecords.isEmpty
         ? DateTime.now().year
-        : _allRecords.map((record) => record.date.year).reduce((a, b) => a > b ? a : b);
+        : _allRecords
+              .map((record) => record.date.year)
+              .reduce((a, b) => a > b ? a : b);
     return _monthNames.map((month) => '$month $year').toList();
   }
 
@@ -36,13 +48,19 @@ class AttendanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchAttendance(String token) async {
+  Future<void> fetchAttendance(
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _allRecords = await repository.getAttendanceHistory(token);
+      _allRecords = await repository.getAttendanceHistory(
+        token,
+        forceRefresh: forceRefresh,
+      );
       _syncActiveMonth();
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -61,7 +79,8 @@ class AttendanceViewModel extends ChangeNotifier {
     if (_activeMonthLabel == null || !months.contains(_activeMonthLabel)) {
       if (_allRecords.isNotEmpty) {
         final latestRecord = _allRecords.reduce(
-          (current, record) => record.date.isAfter(current.date) ? record : current,
+          (current, record) =>
+              record.date.isAfter(current.date) ? record : current,
         );
         _activeMonthLabel = monthLabelFor(latestRecord.date);
       } else {
@@ -70,8 +89,7 @@ class AttendanceViewModel extends ChangeNotifier {
     }
   }
 
-  String monthLabelFor(DateTime date) =>
-      '${getMonthName(date)} ${date.year}';
+  String monthLabelFor(DateTime date) => '${getMonthName(date)} ${date.year}';
 
   DateTime? get activeMonthDate {
     final label = _activeMonthLabel;
@@ -103,8 +121,9 @@ class AttendanceViewModel extends ChangeNotifier {
   Map<DateTime, List<AttendanceRecord>> get groupedWeeks {
     final Map<DateTime, List<AttendanceRecord>> weeks = {};
     for (var record in filteredRecords) {
-      final monday =
-          record.date.subtract(Duration(days: record.date.weekday - 1));
+      final monday = record.date.subtract(
+        Duration(days: record.date.weekday - 1),
+      );
       final weekStart = DateTime(monday.year, monday.month, monday.day);
 
       if (!weeks.containsKey(weekStart)) {
@@ -138,7 +157,10 @@ class AttendanceViewModel extends ChangeNotifier {
 
   List<Widget> generateHeatmapCells() {
     final monthDate = activeMonthDate ?? DateTime.now();
-    final daysInMonth = DateUtils.getDaysInMonth(monthDate.year, monthDate.month);
+    final daysInMonth = DateUtils.getDaysInMonth(
+      monthDate.year,
+      monthDate.month,
+    );
     final recordsByDay = <int, AttendanceRecord>{};
     for (final record in filteredRecords) {
       recordsByDay[record.date.day] = record;

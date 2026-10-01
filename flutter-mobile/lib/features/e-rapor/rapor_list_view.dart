@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/rapor_viewmodel.dart';
 import 'models/rapor_model.dart';
@@ -8,23 +9,20 @@ import '../widgets/shared_header.dart';
 class RaporListViewPage extends StatefulWidget {
   final String authToken;
 
-  const RaporListViewPage({
-    super.key,
-    required this.authToken,
-  });
+  const RaporListViewPage({super.key, required this.authToken});
 
   @override
   State<RaporListViewPage> createState() => _RaporListViewPageState();
 }
 
 class _RaporListViewPageState extends State<RaporListViewPage> {
-  static const Color primaryTeal     = Color(0xFF059669);
-  static const Color deepTeal        = Color(0xFF064E3B);
-  static const Color warmAmber       = Color(0xFFF59E0B);
-  static const Color darkSlate       = Color(0xFF0F172A);
+  static const Color primaryTeal = Color(0xFF059669);
+  static const Color deepTeal = Color(0xFF064E3B);
+  static const Color warmAmber = Color(0xFFF59E0B);
+  static const Color darkSlate = Color(0xFF0F172A);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
-  static const Color textSlate       = Color(0xFF475569);
-  static const Color borderSlate     = Color(0xFFE2E8F0);
+  static const Color textSlate = Color(0xFF475569);
+  static const Color borderSlate = Color(0xFFE2E8F0);
 
   @override
   void initState() {
@@ -56,9 +54,9 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
 
   Future<void> _onRefresh() async {
     await context.read<RaporViewModel>().fetchReportList(
-          widget.authToken,
-          forceRefresh: true,
-        );
+      widget.authToken,
+      forceRefresh: true,
+    );
   }
 
   @override
@@ -80,24 +78,24 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
           child: Container(color: borderSlate, height: 1),
         ),
       ),
-      body: RefreshIndicator(
+      body: AppRefreshIndicator(
         color: primaryTeal,
         onRefresh: _onRefresh,
         child: vm.isLoading && vm.reports.isEmpty
             ? const Center(child: CircularProgressIndicator(color: primaryTeal))
             : vm.errorMessage != null
-                ? _buildError(vm)
-                : vm.reports.isEmpty
-                    ? _buildEmpty()
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: vm.reports.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(height: 14),
-                        itemBuilder: (context, i) => i == 0
-                            ? _buildIntro(vm.reports.length)
-                            : _buildCard(context, vm.reports[i - 1]),
-                      ),
+            ? _buildError(vm)
+            : vm.reports.isEmpty
+            ? _buildEmpty()
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: vm.reports.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
+                itemBuilder: (context, i) => i == 0
+                    ? _buildIntro(vm.reports.length)
+                    : _buildCard(context, vm.reports[i - 1]),
+              ),
       ),
     );
   }
@@ -130,7 +128,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
               color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.auto_stories_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -157,7 +159,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
               ],
             ),
           ),
-          const Icon(Icons.insights_rounded, color: Color(0xFFFDE68A), size: 24),
+          const Icon(
+            Icons.insights_rounded,
+            color: Color(0xFFFDE68A),
+            size: 24,
+          ),
         ],
       ),
     );
@@ -192,7 +198,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.school_rounded, size: 14, color: primaryTeal),
+                      const Icon(
+                        Icons.school_rounded,
+                        size: 14,
+                        color: primaryTeal,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         report.academicYear,
@@ -206,7 +216,10 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF7ED),
                       borderRadius: BorderRadius.circular(10),
@@ -234,7 +247,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.class_outlined, size: 13, color: Color(0xFF94A3B8)),
+                  const Icon(
+                    Icons.class_outlined,
+                    size: 13,
+                    color: Color(0xFF94A3B8),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     report.className,
@@ -258,7 +275,9 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
                     backgroundColor: deepTeal,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
@@ -282,11 +301,19 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: Color(0xFFCBD5E1),
+            ),
             const SizedBox(height: 16),
             const Text(
               'Gagal Memuat Data',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: darkSlate),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: darkSlate,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -321,7 +348,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
             SizedBox(height: 16),
             Text(
               'Belum Ada E-Rapor',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: darkSlate),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: darkSlate,
+              ),
             ),
             SizedBox(height: 8),
             Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 
 import 'viewmodel/tagihan_viewmodel.dart';
@@ -18,11 +19,11 @@ class TagihanPage extends StatefulWidget {
 }
 
 class _TagihanPageState extends State<TagihanPage> {
-  static const Color primaryTeal  = Color(0xFF059669);
-  static const Color darkSlate    = Color(0xFF0F172A);
-  static const Color bgSlate      = Color(0xFFF8FAFC);
-  static const Color textSlate    = Color(0xFF475569);
-  static const Color borderSlate  = Color(0xFFE2E8F0);
+  static const Color primaryTeal = Color(0xFF059669);
+  static const Color darkSlate = Color(0xFF0F172A);
+  static const Color bgSlate = Color(0xFFF8FAFC);
+  static const Color textSlate = Color(0xFF475569);
+  static const Color borderSlate = Color(0xFFE2E8F0);
 
   @override
   void initState() {
@@ -51,8 +52,19 @@ class _TagihanPageState extends State<TagihanPage> {
     try {
       final dt = DateTime.parse(raw);
       const months = [
-        '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        '',
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
       ];
       return '${dt.day} ${months[dt.month]} ${dt.year}';
     } catch (_) {
@@ -72,16 +84,17 @@ class _TagihanPageState extends State<TagihanPage> {
               child: CircularProgressIndicator(color: primaryTeal),
             );
           }
-          return RefreshIndicator(
+          return AppRefreshIndicator(
             color: primaryTeal,
-            onRefresh: () => vm.fetchTagihan(widget.authToken, forceRefresh: true),
+            onRefresh: () =>
+                vm.fetchTagihan(widget.authToken, forceRefresh: true),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: vm.errorMessage != null
                   ? _buildError(vm)
                   : !vm.hasData
-                      ? _buildEmpty()
-                      : _buildContentBody(vm),
+                  ? _buildEmpty()
+                  : _buildContentBody(vm),
             ),
           );
         },
@@ -179,21 +192,30 @@ class _TagihanPageState extends State<TagihanPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded,
-              size: 56, color: Color(0xFFCBD5E1)),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 56,
+            color: Color(0xFFCBD5E1),
+          ),
           const SizedBox(height: 16),
-          const Text('Gagal Memuat Tagihan',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate)),
+          const Text(
+            'Gagal Memuat Tagihan',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(vm.errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: textSlate)),
+          Text(
+            vm.errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: textSlate),
+          ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchTagihan(widget.authToken),
+            onPressed: () =>
+                vm.fetchTagihan(widget.authToken, forceRefresh: true),
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text('Coba Lagi'),
             style: ElevatedButton.styleFrom(
@@ -201,7 +223,8 @@ class _TagihanPageState extends State<TagihanPage> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -219,17 +242,21 @@ class _TagihanPageState extends State<TagihanPage> {
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.receipt_long_rounded,
-              size: 56, color: Color(0xFFCBD5E1)),
+          Icon(Icons.receipt_long_rounded, size: 56, color: Color(0xFFCBD5E1)),
           SizedBox(height: 16),
-          Text('Belum Ada Tagihan',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: darkSlate)),
+          Text(
+            'Belum Ada Tagihan',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
+          ),
           SizedBox(height: 8),
-          Text('Tidak ada tagihan yang tersedia saat ini.',
-              style: TextStyle(fontSize: 13, color: textSlate)),
+          Text(
+            'Tidak ada tagihan yang tersedia saat ini.',
+            style: TextStyle(fontSize: 13, color: textSlate),
+          ),
         ],
       ),
     );

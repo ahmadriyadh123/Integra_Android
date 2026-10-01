@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -64,16 +65,17 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
             );
           }
 
-          return RefreshIndicator(
+          return AppRefreshIndicator(
             color: primaryGreen,
-            onRefresh: () => vm.fetchCalendars(widget.authToken),
+            onRefresh: () =>
+                vm.fetchCalendars(widget.authToken, forceRefresh: true),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: vm.errorMessage != null
                   ? _buildError(vm)
                   : !vm.hasData
-                      ? _buildEmpty()
-                      : _buildContentBody(vm.calendars),
+                  ? _buildEmpty()
+                  : _buildContentBody(vm.calendars),
             ),
           );
         },
@@ -140,9 +142,7 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
         borderRadius: BorderRadius.circular(15),
         child: Container(
           decoration: const BoxDecoration(
-            border: Border(
-              left: BorderSide(color: primaryGreen, width: 4),
-            ),
+            border: Border(left: BorderSide(color: primaryGreen, width: 4)),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -187,8 +187,11 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
               // Semester
               Row(
                 children: [
-                  const Icon(Icons.date_range_rounded,
-                      size: 13, color: textMuted),
+                  const Icon(
+                    Icons.date_range_rounded,
+                    size: 13,
+                    color: textMuted,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     item.semester,
@@ -242,15 +245,19 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded,
-              size: 56, color: Color(0xFFCBD5E1)),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 56,
+            color: Color(0xFFCBD5E1),
+          ),
           const SizedBox(height: 16),
           const Text(
             'Gagal Memuat Data',
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: darkSlate),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -260,7 +267,8 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchCalendars(widget.authToken),
+            onPressed: () =>
+                vm.fetchCalendars(widget.authToken, forceRefresh: true),
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text('Coba Lagi'),
             style: ElevatedButton.styleFrom(
@@ -268,7 +276,8 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -286,15 +295,19 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.calendar_today_rounded,
-              size: 56, color: Color(0xFFCBD5E1)),
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 56,
+            color: Color(0xFFCBD5E1),
+          ),
           SizedBox(height: 16),
           Text(
             'Belum Ada Kalender',
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: darkSlate),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkSlate,
+            ),
           ),
           SizedBox(height: 8),
           Text(

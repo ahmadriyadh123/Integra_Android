@@ -15,13 +15,19 @@ class CbtViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> _exams = [];
   List<Map<String, dynamic>> get exams => _exams;
 
-  Future<void> fetchCbtSchedules(String token, {bool forceRefresh = false}) async {
+  Future<void> fetchCbtSchedules(
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _exams = await repository.getCbtSchedules(token);
+      _exams = await repository.getCbtSchedules(
+        token,
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -36,13 +42,21 @@ class CbtViewModel extends ChangeNotifier {
     _isLoading = false;
   }
 
-  Future<bool> verifyToken(String token, int jadwalId, String tokenInput) async {
+  Future<bool> verifyToken(
+    String token,
+    int jadwalId,
+    String tokenInput,
+  ) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final isSuccess = await repository.verifyToken(token, jadwalId, tokenInput);
+      final isSuccess = await repository.verifyToken(
+        token,
+        jadwalId,
+        tokenInput,
+      );
       return isSuccess;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -53,7 +67,10 @@ class CbtViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> getExamQuestions(String token, int jadwalId) async {
+  Future<Map<String, dynamic>> getExamQuestions(
+    String token,
+    int jadwalId,
+  ) async {
     try {
       return await repository.getExamQuestions(token, jadwalId);
     } catch (e) {
@@ -74,4 +91,3 @@ class CbtViewModel extends ChangeNotifier {
     }
   }
 }
-

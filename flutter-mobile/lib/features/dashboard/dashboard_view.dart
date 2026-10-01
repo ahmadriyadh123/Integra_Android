@@ -18,6 +18,7 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   int _currentIndex = 0;
+  bool _isSubPageOpen = false;
   bool _isExitDialogOpen = false;
 
   // Navigator key untuk nested navigation di dalam body
@@ -169,15 +170,18 @@ class _DashboardViewState extends State<DashboardView> {
       onPopInvokedWithResult: _handlePopScope,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        // Nested Navigator untuk body -> bottom nav selalu tampil
+        // Nested Navigator untuk halaman di dalam body.
         body: Navigator(
           key: _navigatorKey,
+          observers: [_DashboardNavigatorObserver(_onRouteCountChanged)],
           onGenerateRoute: (settings) => MaterialPageRoute(
             builder: (_) => _buildTabBody(),
             settings: settings,
           ),
         ),
-        bottomNavigationBar: Container(
+        bottomNavigationBar: _isSubPageOpen
+            ? null
+            : Container(
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(
@@ -220,8 +224,60 @@ class _DashboardViewState extends State<DashboardView> {
               ),
             ],
           ),
-        ),
+              ),
       ),
     );
+  }
+
+  void _onRouteCountChanged(bool hasSubPage) {
+    if (mounted && _isSubPageOpen != hasSubPage) {
+      setState(() => _isSubPageOpen = hasSubPage);
+    }
+  }
+}
+
+class _DashboardNavigatorObserver extends NavigatorObserver {
+  _DashboardNavigatorObserver(this.onRouteCountChanged);
+
+  final ValueChanged<bool> onRouteCountChanged;
+  final List<Route<dynamic>> _routes = [];
+
+  void _notifyRouteChange() {
+    onRouteCountChanged(
+      _routes.any((route) => route.settings.name == '/elearning/course-detail'),
+    );
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _routes.add(route);
+    _notifyRouteChange();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _routes.remove(route);
+    _notifyRouteChange();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    _routes.remove(route);
+    _notifyRouteChange();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    final oldIndex = oldRoute == null ? -1 : _routes.indexOf(oldRoute);
+    if (oldIndex >= 0 && newRoute != null) {
+      _routes[oldIndex] = newRoute;
+    } else if (newRoute != null) {
+      _routes.add(newRoute);
+    }
+    _notifyRouteChange();
   }
 }

@@ -56,6 +56,10 @@ def get_profile_image(
         return Response(
             content=image_bytes,
             media_type="image/jpeg",
+            headers={
+                "Cache-Control": "private, max-age=300",
+                "Vary": "Authorization",
+            },
         )
     except HTTPException:
         raise
@@ -104,4 +108,4 @@ def get_my_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil profil siswa dari Odoo: {str(e)}"
-        )
+        )

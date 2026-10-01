@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import 'viewmodel/buku_komunikasi_viewmodel.dart';
@@ -19,7 +20,7 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
   static const Color primaryTeal = Color(0xFF059669);
-  
+
   static const List<String> _monthOptions = [
     'Januari',
     'Februari',
@@ -71,10 +72,15 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     super.dispose();
   }
 
-  void _submitNote(int? lineId, String dayKey, String? month, String? week) async {
+  void _submitNote(
+    int? lineId,
+    String dayKey,
+    String? month,
+    String? week,
+  ) async {
     final token = context.read<AuthViewModel>().token;
     final noteText = _noteControllers[dayKey]!.text.trim();
-    
+
     if (noteText.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,16 +92,20 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
       return;
     }
 
-    final selectedWeekNum = week != null ? int.tryParse(week.replaceAll('Pekan ', '')) : 1;
+    final selectedWeekNum = week != null
+        ? int.tryParse(week.replaceAll('Pekan ', ''))
+        : 1;
 
-    final success = await context.read<BukuKomunikasiViewModel>().submitDailyNote(
-      token: token,
-      lineId: lineId ?? 0,
-      day: dayKey,
-      noteText: noteText,
-      month: month,
-      week: selectedWeekNum,
-    );
+    final success = await context
+        .read<BukuKomunikasiViewModel>()
+        .submitDailyNote(
+          token: token,
+          lineId: lineId ?? 0,
+          day: dayKey,
+          noteText: noteText,
+          month: month,
+          week: selectedWeekNum,
+        );
 
     if (mounted) {
       if (success) {
@@ -106,12 +116,11 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
           ),
         );
       } else {
-        final error = context.read<BukuKomunikasiViewModel>().errorMessage ?? 'Gagal menyimpan catatan';
+        final error =
+            context.read<BukuKomunikasiViewModel>().errorMessage ??
+            'Gagal menyimpan catatan';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
       }
     }
@@ -127,20 +136,23 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     final List<String> weeks = _weekOptions;
 
     final String? currentMonth = months.contains(_selectedMonth)
-      ? _selectedMonth
-      : (months.isNotEmpty ? months.first : null);
+        ? _selectedMonth
+        : (months.isNotEmpty ? months.first : null);
     final String? currentWeek = weeks.contains(_selectedWeek)
-      ? _selectedWeek
-      : weeks.first;
+        ? _selectedWeek
+        : weeks.first;
 
-    final selectedWeekNum = currentWeek != null ? int.tryParse(currentWeek.replaceAll('Pekan ', '')) : null;
+    final selectedWeekNum = currentWeek != null
+        ? int.tryParse(currentWeek.replaceAll('Pekan ', ''))
+        : null;
     final matchingLines = lines.where(
-          (l) => l.bulan.trim().toLowerCase() == currentMonth?.toLowerCase() &&
-              l.pekanKe == selectedWeekNum,
+      (l) =>
+          l.bulan.trim().toLowerCase() == currentMonth?.toLowerCase() &&
+          l.pekanKe == selectedWeekNum,
     );
     final DailyNoteLine? selectedLine = matchingLines.isNotEmpty
-      ? matchingLines.first
-      : null;
+        ? matchingLines.first
+        : null;
 
     final formKey = '${selectedLine?.id ?? 'empty'}|$currentMonth|$currentWeek';
     if (_lastFormKey != formKey) {
@@ -148,11 +160,21 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (selectedLine != null) {
-          _noteControllers['senin']!.text = selectedLine.senin == '-' ? '' : selectedLine.senin;
-          _noteControllers['selasa']!.text = selectedLine.selasa == '-' ? '' : selectedLine.selasa;
-          _noteControllers['rabu']!.text = selectedLine.rabu == '-' ? '' : selectedLine.rabu;
-          _noteControllers['kamis']!.text = selectedLine.kamis == '-' ? '' : selectedLine.kamis;
-          _noteControllers['jumat']!.text = selectedLine.jumat == '-' ? '' : selectedLine.jumat;
+          _noteControllers['senin']!.text = selectedLine.senin == '-'
+              ? ''
+              : selectedLine.senin;
+          _noteControllers['selasa']!.text = selectedLine.selasa == '-'
+              ? ''
+              : selectedLine.selasa;
+          _noteControllers['rabu']!.text = selectedLine.rabu == '-'
+              ? ''
+              : selectedLine.rabu;
+          _noteControllers['kamis']!.text = selectedLine.kamis == '-'
+              ? ''
+              : selectedLine.kamis;
+          _noteControllers['jumat']!.text = selectedLine.jumat == '-'
+              ? ''
+              : selectedLine.jumat;
         } else {
           for (final controller in _noteControllers.values) {
             controller.clear();
@@ -205,7 +227,7 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         showBackButton: true,
         onBack: () => Navigator.pop(context),
       ),
-      body: RefreshIndicator(
+      body: AppRefreshIndicator(
         color: primaryTeal,
         onRefresh: () async {
           final token = context.read<AuthViewModel>().token;
@@ -217,102 +239,121 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         child: vm.isLoading && detail == null
             ? const Center(child: CircularProgressIndicator())
             : vm.errorMessage != null && detail == null
-                ? SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Container(
-                      constraints: BoxConstraints(
-                        minHeight: MediaQuery.of(context).size.height * 0.7,
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height * 0.7,
+                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    vm.errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            : detail == null
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height * 0.7,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Data buku komunikasi tidak ditemukan untuk siswa ini',
+                  ),
+                ),
+              )
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (months.isNotEmpty && weeks.isNotEmpty) ...[
+                      MonthWeekFilter(
+                        selectedMonth: currentMonth!,
+                        selectedWeek: currentWeek!,
+                        months: months,
+                        weeks: weeks,
+                        onMonthChanged: (val) {
+                          setState(() => _selectedMonth = val);
+                        },
+                        onWeekChanged: (val) =>
+                            setState(() => _selectedWeek = val),
                       ),
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        vm.errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : detail == null
-                    ? SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Container(
-                          constraints: BoxConstraints(
-                            minHeight: MediaQuery.of(context).size.height * 0.7,
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'CATATAN PEKANAN',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: textSlate,
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                          alignment: Alignment.center,
-                          child: const Text('Data buku komunikasi tidak ditemukan untuk siswa ini'),
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (months.isNotEmpty && weeks.isNotEmpty) ...[
-                              MonthWeekFilter(
-                                selectedMonth: currentMonth!,
-                                selectedWeek: currentWeek!,
-                                months: months,
-                                weeks: weeks,
-                                onMonthChanged: (val) {
-                                  setState(() => _selectedMonth = val);
-                                },
-                                onWeekChanged: (val) => setState(() => _selectedWeek = val),
-                              ),
-                              const SizedBox(height: 20),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'CATATAN PEKANAN',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textSlate, letterSpacing: 0.5),
-                                  ),
-                                  Text(
-                                    '$currentMonth • $currentWeek',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primaryTeal),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: dailyNotes.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 14),
-                                itemBuilder: (context, index) {
-                                  final note = dailyNotes[index];
-                                  final dayKey = note['key'] as String;
-                                  final noteText = note['note'] as String;
-                                  final feedbackText = note['feedback'] as String;
+                          Text(
+                            '$currentMonth • $currentWeek',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: dailyNotes.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 14),
+                        itemBuilder: (context, index) {
+                          final note = dailyNotes[index];
+                          final dayKey = note['key'] as String;
+                          final noteText = note['note'] as String;
+                          final feedbackText = note['feedback'] as String;
 
-                                  return DailyNoteCard(
-                                    day: note['day'] as String,
-                                    date: '$currentWeek, $currentMonth',
-                                    savedNote: noteText != '-' ? noteText : null,
-                                    teacherFeedback: feedbackText != '-' ? feedbackText : null,
-                                    noteController: _noteControllers[dayKey]!,
-                                    noLineRecord: false, // Diset false agar tombol kirim selalu aktif
-                                    onSubmitNote: () => _submitNote(
-                                      selectedLine?.id,
-                                      dayKey,
-                                      currentMonth,
-                                      currentWeek,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ] else
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 40),
-                                  child: Text('Belum ada data catatan untuk kelas Anda.', style: TextStyle(color: Colors.grey)),
-                                ),
-                              ),
-                            const SizedBox(height: 24),
-                          ],
+                          return DailyNoteCard(
+                            day: note['day'] as String,
+                            date: '$currentWeek, $currentMonth',
+                            savedNote: noteText != '-' ? noteText : null,
+                            teacherFeedback: feedbackText != '-'
+                                ? feedbackText
+                                : null,
+                            noteController: _noteControllers[dayKey]!,
+                            noLineRecord:
+                                false, // Diset false agar tombol kirim selalu aktif
+                            onSubmitNote: () => _submitNote(
+                              selectedLine?.id,
+                              dayKey,
+                              currentMonth,
+                              currentWeek,
+                            ),
+                          );
+                        },
+                      ),
+                    ] else
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Text(
+                            'Belum ada data catatan untuk kelas Anda.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
                         ),
                       ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
       ),
     );
   }
