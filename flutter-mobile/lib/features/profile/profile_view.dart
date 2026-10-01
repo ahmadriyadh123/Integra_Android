@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
 import '../auth/view/login_view.dart';
-import '../auth/services/auth_service.dart';
 import 'change_password_view.dart';
 import 'viewmodel/profile_viewmodel.dart';
 import 'widgets/profile_header_card.dart';
@@ -185,7 +184,6 @@ class _ProfilTabState extends State<ProfilTab> {
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => LoginView(
-            initialBaseUrl: context.read<AuthService>().baseUrl,
             initialSchoolId: context.read<TenantApiConfig>().schoolId,
           ),
         ),

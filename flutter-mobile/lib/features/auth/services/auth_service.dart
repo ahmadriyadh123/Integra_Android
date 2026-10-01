@@ -10,6 +10,11 @@ class AuthService {
   AuthService({required this.baseUrl, required this.tenantApiConfig});
 
   Future<Map<String, dynamic>> login(String username, String password) async {
+    if (baseUrl.trim().isEmpty) {
+      throw Exception(
+        'Alamat API belum dikonfigurasi. Jalankan aplikasi dengan API_BASE_URL.',
+      );
+    }
     final url = Uri.parse('$baseUrl/auth/login');
 
     try {

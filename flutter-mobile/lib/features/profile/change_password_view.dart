@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth/view/login_view.dart';
-import '../auth/services/auth_service.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
 import '../../services/tenant_api_config.dart';
 
@@ -67,7 +66,6 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => LoginView(
-            initialBaseUrl: context.read<AuthService>().baseUrl,
             initialSchoolId: context.read<TenantApiConfig>().schoolId,
           ),
         ),

@@ -118,8 +118,12 @@ Configure `/health/live` as the liveness probe and `/health/ready` as the readin
 Build the mobile application against the HTTPS API domain, not a LAN IP or HTTP URL:
 
 ```powershell
-flutter build appbundle --release --dart-define=API_BASE_URL=https://api.example.com/api/v1
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.example.com/api/v1 --dart-define=SCHOOL_ID=1
 ```
+
+`SCHOOL_ID` must match the tenant row's `id` in the middleware `school_tenants` table. The app also accepts this ID on the login screen and saves it on the device.
+
+The login screen does not ask for the API address. For Android/iOS builds, set `API_BASE_URL` to the middleware address for that build; use a stable API domain so moving the backend only requires changing DNS or the reverse-proxy target. Flutter Web defaults to the current origin plus `/api/v1` when `API_BASE_URL` is omitted.
 
 Upload the resulting `build/app/outputs/bundle/release/app-release.aab` to Google Play. Existing app users must log in again after the production auth format change.
 
