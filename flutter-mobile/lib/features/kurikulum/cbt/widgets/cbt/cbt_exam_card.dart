@@ -32,6 +32,12 @@ class CbtExamCard extends StatelessWidget {
     final isDone = statusLower == 'selesai' || statusLower == 'done' || statusLower == 'completed';
     final accentColor = isActive ? primaryColor : (isDone ? successColor : Colors.grey);
 
+    String buttonText = 'Belum Dimulai';
+    if (isActive) {
+      buttonText = 'Mulai Ujian';
+    } else if (isDone) {
+      buttonText = 'Ujian Selesai';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -118,6 +124,8 @@ class CbtExamCard extends StatelessWidget {
                     onPressed: isActive || isDone ? onActionTap : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isActive || isDone ? primaryColor : const Color(0xFFCBD5E1),
+                      disabledBackgroundColor: const Color(0xFFE2E8F0),
+                      disabledForegroundColor: const Color(0xFF94A3B8),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),

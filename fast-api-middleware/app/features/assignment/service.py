@@ -27,7 +27,9 @@ class AssignmentService:
                 AttachmentResponse(
                     id=f['id'],
                     file_name=f['file_name'],
-                    file_url=f"/files/{f['id']}",
+                    file_url=(
+                        f"/assignments/{row['assignment_id']}/attachments/{f['id']}"
+                    ),
                     uploaded_by_role='teacher'
                 ) for f in teacher_files_raw
             ]
@@ -38,14 +40,17 @@ class AssignmentService:
                 student_files_raw = self.repository.get_attachments_by_model(
                     uid=uid,
                     password=password,
-                    res_model='op_assignment_sub_line', 
-                    res_id=row['submission_id']
+                    res_model='op.assignment.sub.line',
+                    res_id=row['submission_id'],
+                    use_sudo=True,
                 )
                 student_attachments = [
                     AttachmentResponse(
                         id=f['id'],
                         file_name=f['file_name'],
-                        file_url=f"/files/{f['id']}",
+                        file_url=(
+                            f"/assignments/{row['assignment_id']}/attachments/{f['id']}"
+                        ),
                         uploaded_by_role='student'
                     ) for f in student_files_raw
                 ]
@@ -81,6 +86,12 @@ class AssignmentService:
     def submit_assignment(
         self, uid: int, password: str, student_id: int, assignment_id: int, file_bytes: bytes, filename: str
     ):
+        self.repository.ensure_submission_allowed(
+            uid=uid,
+            password=password,
+            student_id=student_id,
+            assignment_id=assignment_id,
+        )
         return self.repository.submit_assignment(
             uid=uid,
             password=password,

@@ -3,6 +3,15 @@ from typing import List, Dict, Any
 from app.core.config import settings
 from app.core.models import SchoolTenant
 
+
+class OdooAccessError(PermissionError):
+    pass
+
+
+class OdooServiceAccountError(RuntimeError):
+    pass
+
+
 class OdooRPCClient:
     def __init__(self, url: str = None, db: str = None):
         # Jika url/db tidak dioper, gunakan fallback dari config
@@ -35,20 +44,38 @@ class OdooRPCClient:
         exec_uid = uid
         exec_pass = password
 
-        if use_sudo and settings.ODOO_ADMIN_USER and settings.ODOO_ADMIN_PASS:
+        if use_sudo:
+            if not settings.ODOO_ADMIN_USER or not settings.ODOO_ADMIN_PASS:
+                raise OdooServiceAccountError(
+                    "Operasi Odoo ini memerlukan ODOO_ADMIN_USER dan "
+                    "ODOO_ADMIN_PASS yang valid."
+                )
             try:
                 admin_uid = self.common.authenticate(
                     self.db, settings.ODOO_ADMIN_USER, settings.ODOO_ADMIN_PASS, {}
                 )
-                if admin_uid:
-                    exec_uid = admin_uid
-                    exec_pass = settings.ODOO_ADMIN_PASS
-            except Exception:
-                pass
+            except Exception as exc:
+                raise OdooServiceAccountError(
+                    "Autentikasi akun layanan Odoo gagal untuk operasi elevated."
+                ) from exc
+            if not admin_uid:
+                raise OdooServiceAccountError(
+                    "Autentikasi akun layanan Odoo ditolak untuk operasi elevated."
+                )
+            exec_uid = admin_uid
+            exec_pass = settings.ODOO_ADMIN_PASS
 
-        return self.models.execute_kw(
-            self.db, exec_uid, exec_pass, model, method, args, kwargs
-        )
+        try:
+            return self.models.execute_kw(
+                self.db, exec_uid, exec_pass, model, method, args, kwargs
+            )
+        except xmlrpc.client.Fault as exc:
+            if exc.faultCode == 4:
+                raise OdooAccessError(
+                    f"Odoo menolak akses ke {model}.{method}; periksa hak akses "
+                    "akun layanan Odoo."
+                ) from exc
+            raise
 
     def search_read(
         self, 

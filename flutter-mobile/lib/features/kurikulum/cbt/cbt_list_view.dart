@@ -137,16 +137,21 @@ class _CbtListViewState extends State<CbtListView> {
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final exam = filteredExams[index];
-                    final subject =
-                        exam['mata_pelajaran'] ?? exam['judul_ujian'] ?? '';
+                    final examTitle = (exam['judul_ujian'] ?? exam['name'] ?? '').toString();
                     final examType = exam['jenis_ujian'] ?? '';
                     final rentang = exam['rentang_waktu'] ?? '';
                     final duration = exam['durasi_menit'] ?? 0;
                     final questionCount = exam['jumlah_soal'] ?? 0;
-                    final status = exam['status'] ?? '';
+                    final status = (exam['status'] ?? '').toString();
+
+                    final statusLower = status.trim().toLowerCase();
+                    final isActive = statusLower == 'aktif' ||
+                        statusLower == 'active' ||
+                        statusLower == 'published' ||
+                        statusLower == 'ongoing';
 
                     return CbtExamCard(
-                      subject: subject.toString(),
+                      subject: examTitle,
                       examType: examType.toString(),
                       date: rentang.toString(),
                       time: '',
@@ -154,7 +159,7 @@ class _CbtListViewState extends State<CbtListView> {
                       questionCount:
                           int.tryParse(questionCount.toString()) ?? 0,
                       status: status.toString(),
-                      onActionTap: () {
+                      onActionTap: isActive ? () {
                         final token = Provider.of<AuthViewModel>(
                           context,
                           listen: false,
@@ -162,13 +167,13 @@ class _CbtListViewState extends State<CbtListView> {
                         Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                             builder: (_) => VerifikasiTokenView(
-                              subject: subject.toString(),
+                              subject: examTitle,
                               jadwalId: exam['id'] as int? ?? 0,
                               authToken: token,
                             ),
                           ),
                         );
-                      },
+                      } : () {},
                     );
                   },
                 ),

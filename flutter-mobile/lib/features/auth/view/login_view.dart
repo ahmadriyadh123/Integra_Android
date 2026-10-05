@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
+import '../services/auth_service.dart';
+import '../models/school_model.dart';
 import '../../dashboard/dashboard_view.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/custom_text_field.dart';
@@ -21,31 +23,60 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _schoolIdFieldKey = GlobalKey<FormFieldState<String>>();
-  late final TextEditingController _schoolIdController;
+  final _schoolMenuScrollController = ScrollController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  late String? _selectedSchoolId;
+  List<SchoolOption> _schools = const [];
+  bool _isLoadingSchools = true;
+  String? _schoolLoadError;
   bool _isPasswordVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _schoolIdController = TextEditingController(text: widget.initialSchoolId);
+    _selectedSchoolId = widget.initialSchoolId.isEmpty
+        ? null
+        : widget.initialSchoolId;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSchools());
   }
 
   @override
   void dispose() {
-    _schoolIdController.dispose();
+    _schoolMenuScrollController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSchools() async {
+    setState(() {
+      _isLoadingSchools = true;
+      _schoolLoadError = null;
+    });
+
+    try {
+      final schools = await context.read<AuthService>().fetchSchools();
+      if (!mounted) return;
+      setState(() {
+        _schools = schools;
+        _isLoadingSchools = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingSchools = false;
+        _schoolLoadError = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
   Future<void> _onLoginPressed() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    final schoolId = _schoolIdController.text.trim();
+    final schoolId = _selectedSchoolId;
+    if (schoolId == null) return;
     context.read<TenantApiConfig>().schoolId = schoolId;
     await widget.onSchoolIdSaved?.call(schoolId);
     if (!mounted) return;
@@ -126,27 +157,7 @@ class _LoginViewState extends State<LoginView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
-              key: _schoolIdFieldKey,
-              controller: _schoolIdController,
-              readOnly: widget.onSchoolIdSaved == null,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'ID sekolah',
-                hintText: 'Contoh: 1',
-                prefixIcon: Icon(Icons.business_outlined),
-                border: OutlineInputBorder(),
-                helperText: 'ID tenant yang diberikan administrator',
-              ),
-              validator: (value) {
-                final schoolId = int.tryParse(value?.trim() ?? '');
-                if (schoolId == null || schoolId <= 0) {
-                  return 'ID sekolah harus berupa angka positif';
-                }
-                return null;
-              },
-            ),
+            _buildSchoolDropdown(),
             const SizedBox(height: 20),
             CustomTextField(
               label: 'Email',
@@ -215,6 +226,217 @@ class _LoginViewState extends State<LoginView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSchoolDropdown() {
+    final selectedSchoolId =
+        _schools.any((school) => school.id == _selectedSchoolId)
+        ? _selectedSchoolId
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Nama sekolah',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FormField<String>(
+          key: ValueKey(selectedSchoolId),
+          initialValue: selectedSchoolId,
+          validator: (value) {
+            if (_schoolLoadError != null) {
+              return 'Daftar sekolah tidak tersedia';
+            }
+            if (value == null) return 'Silakan pilih sekolah';
+            return null;
+          },
+          builder: (field) => LayoutBuilder(
+            builder: (context, constraints) => MenuAnchor(
+              alignmentOffset: const Offset(0, 4),
+              style: MenuStyle(
+                padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                minimumSize: WidgetStatePropertyAll(
+                  Size(constraints.maxWidth, 0),
+                ),
+                maximumSize: WidgetStatePropertyAll(
+                  Size(constraints.maxWidth, 260),
+                ),
+                backgroundColor: const WidgetStatePropertyAll(Colors.white),
+                elevation: const WidgetStatePropertyAll(8),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              menuChildren: [
+                SizedBox(
+                  width: constraints.maxWidth,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 260),
+                    child: SingleChildScrollView(
+                      controller: _schoolMenuScrollController,
+                      primary: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: _schools
+                            .map((school) {
+                              final isSelected = school.id == field.value;
+                              return SizedBox(
+                                width: double.infinity,
+                                child: MenuItemButton(
+                                  style: MenuItemButton.styleFrom(
+                                    backgroundColor: isSelected
+                                        ? const Color(0xFFECFDF5)
+                                        : Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    field.didChange(school.id);
+                                    setState(
+                                      () => _selectedSchoolId = school.id,
+                                    );
+                                  },
+                                  child: Text(
+                                    school.name,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? const Color(0xFF047857)
+                                          : const Color(0xFF0F172A),
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              builder: (context, menuController, child) {
+                final isEnabled =
+                    widget.onSchoolIdSaved != null &&
+                    !_isLoadingSchools &&
+                    _schoolLoadError == null;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: isEnabled
+                      ? () {
+                          FocusScope.of(context).unfocus();
+                          if (menuController.isOpen) {
+                            menuController.close();
+                          } else {
+                            menuController.open();
+                          }
+                        }
+                      : null,
+                  child: InputDecorator(
+                    isEmpty: field.value == null,
+                    decoration: InputDecoration(
+                      errorText: field.errorText,
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      enabled: isEnabled,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF059669),
+                          width: 1.5,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFDC2626)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _schools
+                                    .where((school) => school.id == field.value)
+                                    .firstOrNull
+                                    ?.name ??
+                                (_isLoadingSchools
+                                    ? 'Memuat daftar sekolah...'
+                                    : 'Pilih sekolah'),
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: field.value == null
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (_isLoadingSchools)
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Icon(
+                            menuController.isOpen
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: const Color(0xFF64748B),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        if (_schoolLoadError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _schoolLoadError!,
+                    style: const TextStyle(color: Color(0xFFDC2626)),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _loadSchools,
+                  child: const Text('Coba lagi'),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

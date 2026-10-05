@@ -22,16 +22,7 @@ class TokenInfoBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Keamanan Ujian CBT',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF047857),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Masukkan token 6 digit yang diberikan oleh pengawas ujian di ruang kelas Anda.',
+                  'Masukkan token ujian yang diberikan oleh panitia ujian untuk memulai ujian ini.',
                   style: TextStyle(
                     fontSize: 11,
                     color: Color(0xFF475569),

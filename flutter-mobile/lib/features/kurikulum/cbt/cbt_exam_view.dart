@@ -423,6 +423,8 @@ class _CbtExamViewState extends State<CbtExamView> {
 
   @override
   Widget build(BuildContext context) {
+    final String examTitle = _examData?['judul_ujian'] ?? widget.subject;
+
     if (_isLoading) {
       return Scaffold(
         backgroundColor: backgroundSlate,
@@ -451,7 +453,7 @@ class _CbtExamViewState extends State<CbtExamView> {
       return Scaffold(
         backgroundColor: backgroundSlate,
         appBar: SharedHeader(
-          title: widget.subject,
+          title: examTitle,
           backgroundColor: Colors.white,
           foregroundColor: darkSlate,
           centerTitle: true,

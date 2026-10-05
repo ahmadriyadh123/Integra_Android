@@ -41,6 +41,7 @@ def get_odoo_client(
 
 async def get_current_user_credentials(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    tenant: SchoolTenant = Depends(get_current_tenant),
 ) -> Dict[str, Any]:
     if not credentials or not credentials.credentials:
         raise HTTPException(
@@ -64,12 +65,25 @@ async def get_current_user_credentials(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        token_school_id = payload.get("school_id")
+        if type(token_school_id) is not int:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token belum terikat ke sekolah. Silakan login kembali.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if token_school_id != tenant.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token tidak berlaku untuk sekolah yang dipilih.",
+            )
+
         return {
             "uid": payload.get("uid"),
             "sub": payload.get("sub"),
             "username": payload.get("username"),
             "password": AuthService.decrypt_odoo_password(payload.get("odoo_password", "")),
-            "school_id": payload.get("school_id"), # Menyimpan school_id dalam claim JWT
+            "school_id": tenant.id,
             "partner_id": payload.get("partner_id"),
             "student_id": payload.get("student_id"),
             "course_id": payload.get("course_id"),

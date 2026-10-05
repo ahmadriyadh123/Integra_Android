@@ -24,6 +24,7 @@ dependencies:
   archive: ^4.0.0
   webview_flutter: ^4.0.7
   printing: ^5.13.4
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:

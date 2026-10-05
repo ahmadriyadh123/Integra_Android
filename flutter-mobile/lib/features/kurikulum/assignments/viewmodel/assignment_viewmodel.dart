@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/assignment_model.dart';
 import '../repositories/assignment_repository.dart';
 
-enum AssignmentFilter {
-  all,
-  pending,
-  submitted,
-  graded,
-}
+enum AssignmentFilter { all, pending, submitted, graded }
 
 class AssignmentViewModel extends ChangeNotifier {
   final AssignmentRepository repository;
@@ -60,10 +55,14 @@ class AssignmentViewModel extends ChangeNotifier {
   }
 
   int get pendingCount => _items.where((i) => !i.isSubmitted).length;
-  int get submittedCount => _items.where((i) => i.isSubmitted && !i.isGraded).length;
+  int get submittedCount =>
+      _items.where((i) => i.isSubmitted && !i.isGraded).length;
   int get gradedCount => _items.where((i) => i.isGraded).length;
 
-  Future<void> fetchAssignments(String token, {bool forceRefresh = false}) async {
+  Future<void> fetchAssignments(
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     _errorMessage = null;
 
     if (!forceRefresh) {
@@ -74,7 +73,10 @@ class AssignmentViewModel extends ChangeNotifier {
         notifyListeners();
 
         try {
-          final fresh = await repository.getAssignments(token, forceRefresh: true);
+          final fresh = await repository.getAssignments(
+            token,
+            forceRefresh: true,
+          );
           _items = fresh;
         } catch (_) {
           // Gagal background refresh - pertahankan cache
@@ -90,7 +92,10 @@ class AssignmentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final fresh = await repository.getAssignments(token, forceRefresh: forceRefresh);
+      final fresh = await repository.getAssignments(
+        token,
+        forceRefresh: forceRefresh,
+      );
       _items = fresh;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -99,6 +104,75 @@ class AssignmentViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<AssignmentItem> submitAssignment({
+    required String token,
+    required AssignmentItem assignment,
+    required Stream<List<int>> fileStream,
+    required int fileSize,
+    required String fileName,
+  }) async {
+    final result = await repository.submitAssignment(
+      token: token,
+      assignmentId: assignment.id,
+      fileStream: fileStream,
+      fileSize: fileSize,
+      fileName: fileName,
+    );
+
+    final submissionId = _parseResponseId(result['submission_id']);
+    final attachmentId = _parseResponseId(result['attachment_id']);
+    if (submissionId == null || attachmentId == null) {
+      throw const FormatException(
+        'Respons server tidak menyertakan riwayat berkas yang lengkap.',
+      );
+    }
+
+    final existingItem = _items
+        .where((item) => item.id == assignment.id)
+        .firstOrNull;
+    final itemToUpdate = existingItem ?? assignment;
+    final submittedAt = DateTime.tryParse(
+      result['submitted_at']?.toString() ?? '',
+    );
+    final uploadedAttachment = AttachmentItem(
+      id: attachmentId,
+      fileName: result['file_name']?.toString() ?? fileName,
+      fileUrl: '/assignments/${assignment.id}/attachments/$attachmentId',
+      uploadedByRole: 'student',
+    );
+    final currentSubmission = itemToUpdate.studentSubmission;
+    final attachments = [
+      ...?currentSubmission?.attachments.where(
+        (attachment) => attachment.id != attachmentId,
+      ),
+      uploadedAttachment,
+    ];
+    final updatedSubmission = StudentSubmission(
+      id: submissionId,
+      state: result['state']?.toString() ?? 'submitted',
+      marks: currentSubmission?.marks ?? 0,
+      submittedAt: submittedAt ?? DateTime.now(),
+      attachments: attachments,
+    );
+    final updatedItem = itemToUpdate.copyWith(
+      studentSubmission: updatedSubmission,
+    );
+
+    _items = [
+      for (final item in _items)
+        if (item.id == assignment.id) updatedItem else item,
+      if (existingItem == null) updatedItem,
+    ];
+    await repository.saveCachedAssignments(
+      _items.map((item) => item.toJson()).toList(),
+    );
+    notifyListeners();
+    return updatedItem;
+  }
+
+  int? _parseResponseId(dynamic value) =>
+      value is int ? value : int.tryParse(value?.toString() ?? '');
 
   void setFilter(AssignmentFilter filter) {
     _currentFilter = filter;

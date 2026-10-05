@@ -51,10 +51,10 @@ import 'kurikulum/cbt/services/cbt_service.dart';
 import 'kurikulum/cbt/repositories/cbt_repository.dart';
 import 'kurikulum/cbt/viewmodel/cbt_viewmodel.dart';
 
-import 'kurikulum/assignment/local/assignment_local_storage.dart';
-import 'kurikulum/assignment/services/assignment_service.dart';
-import 'kurikulum/assignment/repositories/assignment_repository.dart';
-import 'kurikulum/assignment/viewmodel/assignment_viewmodel.dart';
+import 'kurikulum/assignments/local/assignment_local_storage.dart';
+import 'kurikulum/assignments/services/assignment_service.dart';
+import 'kurikulum/assignments/repositories/assignment_repository.dart';
+import 'kurikulum/assignments/viewmodel/assignment_viewmodel.dart';
 
 /// Mengembalikan daftar semua provider yang digunakan dalam aplikasi.
 /// Memisahkan logika ini dari main.dart menjaga agar struktur kode main.dart tetap bersih dan terorganisir.

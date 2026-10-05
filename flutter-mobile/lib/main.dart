@@ -59,7 +59,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late String _baseUrl = widget.initialBaseUrl;
+  late final String _baseUrl = widget.initialBaseUrl;
   late String _schoolId = widget.initialSchoolId;
   late final _tenantApiConfig = TenantApiConfig(schoolId: _schoolId);
 

@@ -1,6 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.core.dependencies import get_current_user_credentials, get_odoo_client
+from sqlalchemy.orm import Session
+from app.core.dependencies import (
+    get_current_tenant,
+    get_current_user_credentials,
+    get_odoo_client,
+)
+from app.core.database import get_db
 from app.core.odoo_client import OdooRPCClient
+from app.core.models import SchoolTenant
 from app.features.auth.schemas import LoginRequest, ChangePasswordRequest, APIResponseLogin, TokenResponse, UserProfileData
 from app.features.auth.repository import AuthRepository, OdooUnavailableError
 from app.features.auth.service import AuthService
@@ -10,10 +17,28 @@ router = APIRouter(
     tags=["Autentikasi & Login"]
 )
 
+@router.get("/schools")
+def list_schools(db: Session = Depends(get_db)):
+    schools = (
+        db.query(SchoolTenant)
+        .filter(SchoolTenant.is_active.is_(True))
+        .order_by(SchoolTenant.school_name)
+        .all()
+    )
+    return {
+        "success": True,
+        "message": "Berhasil mengambil daftar sekolah",
+        "data": [
+            {"id": school.id, "nama_sekolah": school.school_name}
+            for school in schools
+        ],
+    }
+
 @router.post("/login", response_model=APIResponseLogin)
 def login(
     payload: LoginRequest,
-    odoo_client: OdooRPCClient = Depends(get_odoo_client)
+    odoo_client: OdooRPCClient = Depends(get_odoo_client),
+    tenant: SchoolTenant = Depends(get_current_tenant),
 ):
     repo = AuthRepository(odoo_client)
     
@@ -39,6 +64,7 @@ def login(
     # Simpan identitas dan konteks siswa, tanpa password mentah.
     jwt_payload = {
         "uid": user_info["uid"],
+        "school_id": tenant.id,
         "username": user_info["username"],
         "odoo_password": AuthService.encrypt_odoo_password(payload.password),
         "partner_id": user_info["partner_id"],

@@ -7,7 +7,7 @@ import '../../kurikulum/cbt/cbt_list_view.dart';
 import '../../e-rapor/rapor_list_view.dart';
 import '../../kurikulum/buku-komunikasi/buku_komunikasi_view.dart';
 import '../../kehadiran/view/attendance_view.dart';
-import '../../kurikulum/assignment/assignment_list_view.dart';
+import '../../kurikulum/assignments/assignment_list_view.dart';
 
 const int _tabProfil = 2;
 

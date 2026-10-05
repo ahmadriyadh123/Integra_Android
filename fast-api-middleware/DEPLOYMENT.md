@@ -46,6 +46,13 @@ ACCESS_TOKEN_EXPIRE_DAYS=1
 CORS_ALLOW_ORIGINS=https://app.example.com
 ```
 
+`ODOO_ADMIN_USER` and `ODOO_ADMIN_PASS` are required for middleware operations
+that create or update student submissions and attachments. Use a dedicated
+Odoo integration account with access to `op.assignment.sub.line` and
+`ir.attachment`, including permission to attach a file to a submission record.
+Do not rely on the student login for these operations; the middleware fails
+explicitly if the service account cannot authenticate or Odoo denies its access.
+
 Use an empty `CORS_ALLOW_ORIGINS` for mobile-only clients. For multiple browser origins, separate them with commas. Rotate the JWT secret before the first production release; rotating it invalidates existing sessions.
 
 ## 4. Build and run with Docker

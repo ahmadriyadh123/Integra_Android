@@ -176,7 +176,7 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
                           ),
                         )
                       : const Text(
-                          'Verifikasi & Mulai Ujian',
+                          'Mulai Ujian',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -185,8 +185,6 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
                         ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const TokenStatusInfo(),
             ],
           ),
         ),

@@ -6,12 +6,12 @@ class AssignmentRepository {
   final AssignmentService apiService;
   final AssignmentLocalStorage localStorage;
 
-  AssignmentRepository({
-    required this.apiService,
-    required this.localStorage,
-  });
+  AssignmentRepository({required this.apiService, required this.localStorage});
 
-  Future<List<AssignmentItem>> getAssignments(String token, {bool forceRefresh = false}) async {
+  Future<List<AssignmentItem>> getAssignments(
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh) {
       final cached = await localStorage.loadAssignments();
       if (cached != null && cached.isNotEmpty) {
@@ -22,6 +22,22 @@ class AssignmentRepository {
     final rawData = await apiService.fetchAssignments(token);
     await localStorage.saveAssignments(rawData);
     return rawData.map((e) => AssignmentItem.fromJson(e)).toList();
+  }
+
+  Future<Map<String, dynamic>> submitAssignment({
+    required String token,
+    required int assignmentId,
+    required Stream<List<int>> fileStream,
+    required int fileSize,
+    required String fileName,
+  }) {
+    return apiService.submitAssignment(
+      token: token,
+      assignmentId: assignmentId,
+      fileStream: fileStream,
+      fileSize: fileSize,
+      fileName: fileName,
+    );
   }
 
   Future<List<Map<String, dynamic>>?> loadCachedAssignments() {

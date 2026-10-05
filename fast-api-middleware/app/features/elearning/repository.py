@@ -1,5 +1,9 @@
+import logging
+import xmlrpc.client
 from app.core.odoo_client import OdooRPCClient
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class ElearningRepository:
@@ -151,16 +155,47 @@ class ElearningRepository:
     ) -> Optional[Dict[str, Any]]:
         """Ambil attachment SCORM dari ir.attachment via Odoo RPC."""
         import base64
-        records = self.odoo.search_read(
-            uid=uid,
-            password=password,
-            model='ir.attachment',
-            domain=[
-                ('res_model', '=', 'slide.slide'),
-                ('res_id', '=', slide_id)
-            ],
-            fields=['id', 'name', 'datas', 'mimetype'],
-            limit=1
+        fields = ['id', 'name', 'datas', 'mimetype']
+        logger.info(
+            "[elearning/scorm] RPC lookup started db=%s uid=%s slide_id=%s "
+            "model=ir.attachment method=search_read use_sudo=false fields=%s",
+            self.odoo.db,
+            uid,
+            slide_id,
+            fields,
+        )
+        try:
+            records = self.odoo.search_read(
+                uid=uid,
+                password=password,
+                model='ir.attachment',
+                domain=[
+                    ('res_model', '=', 'slide.slide'),
+                    ('res_id', '=', slide_id)
+                ],
+                fields=fields,
+                limit=1,
+                use_sudo=False,
+            )
+        except xmlrpc.client.Fault as exc:
+            logger.error(
+                "[elearning/scorm] RPC fault db=%s uid=%s slide_id=%s "
+                "model=ir.attachment method=search_read fault_code=%s fault=%s",
+                self.odoo.db,
+                uid,
+                slide_id,
+                exc.faultCode,
+                exc.faultString,
+            )
+            raise
+
+        logger.info(
+            "[elearning/scorm] RPC lookup completed db=%s uid=%s slide_id=%s "
+            "attachment_count=%s",
+            self.odoo.db,
+            uid,
+            slide_id,
+            len(records),
         )
         if records and records[0].get('datas'):
             raw = records[0]

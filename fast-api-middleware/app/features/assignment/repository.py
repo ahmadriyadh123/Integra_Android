@@ -1,45 +1,81 @@
 import base64
-from datetime import datetime
-from typing import List, Dict, Any
+from datetime import datetime, timezone
+from typing import List, Dict, Any, Optional
 from app.core.odoo_client import OdooRPCClient
+
+
+class AssignmentNotSubmittableError(Exception):
+    pass
+
+
+class AssignmentDeadlinePassedError(Exception):
+    pass
+
+
+class AssignmentAlreadySubmittedError(Exception):
+    pass
+
 
 class AssignmentRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo_client = odoo_client
 
+    def _submitted_state_value(self, uid: int, password: str) -> str:
+        model_fields = self.odoo_client.execute_kw(
+            uid=uid,
+            password=password,
+            model='op.assignment.sub.line',
+            method='fields_get',
+            args=[],
+            kwargs={'attributes': ['selection']},
+        )
+        choices = (model_fields.get('state') or {}).get('selection') or []
+        for value, label in choices:
+            normalized_value = str(value).strip().lower()
+            normalized_label = str(label).strip().lower()
+            if normalized_value in {'submit', 'submitted'} or normalized_label in {
+                'submit',
+                'submitted',
+            }:
+                return str(value)
+
+        raise RuntimeError(
+            'Odoo tidak menyediakan pilihan state Submit/Submitted untuk '
+            f'op.assignment.sub.line; pilihan tersedia: {choices}'
+        )
+
+    def _student_relation_field(self, uid: int, password: str) -> str:
+        fields = self.odoo_client.execute_kw(
+            uid=uid,
+            password=password,
+            model='op.assignment',
+            method='fields_get',
+            args=[],
+            kwargs={'attributes': ['type', 'relation']},
+        )
+        candidates = [
+            name
+            for name, metadata in fields.items()
+            if metadata.get('type') == 'many2many'
+            and metadata.get('relation') == 'op.student'
+        ]
+        if len(candidates) != 1:
+            raise RuntimeError(
+                'Relasi op.assignment ke op.student tidak dapat diidentifikasi '
+                f'dengan aman (kandidat: {candidates}).'
+            )
+        return candidates[0]
+
     def get_assignments_by_student(self, uid: int, password: str, student_id: int) -> List[Dict[str, Any]]:
         """
-        Mengambil daftar penugasan siswa dari Odoo via RPC (op.assignment) berdasarkan batch_id.
+        Mengambil penugasan yang secara eksplisit terhubung ke record op.student.
         """
-        # 1. Cari batch_id siswa dari model op.student
-        batch_id = None
-        if student_id:
-            try:
-                student_records = self.odoo_client.search_read(
-                    uid=uid,
-                    password=password,
-                    model='op.student',
-                    domain=[('id', '=', student_id)],
-                    fields=['batch_id'],
-                    limit=1,
-                    use_sudo=True
-                )
-                if student_records:
-                    val = student_records[0].get('batch_id')
-                    if isinstance(val, (list, tuple)) and val:
-                        batch_id = val[0]
-                    elif isinstance(val, int):
-                        batch_id = val
-            except Exception:
-                pass
-
-        # 2. Susun domain untuk op.assignment menggunakan batch_id
+        student_field = self._student_relation_field(uid, password)
         domain = [
             ('active', '=', True),
-            ('state', '!=', 'cancel')
+            ('state', '!=', 'cancel'),
+            (student_field, 'in', [student_id]),
         ]
-        if batch_id:
-            domain.append(('batch_id', '=', batch_id))
 
         fields = [
             'id',
@@ -100,7 +136,8 @@ class AssignmentRepository:
                 model='op.assignment.sub.line',
                 domain=sub_domain,
                 fields=['id', 'state', 'marks', 'write_date', 'submission_date'],
-                limit=1
+                limit=1,
+                use_sudo=True,
             )
 
             submission_id = None
@@ -148,7 +185,14 @@ class AssignmentRepository:
 
         return res
 
-    def get_attachments_by_model(self, uid: int, password: str, res_model: str, res_id: int) -> List[Dict[str, Any]]:
+    def get_attachments_by_model(
+        self,
+        uid: int,
+        password: str,
+        res_model: str,
+        res_id: int,
+        use_sudo: bool = False,
+    ) -> List[Dict[str, Any]]:
         """
         Mengambil lampiran file dari ir.attachment via Odoo RPC.
         """
@@ -157,7 +201,8 @@ class AssignmentRepository:
             password=password,
             model='ir.attachment',
             domain=[('res_model', '=', res_model), ('res_id', '=', res_id)],
-            fields=['id', 'name', 'store_fname', 'create_uid']
+            fields=['id', 'name', 'store_fname', 'create_uid'],
+            use_sudo=use_sudo,
         )
         res = []
         for r in records:
@@ -169,13 +214,79 @@ class AssignmentRepository:
             })
         return res
 
+    def get_assignment_attachment(
+        self,
+        uid: int,
+        password: str,
+        student_id: int,
+        assignment_id: int,
+        attachment_id: int,
+    ) -> Optional[Dict[str, Any]]:
+        student_field = self._student_relation_field(uid, password)
+        assignment = self.odoo_client.search_read(
+            uid=uid,
+            password=password,
+            model='op.assignment',
+            domain=[
+                ('id', '=', assignment_id),
+                (student_field, 'in', [student_id]),
+                ('active', '=', True),
+                ('state', '!=', 'cancel'),
+            ],
+            fields=['id'],
+            limit=1,
+        )
+        if not assignment:
+            return None
+
+        attachments = self.odoo_client.search_read(
+            uid=uid,
+            password=password,
+            model='ir.attachment',
+            domain=[
+                ('id', '=', attachment_id),
+                ('res_model', 'in', ['op.assignment', 'op.assignment.sub.line']),
+            ],
+            fields=['id', 'name', 'datas', 'mimetype', 'res_model', 'res_id'],
+            limit=1,
+            use_sudo=True,
+        )
+        if not attachments:
+            return None
+
+        attachment = attachments[0]
+        res_model = attachment.get('res_model')
+        res_id = attachment.get('res_id')
+        if res_model == 'op.assignment' and res_id == assignment_id:
+            return attachment
+
+        if res_model == 'op.assignment.sub.line':
+            submission = self.odoo_client.search_read(
+                uid=uid,
+                password=password,
+                model='op.assignment.sub.line',
+                domain=[
+                    ('id', '=', res_id),
+                    ('assignment_id', '=', assignment_id),
+                    ('student_id', '=', student_id),
+                ],
+                fields=['id'],
+                limit=1,
+                use_sudo=True,
+            )
+            if submission:
+                return attachment
+
+        return None
+
     def submit_assignment(
         self, uid: int, password: str, student_id: int, assignment_id: int, file_bytes: bytes, filename: str
     ) -> Dict[str, Any]:
         """
         Mengunggah berkas pengumpulan tugas ke Odoo op.assignment.sub.line dan ir.attachment via RPC.
         """
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now_str = datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S')
+        submitted_state = self._submitted_state_value(uid, password)
 
         # 1. Cari apakah baris submission (op.assignment.sub.line) sudah ada untuk siswa dan assignment ini
         existing_sub = self.odoo_client.search_read(
@@ -184,7 +295,8 @@ class AssignmentRepository:
             model='op.assignment.sub.line',
             domain=[('assignment_id', '=', assignment_id), ('student_id', '=', student_id)],
             fields=['id', 'state'],
-            limit=1
+            limit=1,
+            use_sudo=True,
         )
 
         if existing_sub:
@@ -195,9 +307,10 @@ class AssignmentRepository:
                 model='op.assignment.sub.line',
                 ids=[sub_id],
                 values={
-                    'state': 'submitted',
+                    'state': submitted_state,
                     'submission_date': now_str
-                }
+                },
+                use_sudo=True,
             )
         else:
             sub_id = self.odoo_client.create(
@@ -207,9 +320,10 @@ class AssignmentRepository:
                 values={
                     'assignment_id': assignment_id,
                     'student_id': student_id,
-                    'state': 'submitted',
+                    'state': submitted_state,
                     'submission_date': now_str
-                }
+                },
+                use_sudo=True,
             )
 
         # 2. Simpan file attachment ke ir.attachment
@@ -224,7 +338,8 @@ class AssignmentRepository:
                 'res_id': sub_id,
                 'datas': b64_content,
                 'type': 'binary'
-            }
+            },
+            use_sudo=True,
         )
 
         return {
@@ -234,3 +349,75 @@ class AssignmentRepository:
             'state': 'submitted',
             'submitted_at': now_str
         }
+
+    def ensure_submission_allowed(
+        self,
+        uid: int,
+        password: str,
+        student_id: int,
+        assignment_id: int,
+    ) -> None:
+        student_field = self._student_relation_field(uid, password)
+
+        assignments = self.odoo_client.search_read(
+            uid=uid,
+            password=password,
+            model='op.assignment',
+            domain=[
+                ('id', '=', assignment_id),
+                (student_field, 'in', [student_id]),
+                ('active', '=', True),
+                ('state', 'in', ['publish', 'published']),
+            ],
+            fields=['id', 'submission_date'],
+            limit=1,
+        )
+        if not assignments:
+            raise AssignmentNotSubmittableError(
+                'Penugasan tidak aktif, tidak ditugaskan kepada siswa ini, atau belum dipublikasikan.'
+            )
+
+        deadline_value = assignments[0].get('submission_date')
+        if deadline_value:
+            deadline = datetime.fromisoformat(str(deadline_value).replace('Z', '+00:00'))
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > deadline:
+                raise AssignmentDeadlinePassedError('Batas waktu pengumpulan tugas telah lewat.')
+
+        existing_submissions = self.odoo_client.search_read(
+            uid=uid,
+            password=password,
+            model='op.assignment.sub.line',
+            domain=[
+                ('assignment_id', '=', assignment_id),
+                ('student_id', '=', student_id),
+            ],
+            fields=['id', 'state'],
+            limit=1,
+            use_sudo=True,
+        )
+        submitted_state = self._submitted_state_value(uid, password)
+        if existing_submissions:
+            existing_submission = existing_submissions[0]
+            existing_state = existing_submission.get('state')
+            if existing_state == 'graded':
+                raise AssignmentAlreadySubmittedError('Tugas ini sudah dikumpulkan.')
+
+            if existing_state in {submitted_state, 'submit', 'submitted'}:
+                attachments = self.odoo_client.search_read(
+                    uid=uid,
+                    password=password,
+                    model='ir.attachment',
+                    domain=[
+                        ('res_model', '=', 'op.assignment.sub.line'),
+                        ('res_id', '=', existing_submission['id']),
+                    ],
+                    fields=['id'],
+                    limit=1,
+                    use_sudo=True,
+                )
+                if attachments:
+                    raise AssignmentAlreadySubmittedError(
+                        'Tugas ini sudah dikumpulkan.'
+                    )
