@@ -36,6 +36,38 @@ void main() {
       expect(detail.slides[1].downloadUrl, 'https://example.com/materi.pdf');
       expect(detail.slides[0].sequence, 0);
     });
+
+    test('parses persisted course and slide completion progress', () {
+      final detail = CourseDetail.fromJson({
+        'id': 42,
+        'title': 'Dasar Pemrograman',
+        'teacher_name': 'Budi Santoso',
+        'description': '',
+        'total_slides': 2,
+        'completed_slides': 1,
+        'progress_percent': 50,
+        'slides': [
+          {
+            'id': 10,
+            'title': 'Pengenalan',
+            'material_type': 'document',
+            'sequence': 1,
+            'is_completed': true,
+          },
+          {
+            'id': 11,
+            'title': 'Modul interaktif',
+            'material_type': 'scorm',
+            'sequence': 2,
+            'is_completed': false,
+          },
+        ],
+      });
+
+      expect(detail.completedSlides, 1);
+      expect(detail.progressPercent, 50);
+      expect(detail.slides.map((slide) => slide.isCompleted), [true, false]);
+    });
   });
 
   group('CourseMessage parsing', () {

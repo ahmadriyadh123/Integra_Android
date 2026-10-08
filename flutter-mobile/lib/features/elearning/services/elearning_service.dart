@@ -90,6 +90,34 @@ class ElearningService {
     );
   }
 
+  Future<void> markSlideCompleted(
+    String token,
+    int courseId,
+    int slideId, {
+    required String source,
+    String? completionStatus,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/elearning/courses/$courseId/slides/$slideId/progress',
+    );
+    final response = await http
+        .post(
+          url,
+          headers: _headers(token),
+          body: jsonEncode({
+            'source': source,
+            if (completionStatus != null)
+              'completion_status': completionStatus,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+    final json = jsonDecode(response.body);
+    if (response.statusCode == 200 && json['success'] == true) return;
+    throw Exception(
+      json['detail'] ?? json['message'] ?? 'Gagal menyimpan progres materi',
+    );
+  }
+
   Future<List<dynamic>> fetchCourseMessages(
     String token,
     int courseId,

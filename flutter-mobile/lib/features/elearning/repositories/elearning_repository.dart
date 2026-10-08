@@ -55,6 +55,22 @@ class ElearningRepository {
     return apiService.fetchSlideContent(token, slideId);
   }
 
+  Future<void> markSlideCompleted(
+    String token,
+    int courseId,
+    int slideId, {
+    required String source,
+    String? completionStatus,
+  }) {
+    return apiService.markSlideCompleted(
+      token,
+      courseId,
+      slideId,
+      source: source,
+      completionStatus: completionStatus,
+    );
+  }
+
   Future<List<CourseMessage>> getCourseMessages(
     String token,
     int courseId,
@@ -106,6 +122,8 @@ class ElearningRepository {
         'title': c.title,
         'teacher_name': c.teacherName,
         'total_slides': c.totalSlides,
+        'completed_slides': c.completedSlides,
+        'progress_percent': c.progressPercent,
         'description': c.description,
       };
 
@@ -115,6 +133,8 @@ class ElearningRepository {
         'teacher_name': d.teacherName,
         'description': d.description,
         'total_slides': d.totalSlides,
+        'completed_slides': d.completedSlides,
+        'progress_percent': d.progressPercent,
         'slides': d.slides
             .map((s) => {
                   'id': s.id,
@@ -122,6 +142,7 @@ class ElearningRepository {
                   'material_type': s.materialType,
                   'download_url': s.downloadUrl,
                   'sequence': s.sequence,
+                  'is_completed': s.isCompleted,
                 })
             .toList(),
       };

@@ -54,7 +54,11 @@ class CurriculumTimelineItem extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(icon, color: iconTextColor, size: 16),
+          child: Icon(
+            isCompleted ? Icons.check_rounded : icon,
+            color: isCompleted ? primaryColor : iconTextColor,
+            size: 16,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(

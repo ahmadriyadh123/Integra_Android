@@ -14,6 +14,7 @@ class ScormPlayerView extends StatefulWidget {
   final String odooUsername;
   final String odooPassword;
   final String odooDb;
+  final Future<void> Function(String completionStatus)? onCompleted;
 
   const ScormPlayerView({
     super.key,
@@ -21,6 +22,7 @@ class ScormPlayerView extends StatefulWidget {
     this.authToken = '',
     this.odooUsername = '',
     this.odooPassword = '',
+    this.onCompleted,
     this.odooDb = const String.fromEnvironment(
       'ODOO_DB',
       defaultValue: 'kp-sekolah.asetkoptii.com',
@@ -34,6 +36,7 @@ class ScormPlayerView extends StatefulWidget {
 class _ScormPlayerViewState extends State<ScormPlayerView> {
   late final ScormViewModel _viewModel;
   WebViewController? _webController;
+  bool _completionReported = false;
 
   @override
   void initState() {
@@ -74,10 +77,11 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
       onMessageReceived: (message) {
         try {
           final Map msg = jsonDecode(message.message) as Map;
-          _viewModel.handleBridgeMessage(
-            msg['type'] as String? ?? '',
-            msg['payload'] as Map?,
-          );
+          final type = msg['type'] as String? ?? '';
+          _viewModel.handleBridgeMessage(type, msg['payload'] as Map?);
+          if (type == 'commit' || type == 'finish') {
+            _reportCompletion();
+          }
         } catch (_) {}
       },
     );
@@ -115,6 +119,32 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
     );
 
     _webController = controller;
+  }
+
+  Future<void> _reportCompletion() async {
+    final completionStatus = _viewModel.completionStatus?.toLowerCase();
+    if (_completionReported ||
+        !_viewModel.isCompleted ||
+        completionStatus == null ||
+        widget.onCompleted == null) {
+      return;
+    }
+
+    _completionReported = true;
+    try {
+      await widget.onCompleted!(completionStatus);
+    } catch (error) {
+      _completionReported = false;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Status selesai SCORM belum tersimpan: '
+            '${error.toString().replaceAll('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
   }
 
   @override

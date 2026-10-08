@@ -4,6 +4,8 @@ class ActiveCourseCard extends StatelessWidget {
   final String title;
   final String teacher;
   final double progress;
+  final int completedSlides;
+  final int totalSlides;
   final IconData icon;
   final Color iconBgColor;
   final Color iconColor;
@@ -14,6 +16,8 @@ class ActiveCourseCard extends StatelessWidget {
     required this.title,
     required this.teacher,
     required this.progress,
+    this.completedSlides = 0,
+    this.totalSlides = 0,
     required this.icon,
     required this.iconBgColor,
     required this.iconColor,
@@ -64,8 +68,8 @@ class ActiveCourseCard extends StatelessWidget {
                             color: const Color(0xFF059669),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            'Bab 2',
+                          child: Text(
+                            '$completedSlides/$totalSlides Materi',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,

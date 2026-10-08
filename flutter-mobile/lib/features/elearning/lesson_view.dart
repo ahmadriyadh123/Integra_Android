@@ -195,7 +195,9 @@ class _PelajaranViewState extends State<PelajaranView> {
               teacher: activeCourse.teacherName.isNotEmpty
                   ? activeCourse.teacherName
                   : 'Guru Pengampu',
-              progress: 0.65,
+              progress: activeCourse.progressPercent / 100,
+              completedSlides: activeCourse.completedSlides,
+              totalSlides: activeCourse.totalSlides,
               icon: activeColors.iconData,
               iconBgColor: activeColors.bg,
               iconColor: activeColors.icon,
@@ -259,7 +261,8 @@ class _PelajaranViewState extends State<PelajaranView> {
               final colors = _courseColors[i % _courseColors.length];
               return SubjectGridCard(
                 title: course.title,
-                chapterCount: '${course.totalSlides} Materi',
+                chapterCount:
+                    '${course.completedSlides}/${course.totalSlides} Materi selesai',
                 icon: colors.iconData,
                 iconBgColor: colors.bg,
                 iconColor: colors.icon,

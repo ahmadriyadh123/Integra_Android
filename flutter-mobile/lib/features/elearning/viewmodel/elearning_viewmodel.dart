@@ -83,6 +83,22 @@ class ElearningViewModel extends ChangeNotifier {
   CourseDetail? _courseDetail;
   CourseDetail? get courseDetail => _courseDetail;
 
+  Future<void> markSlideCompleted(
+    String token,
+    int courseId,
+    int slideId, {
+    required String source,
+    String? completionStatus,
+  }) {
+    return repository.markSlideCompleted(
+      token,
+      courseId,
+      slideId,
+      source: source,
+      completionStatus: completionStatus,
+    );
+  }
+
   Future<void> fetchCourseDetail(String token, int courseId,
       {bool forceRefresh = false}) async {
     _detailError = null;

@@ -38,6 +38,15 @@ class ElearningRepository:
                     c.user_id,
                     p.name AS teacher_name,
                     c.total_slides,
+                    COALESCE((
+                        SELECT COUNT(DISTINCT sp.slide_id)
+                        FROM slide_slide_partner sp
+                        JOIN slide_slide s ON s.id = sp.slide_id
+                        WHERE sp.partner_id = :partner_id
+                          AND sp.completed = TRUE
+                          AND s.channel_id = c.id
+                          AND s.is_published = TRUE
+                    ), 0) AS completed_slides,
                     c.description,
                     c.is_published
                 FROM slide_channel c
@@ -57,6 +66,7 @@ class ElearningRepository:
                     c.user_id,
                     p.name AS teacher_name,
                     c.total_slides,
+                    0 AS completed_slides,
                     c.description,
                     c.is_published
                 FROM slide_channel c
@@ -90,7 +100,11 @@ class ElearningRepository:
         row = result.mappings().first()
         return dict(row) if row else None
 
-    async def get_slides_by_course_id(self, course_id: int) -> List[Dict[str, Any]]:
+    async def get_slides_by_course_id(
+        self,
+        course_id: int,
+        partner_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Ambil daftar slide dalam sebuah channel, lengkap dengan download URL."""
         query = text("""
             SELECT
@@ -101,13 +115,20 @@ class ElearningRepository:
                 s.slide_type,
                 s.sequence,
                 s.is_published,
-                s.filename
+                s.filename,
+                COALESCE(sp.completed, FALSE) AS is_completed
             FROM slide_slide s
+            LEFT JOIN slide_slide_partner sp
+              ON sp.slide_id = s.id
+             AND sp.partner_id = :partner_id
             WHERE s.channel_id = :course_id AND s.is_published = TRUE
             ORDER BY s.sequence ASC, s.id ASC;
         """)
         
-        result = await self.db.execute(query, {"course_id": course_id})
+        result = await self.db.execute(
+            query,
+            {"course_id": course_id, "partner_id": partner_id},
+        )
         raw_slides = [dict(row) for row in result.mappings().all()]
         for slide in raw_slides:
             slide['download_url'] = self._slide_download_url(
@@ -117,6 +138,55 @@ class ElearningRepository:
             )
 
         return raw_slides
+
+    async def mark_slide_completed(
+        self,
+        course_id: int,
+        slide_id: int,
+        partner_id: int,
+        source: str,
+        completion_status: Optional[str] = None,
+    ) -> bool:
+        slide_result = await self.db.execute(
+            text("""
+                SELECT slide_type, slide_category
+                FROM slide_slide
+                WHERE id = :slide_id
+                  AND channel_id = :course_id
+                  AND is_published = TRUE
+                LIMIT 1;
+            """),
+            {"slide_id": slide_id, "course_id": course_id},
+        )
+        slide = slide_result.mappings().first()
+        if not slide:
+            return False
+
+        is_scorm = (
+            str(slide.get("slide_type") or "").lower() == "scorm"
+            or str(slide.get("slide_category") or "").lower() == "scorm"
+        )
+        if source == "opened" and is_scorm:
+            return False
+        if source == "scorm" and (
+            not is_scorm
+            or (completion_status or "").lower() not in {"completed", "passed"}
+        ):
+            return False
+        if source not in {"opened", "scorm"}:
+            return False
+
+        await self.db.execute(
+            text("""
+                INSERT INTO slide_slide_partner (slide_id, partner_id, completed)
+                VALUES (:slide_id, :partner_id, TRUE)
+                ON CONFLICT (slide_id, partner_id)
+                DO UPDATE SET completed = TRUE;
+            """),
+            {"slide_id": slide_id, "partner_id": partner_id},
+        )
+        await self.db.commit()
+        return True
 
     async def get_slide_content(self, slide_id: int) -> Optional[Dict[str, Any]]:
         """Ambil sumber konten dari slide_slide untuk endpoint content."""

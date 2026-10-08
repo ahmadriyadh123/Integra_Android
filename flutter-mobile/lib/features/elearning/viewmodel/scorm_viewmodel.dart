@@ -21,6 +21,11 @@ class ScormViewModel extends ChangeNotifier {
 
   final Map<String, String> _scormData = {};
   Map<String, String> get scormData => _scormData;
+  String? get completionStatus =>
+      _scormData['cmi.core.lesson_status'] ??
+      _scormData['cmi.completion_status'];
+  bool get isCompleted =>
+      const {'completed', 'passed'}.contains(completionStatus?.toLowerCase());
 
   Future<void> prepareScorm(
       String scormUrl, 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 
 class CourseItemResponse(BaseModel):
@@ -7,6 +7,8 @@ class CourseItemResponse(BaseModel):
     title: str
     teacher_name: str
     total_slides: int
+    completed_slides: int = 0
+    progress_percent: int = 0
     description: str
 
 
@@ -22,6 +24,7 @@ class SlideItemResponse(BaseModel):
     material_type: str       # 'document', 'video', 'scorm', 'quiz'
     download_url: Optional[str] = None
     sequence: int
+    is_completed: bool = False
 
 
 class CourseDetailResponse(BaseModel):
@@ -30,6 +33,8 @@ class CourseDetailResponse(BaseModel):
     teacher_name: str
     description: str
     total_slides: int
+    completed_slides: int = 0
+    progress_percent: int = 0
     slides: List[SlideItemResponse]
 
 
@@ -55,3 +60,8 @@ class APIResponseCourseMessages(BaseModel):
 
 class CreateCourseMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
+
+
+class CompleteSlideRequest(BaseModel):
+    source: Literal['opened', 'scorm']
+    completion_status: Optional[str] = None

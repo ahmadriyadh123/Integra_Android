@@ -63,6 +63,152 @@ class ElearningRepository:
             order='name asc'
         )
 
+    def get_progress_by_course(
+        self,
+        uid: int,
+        password: str,
+        partner_id: int,
+    ) -> Dict[int, set[int]]:
+        completed_records = self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='slide.slide.partner',
+            domain=[
+                ('partner_id', '=', partner_id),
+                ('completed', '=', True),
+            ],
+            fields=['slide_id'],
+        )
+        slide_ids = [
+            record['slide_id'][0]
+            for record in completed_records
+            if isinstance(record.get('slide_id'), (list, tuple))
+            and record['slide_id']
+        ]
+        if not slide_ids:
+            return {}
+
+        slides = self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='slide.slide',
+            domain=[
+                ('id', 'in', slide_ids),
+                ('is_published', '=', True),
+            ],
+            fields=['id', 'channel_id'],
+        )
+        progress: Dict[int, set[int]] = {}
+        for slide in slides:
+            channel = slide.get('channel_id')
+            if isinstance(channel, (list, tuple)) and channel:
+                progress.setdefault(int(channel[0]), set()).add(int(slide['id']))
+        return progress
+
+    def get_completed_slide_ids(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        partner_id: int,
+    ) -> set[int]:
+        records = self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='slide.slide.partner',
+            domain=[
+                ('partner_id', '=', partner_id),
+                ('slide_id.channel_id', '=', course_id),
+                ('completed', '=', True),
+            ],
+            fields=['slide_id'],
+        )
+        return {
+            int(record['slide_id'][0])
+            for record in records
+            if isinstance(record.get('slide_id'), (list, tuple))
+            and record['slide_id']
+        }
+
+    def mark_slide_completed(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        slide_id: int,
+        partner_id: int,
+        source: str,
+        completion_status: Optional[str] = None,
+    ) -> bool:
+        slides = self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='slide.slide',
+            domain=[
+                ('id', '=', slide_id),
+                ('channel_id', '=', course_id),
+                ('is_published', '=', True),
+            ],
+            fields=['id', 'slide_category', 'slide_type'],
+            limit=1,
+        )
+        if not slides:
+            return False
+
+        slide = slides[0]
+        is_scorm = (
+            str(slide.get('slide_type') or '').lower() == 'scorm'
+            or str(slide.get('slide_category') or '').lower() == 'scorm'
+        )
+        if source == 'opened' and is_scorm:
+            return False
+        if source == 'scorm' and (
+            not is_scorm
+            or (completion_status or '').lower() not in {'completed', 'passed'}
+        ):
+            return False
+        if source not in {'opened', 'scorm'}:
+            return False
+
+        records = self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='slide.slide.partner',
+            domain=[
+                ('slide_id', '=', slide_id),
+                ('partner_id', '=', partner_id),
+            ],
+            fields=['id', 'completed'],
+            limit=1,
+        )
+        if records:
+            record = records[0]
+            if record.get('completed'):
+                return True
+            return bool(
+                self.odoo.execute_kw(
+                    uid=uid,
+                    password=password,
+                    model='slide.slide.partner',
+                    method='write',
+                    args=[[record['id']], {'completed': True}],
+                )
+            )
+
+        return bool(
+            self.odoo.execute_kw(
+                uid=uid,
+                password=password,
+                model='slide.slide.partner',
+                method='create',
+                args=[{
+                    'slide_id': slide_id,
+                    'partner_id': partner_id,
+                    'completed': True,
+                }],
+            )
+        )
+
     def get_course_by_id(
         self,
         uid: int,

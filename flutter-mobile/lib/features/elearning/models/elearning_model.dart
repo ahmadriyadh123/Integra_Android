@@ -33,6 +33,7 @@ class SlideItem {
   final String materialType; // 'document', 'video', 'scorm', 'quiz'
   final String? downloadUrl;
   final int sequence;
+  final bool isCompleted;
 
   SlideItem({
     required this.id,
@@ -40,6 +41,7 @@ class SlideItem {
     required this.materialType,
     this.downloadUrl,
     required this.sequence,
+    this.isCompleted = false,
   });
 
   bool get isPdf => materialType == 'document';
@@ -54,6 +56,7 @@ class SlideItem {
       materialType: _normalizeMaterialType(json['material_type']),
       downloadUrl: _asOptionalString(json['download_url']),
       sequence: _asInt(json['sequence']),
+      isCompleted: json['is_completed'] == true,
     );
   }
 }
@@ -64,6 +67,8 @@ class CourseDetail {
   final String teacherName;
   final String description;
   final int totalSlides;
+  final int completedSlides;
+  final int progressPercent;
   final List<SlideItem> slides;
 
   CourseDetail({
@@ -72,6 +77,8 @@ class CourseDetail {
     required this.teacherName,
     required this.description,
     required this.totalSlides,
+    this.completedSlides = 0,
+    this.progressPercent = 0,
     required this.slides,
   });
 
@@ -83,6 +90,8 @@ class CourseDetail {
       teacherName: _asString(json['teacher_name'], fallback: '-'),
       description: _asString(json['description']),
       totalSlides: _asInt(json['total_slides']),
+      completedSlides: _asInt(json['completed_slides']),
+      progressPercent: _asInt(json['progress_percent']),
       slides: rawSlides
           .map((e) => SlideItem.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
@@ -95,6 +104,8 @@ class CourseItem {
   final String title;
   final String teacherName;
   final int totalSlides;
+  final int completedSlides;
+  final int progressPercent;
   final String description;
 
   CourseItem({
@@ -102,6 +113,8 @@ class CourseItem {
     required this.title,
     required this.teacherName,
     required this.totalSlides,
+    this.completedSlides = 0,
+    this.progressPercent = 0,
     required this.description,
   });
 
@@ -111,6 +124,8 @@ class CourseItem {
       title: _asString(json['title'], fallback: '-'),
       teacherName: _asString(json['teacher_name'], fallback: '-'),
       totalSlides: _asInt(json['total_slides']),
+      completedSlides: _asInt(json['completed_slides']),
+      progressPercent: _asInt(json['progress_percent']),
       description: _asString(json['description']),
     );
   }

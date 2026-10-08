@@ -90,16 +90,33 @@ class ElearningService:
                 "title": self._localized_text(c.get("name"), "Kursus"),
                 "teacher_name": str(c.get("teacher_name") or "-"),
                 "total_slides": int(c.get("total_slides") or 0),
+                "completed_slides": int(c.get("completed_slides") or 0),
+                "progress_percent": (
+                    round(
+                        int(c.get("completed_slides") or 0)
+                        * 100
+                        / int(c.get("total_slides") or 0)
+                    )
+                    if int(c.get("total_slides") or 0)
+                    else 0
+                ),
                 "description": self._strip_html(c.get("description")),
             })
         return result
 
-    async def get_course_detail(self, course_id: int) -> Optional[Dict[str, Any]]:
+    async def get_course_detail(
+        self,
+        course_id: int,
+        partner_id: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
         course = await self.repo.get_course_by_id(course_id=course_id)
         if not course:
             return None
 
-        raw_slides = await self.repo.get_slides_by_course_id(course_id=course_id)
+        raw_slides = await self.repo.get_slides_by_course_id(
+            course_id=course_id,
+            partner_id=partner_id,
+        )
         slides = []
         for s in raw_slides:
             slides.append({
@@ -111,16 +128,41 @@ class ElearningService:
                 ),
                 "download_url": s.get("download_url"),
                 "sequence": int(s.get("sequence") or 0),
+                "is_completed": bool(s.get("is_completed")),
             })
 
+        total_slides = len(slides)
+        completed_slides = sum(slide["is_completed"] for slide in slides)
         return {
             "id": course.get("id"),
             "title": self._localized_text(course.get("name"), "Kursus"),
             "teacher_name": str(course.get("teacher_name") or "-"),
             "description": self._strip_html(course.get("description")),
-            "total_slides": int(course.get("total_slides") or 0),
+            "total_slides": total_slides,
+            "completed_slides": completed_slides,
+            "progress_percent": (
+                round(completed_slides * 100 / total_slides)
+                if total_slides
+                else 0
+            ),
             "slides": slides,
         }
+
+    async def mark_slide_completed(
+        self,
+        course_id: int,
+        slide_id: int,
+        partner_id: int,
+        source: str,
+        completion_status: Optional[str] = None,
+    ) -> bool:
+        return await self.repo.mark_slide_completed(
+            course_id=course_id,
+            slide_id=slide_id,
+            partner_id=partner_id,
+            source=source,
+            completion_status=completion_status,
+        )
 
     async def get_scorm_package(self, slide_id: int):
         """Read a SCORM ZIP from the tenant database, filestore, or public Odoo URL."""

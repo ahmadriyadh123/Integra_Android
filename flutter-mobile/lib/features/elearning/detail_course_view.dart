@@ -80,6 +80,30 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       return;
     }
 
+    if (!isScorm && slideId != null) {
+      try {
+        await _vm.markSlideCompleted(
+          widget.authToken,
+          widget.courseId,
+          slideId,
+          source: 'opened',
+        );
+        await _vm.fetchCourseDetail(
+          widget.authToken,
+          widget.courseId,
+          forceRefresh: true,
+        );
+        await _vm.fetchCourses(widget.authToken, forceRefresh: true);
+      } catch (e) {
+        if (mounted) {
+          _showSnack(
+            'Materi dibuka, tetapi progres belum tersimpan: '
+            '${e.toString().replaceAll('Exception: ', '')}',
+          );
+        }
+      }
+    }
+
     String fullUrl = url;
 
     if (isScorm && slideId != null) {
@@ -125,6 +149,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       final username = await authViewModel.loadUsername();
       final password = await authViewModel.loadPassword();
       if (!mounted) return;
+      final scormSlideId = slideId;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -133,6 +158,26 @@ class _DetailCourseViewState extends State<DetailCourseView> {
             authToken: widget.authToken,
             odooUsername: username,
             odooPassword: password,
+            onCompleted: scormSlideId == null
+                ? null
+                : (completionStatus) async {
+                    await _vm.markSlideCompleted(
+                      widget.authToken,
+                      widget.courseId,
+                      scormSlideId,
+                      source: 'scorm',
+                      completionStatus: completionStatus,
+                    );
+                    await _vm.fetchCourseDetail(
+                      widget.authToken,
+                      widget.courseId,
+                      forceRefresh: true,
+                    );
+                    await _vm.fetchCourses(
+                      widget.authToken,
+                      forceRefresh: true,
+                    );
+                  },
           ),
         ),
       );
@@ -422,6 +467,10 @@ class _DetailCourseViewState extends State<DetailCourseView> {
 
                         const SizedBox(height: 24),
 
+                        _buildProgress(detail),
+
+                        const SizedBox(height: 24),
+
                         // Header daftar materi
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -520,6 +569,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                                       iconTextColor: style.iconColor,
                                       badgeText: style.badgeText,
                                       badgeColor: style.badgeColor,
+                                      isCompleted: slide.isCompleted,
                                       onTap: () => _openUrl(
                                         slide.downloadUrl,
                                         isScorm: slide.isScorm,
@@ -549,6 +599,60 @@ class _DetailCourseViewState extends State<DetailCourseView> {
               bottom: 0,
               child: _buildBottomCTA(firstPlayableSlide),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgress(CourseDetail detail) {
+    final progress = (detail.progressPercent / 100).clamp(0.0, 1.0);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Progres belajar',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textDark,
+                ),
+              ),
+              Text(
+                '${detail.progressPercent}%',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: _green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation<Color>(_green),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${detail.completedSlides} dari ${detail.totalSlides} materi selesai',
+            style: const TextStyle(fontSize: 11, color: _textMuted),
+          ),
         ],
       ),
     );

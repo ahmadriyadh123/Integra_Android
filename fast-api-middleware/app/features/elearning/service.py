@@ -112,19 +112,36 @@ class ElearningService:
         raw_courses = self.repo.get_published_courses(
             uid=uid, password=password, partner_id=partner_id
         )
+        progress_by_course = (
+            self.repo.get_progress_by_course(uid, password, partner_id)
+            if partner_id is not None
+            else {}
+        )
         result = []
         for c in raw_courses:
+            total_slides = int(c.get("total_slides") or 0)
+            completed_slides = len(progress_by_course.get(int(c["id"]), set()))
             result.append({
                 "id": c.get("id"),
                 "title": self._localized_text(c.get("name"), "Kursus"),
                 "teacher_name": self._parse_many2one(c.get("user_id"), "-"),
-                "total_slides": int(c.get("total_slides") or 0),
+                "total_slides": total_slides,
+                "completed_slides": completed_slides,
+                "progress_percent": (
+                    round(completed_slides * 100 / total_slides)
+                    if total_slides
+                    else 0
+                ),
                 "description": self._strip_html(c.get("description")),
             })
         return result
 
     def get_course_detail(
-        self, uid: int, password: str, course_id: int
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        partner_id: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         course = self.repo.get_course_by_id(uid=uid, password=password, course_id=course_id)
         if not course:
@@ -133,7 +150,16 @@ class ElearningService:
         raw_slides = self.repo.get_slides_by_course_id(
             uid=uid, password=password, course_id=course_id
         )
-
+        completed_slide_ids = (
+            self.repo.get_completed_slide_ids(
+                uid,
+                password,
+                course_id,
+                partner_id,
+            )
+            if partner_id is not None
+            else set()
+        )
         slides = []
         for s in raw_slides:
             slides.append({
@@ -145,16 +171,45 @@ class ElearningService:
                 ),
                 "download_url": s.get("download_url"),
                 "sequence": int(s.get("sequence") or 0),
+                "is_completed": int(s["id"]) in completed_slide_ids,
             })
 
+        total_slides = len(slides)
+        completed_slides = sum(slide["is_completed"] for slide in slides)
         return {
             "id": course.get("id"),
             "title": self._localized_text(course.get("name"), "Kursus"),
             "teacher_name": self._parse_many2one(course.get("user_id"), "-"),
             "description": self._strip_html(course.get("description")),
-            "total_slides": int(course.get("total_slides") or 0),
+            "total_slides": total_slides,
+            "completed_slides": completed_slides,
+            "progress_percent": (
+                round(completed_slides * 100 / total_slides)
+                if total_slides
+                else 0
+            ),
             "slides": slides,
         }
+
+    def mark_slide_completed(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        slide_id: int,
+        partner_id: int,
+        source: str,
+        completion_status: Optional[str] = None,
+    ) -> bool:
+        return self.repo.mark_slide_completed(
+            uid=uid,
+            password=password,
+            course_id=course_id,
+            slide_id=slide_id,
+            partner_id=partner_id,
+            source=source,
+            completion_status=completion_status,
+        )
 
     def get_scorm_package(
         self, uid: int, password: str, slide_id: int

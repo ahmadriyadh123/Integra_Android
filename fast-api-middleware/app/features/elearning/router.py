@@ -13,6 +13,7 @@ from app.features.elearning.schemas import (
     APIResponseCourseDetail,
     APIResponseCourseMessages,
     CreateCourseMessageRequest,
+    CompleteSlideRequest,
 )
 from app.features.elearning.repository import ElearningRepository
 from app.features.elearning.service import ElearningService
@@ -61,7 +62,8 @@ def get_course_detail(
         data = service.get_course_detail(
             uid=creds["uid"],
             password=creds["password"],
-            course_id=course_id
+            course_id=course_id,
+            partner_id=creds.get("partner_id"),
         )
         if not data:
             return APIResponseCourseDetail(
@@ -79,6 +81,59 @@ def get_course_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil detail kursus dari Odoo: {str(e)}"
+        )
+
+
+@router.post("/courses/{course_id}/slides/{slide_id}/progress")
+def complete_course_slide(
+    course_id: int,
+    slide_id: int,
+    request: CompleteSlideRequest,
+    creds: dict = Depends(get_current_user_credentials),
+    odoo: OdooRPCClient = Depends(get_odoo_client),
+):
+    partner_id = creds.get("partner_id")
+    if not partner_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akun ini tidak terhubung dengan data peserta.",
+        )
+    try:
+        service = ElearningService(ElearningRepository(odoo))
+        completed = service.mark_slide_completed(
+            uid=creds["uid"],
+            password=creds["password"],
+            course_id=course_id,
+            slide_id=slide_id,
+            partner_id=int(partner_id),
+            source=request.source,
+            completion_status=request.completion_status,
+        )
+        if not completed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Status selesai tidak cocok dengan tipe materi atau materi "
+                    "tidak termasuk dalam kursus ini."
+                ),
+            )
+        return {
+            "success": True,
+            "message": "Progres materi berhasil disimpan.",
+            "data": {"slide_id": slide_id, "is_completed": True},
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/%s/slides/%s/progress] Error uid=%s",
+            course_id,
+            slide_id,
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal menyimpan progres materi: {str(e)}",
         )
 
 

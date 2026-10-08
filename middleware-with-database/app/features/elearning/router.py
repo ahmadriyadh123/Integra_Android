@@ -5,7 +5,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user_credentials
-from app.features.elearning.schemas import APIResponseCourseList, APIResponseCourseDetail
+from app.features.elearning.schemas import (
+    APIResponseCourseList,
+    APIResponseCourseDetail,
+    CompleteSlideRequest,
+)
 from app.features.elearning.repository import ElearningRepository
 from app.features.elearning.service import ElearningService
 
@@ -46,7 +50,10 @@ async def get_course_detail(
     try:
         repo = ElearningRepository(db)
         service = ElearningService(repo)
-        data = await service.get_course_detail(course_id=course_id)
+        data = await service.get_course_detail(
+            course_id=course_id,
+            partner_id=creds.get("partner_id"),
+        )
 
         if not data:
             return APIResponseCourseDetail(
@@ -66,6 +73,58 @@ async def get_course_detail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil detail kursus: {str(e)}"
         )
+
+
+@router.post("/courses/{course_id}/slides/{slide_id}/progress")
+async def complete_course_slide(
+    course_id: int,
+    slide_id: int,
+    request: CompleteSlideRequest,
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    partner_id = creds.get("partner_id")
+    if not partner_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akun ini tidak terhubung dengan data peserta.",
+        )
+    try:
+        service = ElearningService(ElearningRepository(db))
+        completed = await service.mark_slide_completed(
+            course_id=course_id,
+            slide_id=slide_id,
+            partner_id=int(partner_id),
+            source=request.source,
+            completion_status=request.completion_status,
+        )
+        if not completed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Status selesai tidak cocok dengan tipe materi atau materi "
+                    "tidak termasuk dalam kursus ini."
+                ),
+            )
+        return {
+            "success": True,
+            "message": "Progres materi berhasil disimpan.",
+            "data": {"slide_id": slide_id, "is_completed": True},
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/%s/slides/%s/progress] Error uid=%s",
+            course_id,
+            slide_id,
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal menyimpan progres materi: {str(e)}",
+        )
+
 
 @router.get("/content/{slide_id}")
 @router.get("/content/slide/{slide_id}")
