@@ -15,6 +15,35 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/e-rapor", tags=["Menu E-Rapor"])
 
 
+def _resolve_request_student_id(
+    creds: dict,
+    repo: ERaporRepository,
+) -> int:
+    student_id = creds.get("student_id")
+    if isinstance(student_id, int) and student_id > 0:
+        return student_id
+
+    student_id = repo.resolve_student_id(
+        uid=creds["uid"],
+        password=creds["password"],
+        partner_id=creds.get("partner_id"),
+    )
+    if not student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Data siswa belum terhubung dengan akun Odoo Anda. "
+                "Pastikan relasi user/partner ke siswa sudah diatur."
+            ),
+        )
+    logger.info(
+        "[e-rapor] Resolved student_id=%s from Odoo for uid=%s without session claim",
+        student_id,
+        creds.get("uid"),
+    )
+    return student_id
+
+
 @router.get("/list", response_model=APIResponseReportList)
 def get_student_reports(
     jenjang: Optional[str] = Query(None, description="Jenjang sekolah: sd, smp, tk (opsional, auto-detect jika kosong)"),
@@ -22,14 +51,9 @@ def get_student_reports(
     odoo_client: OdooRPCClient = Depends(get_odoo_client),
 ):
     """Daftar E-Rapor siswa per semester"""
-    student_id = creds.get("student_id")
-    if not student_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Data siswa tidak ditemukan dalam sesi Anda."
-        )
     try:
         repo = ERaporRepository(odoo_client)
+        student_id = _resolve_request_student_id(creds, repo)
         service = ERaporService(repo)
         selected_jenjang = jenjang or creds.get("jenjang", "sd")
         data = service.get_student_reports(
@@ -43,6 +67,8 @@ def get_student_reports(
             message="Berhasil mengambil daftar e-rapor",
             data=data
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("[e-rapor/list] Error uid=%s", creds.get("uid"))
         raise HTTPException(
@@ -59,14 +85,9 @@ def get_report_card_details(
     odoo_client: OdooRPCClient = Depends(get_odoo_client),
 ):
     """Endpoint detail E-Rapor"""
-    student_id = creds.get("student_id")
-    if not student_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Data siswa tidak ditemukan dalam sesi Anda."
-        )
     try:
         repo = ERaporRepository(odoo_client)
+        student_id = _resolve_request_student_id(creds, repo)
         service = ERaporService(repo)
         data = service.get_report_detail(
             creds["uid"],
@@ -86,6 +107,8 @@ def get_report_card_details(
             message="Berhasil mengambil detail E-Rapor",
             data=data
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("[e-rapor/%s] Error uid=%s", rapor_id, creds.get("uid"))
         raise HTTPException(
@@ -101,14 +124,9 @@ def get_rapor_pdf(
     odoo_client: OdooRPCClient = Depends(get_odoo_client),
 ):
     """Endpoint download PDF E-Rapor"""
-    student_id = creds.get("student_id")
-    if not student_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Data siswa tidak ditemukan dalam sesi Anda."
-        )
     try:
         repo = ERaporRepository(odoo_client)
+        student_id = _resolve_request_student_id(creds, repo)
         service = ERaporService(repo)
         result = service.get_rapor_pdf_bytes(
             creds["uid"],
@@ -138,5 +156,4 @@ def get_rapor_pdf(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil PDF rapor: {str(exc)}"
         ) from exc
-
 

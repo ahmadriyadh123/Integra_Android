@@ -137,7 +137,6 @@ class AssignmentRepository:
                 domain=sub_domain,
                 fields=['id', 'state', 'marks', 'write_date', 'submission_date'],
                 limit=1,
-                use_sudo=True,
             )
 
             submission_id = None
@@ -191,7 +190,6 @@ class AssignmentRepository:
         password: str,
         res_model: str,
         res_id: int,
-        use_sudo: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Mengambil lampiran file dari ir.attachment via Odoo RPC.
@@ -202,7 +200,6 @@ class AssignmentRepository:
             model='ir.attachment',
             domain=[('res_model', '=', res_model), ('res_id', '=', res_id)],
             fields=['id', 'name', 'store_fname', 'create_uid'],
-            use_sudo=use_sudo,
         )
         res = []
         for r in records:
@@ -249,7 +246,6 @@ class AssignmentRepository:
             ],
             fields=['id', 'name', 'datas', 'mimetype', 'res_model', 'res_id'],
             limit=1,
-            use_sudo=True,
         )
         if not attachments:
             return None
@@ -272,7 +268,6 @@ class AssignmentRepository:
                 ],
                 fields=['id'],
                 limit=1,
-                use_sudo=True,
             )
             if submission:
                 return attachment
@@ -296,7 +291,6 @@ class AssignmentRepository:
             domain=[('assignment_id', '=', assignment_id), ('student_id', '=', student_id)],
             fields=['id', 'state'],
             limit=1,
-            use_sudo=True,
         )
 
         if existing_sub:
@@ -310,7 +304,6 @@ class AssignmentRepository:
                     'state': submitted_state,
                     'submission_date': now_str
                 },
-                use_sudo=True,
             )
         else:
             sub_id = self.odoo_client.create(
@@ -323,7 +316,6 @@ class AssignmentRepository:
                     'state': submitted_state,
                     'submission_date': now_str
                 },
-                use_sudo=True,
             )
 
         # 2. Simpan file attachment ke ir.attachment
@@ -339,7 +331,6 @@ class AssignmentRepository:
                 'datas': b64_content,
                 'type': 'binary'
             },
-            use_sudo=True,
         )
 
         return {
@@ -395,7 +386,6 @@ class AssignmentRepository:
             ],
             fields=['id', 'state'],
             limit=1,
-            use_sudo=True,
         )
         submitted_state = self._submitted_state_value(uid, password)
         if existing_submissions:
@@ -415,7 +405,6 @@ class AssignmentRepository:
                     ],
                     fields=['id'],
                     limit=1,
-                    use_sudo=True,
                 )
                 if attachments:
                     raise AssignmentAlreadySubmittedError(

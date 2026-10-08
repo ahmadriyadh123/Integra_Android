@@ -14,7 +14,7 @@ class AuthRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
-    def _resolve_student_and_jenjang(self, uid: int, password: str, partner_id: int) -> tuple[Optional[int], str, Optional[int], str]:
+    def _resolve_student_and_jenjang(self, uid: int, password: str, partner_id: Optional[int]) -> tuple[Optional[int], str, Optional[int], str]:
         """
         Cari student_id, jenjang, dan course_id siswa.
         Return: (student_id, jenjang, course_id)
@@ -62,20 +62,35 @@ class AuthRepository:
                 logger.debug(f"[auth] res.users.student_id tidak tersedia: {e}")
 
         # Cari melalui op.student jika dua relasi user sebelumnya tidak tersedia.
-        if not student_id_from_user:
+        if not student_id_from_user and partner_id:
             try:
                 records = self.odoo.search_read(
                     uid=uid, password=password,
                     model='op.student',
                     domain=[('partner_id', '=', partner_id)],
                     fields=['id'],
-                    limit=1,
-                    use_sudo=True
+                    limit=1
                 )
                 if records:
                     student_id_from_user = int(records[0]['id'])
             except Exception as e:
                 logger.debug(f"[auth] op.student tidak bisa diakses: {e}")
+
+        # Beberapa tenant menghubungkan siswa langsung ke res.users, bukan partner.
+        if not student_id_from_user:
+            try:
+                records = self.odoo.search_read(
+                    uid=uid,
+                    password=password,
+                    model='op.student',
+                    domain=[('user_id', '=', uid)],
+                    fields=['id'],
+                    limit=1
+                )
+                if records:
+                    student_id_from_user = int(records[0]['id'])
+            except Exception as e:
+                logger.debug(f"[auth] op.student.user_id tidak tersedia: {e}")
 
         # Ambil kelas dan jenjang untuk disimpan pada session pengguna.
         if student_id_from_user:
@@ -85,8 +100,7 @@ class AuthRepository:
                     model='op.student',
                     domain=[('id', '=', student_id_from_user)],
                     fields=['grade'],
-                    limit=1,
-                    use_sudo=True
+                    limit=1
                 )
                 if student_records:
                     cid = student_records[0].get('grade')
@@ -113,6 +127,15 @@ class AuthRepository:
             f"course_id={course_id} course_name='{course_name}' jenjang={jenjang}"
         )
         return student_id_from_user, jenjang, course_id, course_name
+
+    def resolve_student_context(
+        self,
+        uid: int,
+        password: str,
+        partner_id: Optional[int] = None,
+    ) -> tuple[Optional[int], str, Optional[int], str]:
+        """Resolve student and class context for authenticated-user features."""
+        return self._resolve_student_and_jenjang(uid, password, partner_id)
 
     def authenticate_odoo_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """

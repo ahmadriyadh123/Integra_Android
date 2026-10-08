@@ -11,6 +11,8 @@ from app.core.odoo_client import OdooRPCClient
 from app.features.elearning.schemas import (
     APIResponseCourseList,
     APIResponseCourseDetail,
+    APIResponseCourseMessages,
+    CreateCourseMessageRequest,
 )
 from app.features.elearning.repository import ElearningRepository
 from app.features.elearning.service import ElearningService
@@ -77,6 +79,91 @@ def get_course_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil detail kursus dari Odoo: {str(e)}"
+        )
+
+
+@router.get(
+    "/courses/{course_id}/messages",
+    response_model=APIResponseCourseMessages,
+)
+def get_course_messages(
+    course_id: int,
+    creds: dict = Depends(get_current_user_credentials),
+    odoo: OdooRPCClient = Depends(get_odoo_client),
+):
+    try:
+        service = ElearningService(ElearningRepository(odoo))
+        data = service.get_course_messages(
+            uid=creds["uid"],
+            password=creds["password"],
+            course_id=course_id,
+            partner_id=creds.get("partner_id"),
+        )
+        if data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Kursus E-Learning tidak ditemukan.",
+            )
+        return APIResponseCourseMessages(
+            success=True,
+            message="Berhasil mengambil diskusi kursus.",
+            data=data,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/%s/messages] Error uid=%s",
+            course_id,
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal mengambil diskusi kursus: {str(e)}",
+        )
+
+
+@router.post("/courses/{course_id}/messages")
+def post_course_message(
+    course_id: int,
+    request: CreateCourseMessageRequest,
+    creds: dict = Depends(get_current_user_credentials),
+    odoo: OdooRPCClient = Depends(get_odoo_client),
+):
+    try:
+        service = ElearningService(ElearningRepository(odoo))
+        message_id = service.post_course_message(
+            uid=creds["uid"],
+            password=creds["password"],
+            course_id=course_id,
+            body=request.body,
+        )
+        if message_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Kursus E-Learning tidak ditemukan.",
+            )
+        return {
+            "success": True,
+            "message": "Pesan berhasil dikirim.",
+            "data": {"id": message_id},
+        }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/%s/messages] Post error uid=%s",
+            course_id,
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal mengirim pesan diskusi: {str(e)}",
         )
 
 

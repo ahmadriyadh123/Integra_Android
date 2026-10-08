@@ -1,5 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
+
 from app.core.database import Base
+
 
 class SchoolTenant(Base):
     __tablename__ = "school_tenants"
@@ -10,3 +14,17 @@ class SchoolTenant(Base):
     odoo_url = Column(String, nullable=False)  # Misal: https://sma1.sekolah.id
     odoo_db = Column(String, nullable=False)   # Misal: db_sma1
     is_active = Column(Boolean, default=True)
+
+
+class SchoolAdminAccount(Base):
+    __tablename__ = "school_admin_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(120), unique=True, index=True, nullable=False)
+    password_hash = Column(String(256), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

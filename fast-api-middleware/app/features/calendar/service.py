@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any
 from app.features.calendar.repository import CalendarRepository
 
 
@@ -14,14 +14,25 @@ class CalendarService:
             return val
         return fallback
 
-    def get_calendars_list(self, uid: int, password: str, jenjang: str = 'sd') -> Dict[str, Any]:
-        raw_records = self.repo.get_academic_calendars(uid=uid, password=password, jenjang=jenjang)
+    def get_calendars_list(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        jenjang: str = 'sd',
+    ) -> Dict[str, Any]:
+        raw_records = self.repo.get_academic_calendars(
+            uid=uid,
+            password=password,
+            course_id=course_id,
+            jenjang=jenjang,
+        )
 
         calendars = []
         for item in raw_records:
             calendars.append({
                 "id": item.get("id"),
-                "kelas": self._parse_many2one(item.get("kelas_id"), "-"),
+                "kelas": self._parse_many2one(item.get("course_id"), "-"),
                 "semester": self._parse_many2one(item.get("semester_id"), "-"),
                 "tahun_ajaran": self._parse_many2one(item.get("tahun_id"), "-"),
                 "link_dokumen": str(item.get("link_dokumen") or ""),

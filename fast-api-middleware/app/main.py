@@ -1,14 +1,19 @@
-import socket
 import app.core.models
 
 from fastapi import FastAPI
 from fastapi import HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from app.api import api_router
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, SessionLocal
+from app.features.admin.bootstrap import seed_initial_admin
+from app.features.admin.router import router as admin_router
 
 Base.metadata.create_all(bind=engine)
+with SessionLocal() as db:
+    seed_initial_admin(db)
 
 app = FastAPI(
     title="Odoo Mobile Middleware API",
@@ -26,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(admin_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
@@ -40,10 +46,11 @@ async def liveness():
 @app.get("/health/ready")
 async def readiness():
     try:
-        with socket.create_connection((settings.ODOO_HOST, settings.ODOO_PORT), timeout=2):
-            return {"status": "ready", "odoo": "reachable"}
-    except OSError as exc:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "ready", "registry": "reachable"}
+    except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "not_ready", "odoo": "unreachable"},
+            detail={"status": "not_ready", "registry": "unreachable"},
         ) from exc

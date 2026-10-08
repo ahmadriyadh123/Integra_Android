@@ -107,6 +107,7 @@ class FakeAuthRepository implements AuthRepository {
   Map<String, dynamic>? mockAuthData;
   bool saveAuthCalled = false;
   bool clearAuthCalled = false;
+  bool tokenMatchesSelectedSchool = true;
 
   @override
   Future<AuthResult> login(String username, String password) async {
@@ -139,6 +140,9 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> validateSession(String token) async {}
+
+  @override
+  bool isTokenForSelectedSchool(String token) => tokenMatchesSelectedSchool;
 
   @override
   Future<void> changePassword({
@@ -208,6 +212,26 @@ void main() {
         expect(fakeRepository.loginCalled, false);
       },
     );
+
+    test('restoreSessionFromHive clears a token for another school', () async {
+      fakeRepository.tokenMatchesSelectedSchool = false;
+      fakeRepository.mockAuthData = {
+        'access_token': 'token-from-another-school',
+        'token_type': 'bearer',
+        'user': {
+          'user_id': 1,
+          'name': 'Test User',
+          'username': 'testuser',
+          'email': 'test@example.com',
+        },
+      };
+
+      final result = await viewModel.restoreSessionFromHive();
+
+      expect(result, false);
+      expect(fakeRepository.clearAuthCalled, true);
+      expect(viewModel.isLoggedIn, false);
+    });
 
     test('login stores full auth result to Hive for offline restore', () async {
       fakeRepository.mockLoginResult = AuthResult(

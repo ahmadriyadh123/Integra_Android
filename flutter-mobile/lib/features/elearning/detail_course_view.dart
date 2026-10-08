@@ -11,6 +11,7 @@ import 'widgets/detail/teacher_info_card.dart';
 import 'widgets/detail/curriculum_timeline_item.dart';
 import '../widgets/shared_header.dart';
 import 'views/scorm_player_view.dart';
+import 'views/course_discussion_view.dart';
 
 const Color _green = Color(0xFF059669);
 const Color _bgSlate = Color(0xFFF8FAFC);
@@ -380,7 +381,20 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Info guru
-                        TeacherInfoCard(teacherName: detail.teacherName),
+                        TeacherInfoCard(
+                          teacherName: detail.teacherName,
+                          onChatTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CourseDiscussionView(
+                                courseId: detail.id,
+                                courseTitle: detail.title,
+                                authToken: widget.authToken,
+                                repository: vm.repository,
+                              ),
+                            ),
+                          ),
+                        ),
 
                         // Deskripsi (jika ada)
                         if (detail.description.isNotEmpty) ...[

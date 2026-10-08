@@ -7,11 +7,7 @@ from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
 
 from app.core.dependencies import get_current_user_credentials, get_odoo_client
-from app.core.odoo_client import (
-    OdooAccessError,
-    OdooRPCClient,
-    OdooServiceAccountError,
-)
+from app.core.odoo_client import OdooAccessError, OdooRPCClient
 from app.features.assignment.schemas import AssignmentResponse
 from app.features.assignment.repository import (
     AssignmentAlreadySubmittedError,
@@ -101,18 +97,6 @@ async def submit_assignment(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AssignmentNotSubmittableError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    except OdooServiceAccountError as exc:
-        logger.exception(
-            "[assignments/%s/submit] Akun layanan Odoo tidak siap",
-            assignment_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Akun layanan Odoo belum dikonfigurasi atau autentikasinya ditolak. "
-                "Periksa ODOO_ADMIN_USER dan ODOO_ADMIN_PASS."
-            ),
-        ) from exc
     except OdooAccessError as exc:
         logger.exception(
             "[assignments/%s/submit] Odoo menolak pembuatan lampiran uid=%s",
@@ -122,9 +106,8 @@ async def submit_assignment(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=(
-                "Odoo menolak penyimpanan lampiran. Pastikan ODOO_ADMIN_USER dan "
-                "ODOO_ADMIN_PASS valid serta akun tersebut memiliki hak membuat "
-                "lampiran tugas."
+                "Odoo menolak akses untuk menyimpan lampiran. Pastikan pengguna "
+                "yang login memiliki hak akses yang diperlukan."
             ),
         ) from exc
     except HTTPException:

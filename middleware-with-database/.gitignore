@@ -1,0 +1,48 @@
+# ==========================================
+# 1. Environment & Sensitive Credentials (SANGAT PENTING)
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# 2. Virtual Environments & Dependencies
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# 3. Python Cache & Compiled Files
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+fast-api-middleware/
+# ==========================================
+# 4. Testing & Coverage Tools
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+.hypothesis/
+
+# ==========================================
+# 5. IDEs & Code Editors
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# 6. Log Files & OS Junk
+# ==========================================
+*.log
+.DS_Store
+Thumbs.db

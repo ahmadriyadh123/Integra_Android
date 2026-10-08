@@ -166,7 +166,6 @@ def test_assignment_response_includes_uploaded_student_file():
             if model == "grading.assignment":
                 return []
             if model == "op.assignment.sub.line":
-                assert kwargs.get("use_sudo") is True
                 return [
                     {
                         "id": 3,

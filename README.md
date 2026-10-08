@@ -8,6 +8,7 @@ Aplikasi sekolah yang terdiri dari aplikasi mobile Flutter dan middleware REST A
 .
 ├── fast-api-middleware/   # Backend FastAPI dan integrasi Odoo RPC
 ├── flutter-mobile/        # Aplikasi Flutter Android/Web
+├── school-admin-web/      # Web admin untuk pengelolaan sekolah
 └── README.md
 ```
 
@@ -54,8 +55,12 @@ ODOO_ADMIN_PASS=password_odoo
 JWT_SECRET_KEY=ganti-dengan-secret-yang-aman
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_DAYS=30
+SCHOOL_ADMIN_USERNAME=admin
+SCHOOL_ADMIN_PASSWORD=ganti-dengan-password-admin-yang-aman
 CORS_ALLOW_ORIGINS=
 ```
+
+Web admin dijalankan sebagai project terpisah di `school-admin-web`. Saat pertama kali backend dijalankan, `SCHOOL_ADMIN_USERNAME` dan `SCHOOL_ADMIN_PASSWORD` di environment backend digunakan untuk membuat akun awal dalam tabel `school_admin_accounts`; password disimpan sebagai hash PBKDF2, bukan teks biasa. Setelah akun awal tersimpan, login diverifikasi terhadap database dan nilai bootstrap tidak mengubah akun saat backend dimulai ulang. Gunakan password acak minimal 12 karakter. Lihat [panduan deployment](fast-api-middleware/DEPLOYMENT.md) dan [school-admin-web/README.md](school-admin-web/README.md).
 
 Jalankan server development:
 

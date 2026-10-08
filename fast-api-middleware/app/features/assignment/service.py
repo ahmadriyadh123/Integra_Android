@@ -42,7 +42,6 @@ class AssignmentService:
                     password=password,
                     res_model='op.assignment.sub.line',
                     res_id=row['submission_id'],
-                    use_sudo=True,
                 )
                 student_attachments = [
                     AttachmentResponse(
@@ -100,4 +99,3 @@ class AssignmentService:
             file_bytes=file_bytes,
             filename=filename
         )
-

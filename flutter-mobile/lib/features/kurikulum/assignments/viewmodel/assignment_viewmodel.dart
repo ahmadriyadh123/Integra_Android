@@ -20,6 +20,8 @@ class AssignmentViewModel extends ChangeNotifier {
 
   List<AssignmentItem> _items = [];
   List<AssignmentItem> get items => _items;
+  String? _activeToken;
+  int _fetchRequestId = 0;
 
   AssignmentFilter _currentFilter = AssignmentFilter.all;
   AssignmentFilter get currentFilter => _currentFilter;
@@ -63,10 +65,32 @@ class AssignmentViewModel extends ChangeNotifier {
     String token, {
     bool forceRefresh = false,
   }) async {
+    final requestId = ++_fetchRequestId;
+    if (_activeToken != token) {
+      _activeToken = token;
+      _items = [];
+      _errorMessage = null;
+      _isLoading = false;
+      _isRefreshing = false;
+      _currentFilter = AssignmentFilter.all;
+      _searchQuery = '';
+      notifyListeners();
+    }
     _errorMessage = null;
 
     if (!forceRefresh) {
-      final cached = await repository.loadCachedAssignments();
+      List<Map<String, dynamic>>? cached;
+      try {
+        cached = await repository.loadCachedAssignments(token);
+      } catch (e) {
+        if (requestId != _fetchRequestId) return;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        _isRefreshing = false;
+        notifyListeners();
+        return;
+      }
+      if (requestId != _fetchRequestId) return;
       if (cached != null && cached.isNotEmpty) {
         _items = cached.map((e) => AssignmentItem.fromJson(e)).toList();
         _isRefreshing = true;
@@ -77,12 +101,15 @@ class AssignmentViewModel extends ChangeNotifier {
             token,
             forceRefresh: true,
           );
+          if (requestId != _fetchRequestId) return;
           _items = fresh;
         } catch (_) {
-          // Gagal background refresh - pertahankan cache
+          if (requestId != _fetchRequestId) return;
         } finally {
-          _isRefreshing = false;
-          notifyListeners();
+          if (requestId == _fetchRequestId) {
+            _isRefreshing = false;
+            notifyListeners();
+          }
         }
         return;
       }
@@ -96,12 +123,17 @@ class AssignmentViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
+      if (requestId != _fetchRequestId) return;
       _items = fresh;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      if (requestId == _fetchRequestId) {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _fetchRequestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -159,15 +191,18 @@ class AssignmentViewModel extends ChangeNotifier {
       studentSubmission: updatedSubmission,
     );
 
-    _items = [
-      for (final item in _items)
-        if (item.id == assignment.id) updatedItem else item,
-      if (existingItem == null) updatedItem,
-    ];
-    await repository.saveCachedAssignments(
-      _items.map((item) => item.toJson()).toList(),
-    );
-    notifyListeners();
+    if (_activeToken == null || _activeToken == token) {
+      _items = [
+        for (final item in _items)
+          if (item.id == assignment.id) updatedItem else item,
+        if (existingItem == null) updatedItem,
+      ];
+      await repository.saveCachedAssignments(
+        _items.map((item) => item.toJson()).toList(),
+        token: token,
+      );
+      notifyListeners();
+    }
     return updatedItem;
   }
 
@@ -185,6 +220,8 @@ class AssignmentViewModel extends ChangeNotifier {
   }
 
   void reset() {
+    _fetchRequestId++;
+    _activeToken = null;
     _items = [];
     _errorMessage = null;
     _isLoading = false;

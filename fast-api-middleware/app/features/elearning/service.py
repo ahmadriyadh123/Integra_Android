@@ -1,4 +1,5 @@
 import re
+import html
 from typing import Dict, Any, List, Optional
 from app.features.elearning.repository import ElearningRepository
 
@@ -19,6 +20,66 @@ class ElearningService:
         if not raw or raw is False:
             return ''
         return re.sub(r'<[^>]+>', '', str(raw)).strip()
+
+    def _message_text(self, raw: Any) -> str:
+        if not raw or raw is False:
+            return ''
+        text = re.sub(r'<br\s*/?>|</p>|</div>', '\n', str(raw), flags=re.IGNORECASE)
+        return html.unescape(re.sub(r'<[^>]+>', '', text)).strip()
+
+    def get_course_messages(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        partner_id: Optional[int] = None,
+    ) -> Optional[List[Dict[str, Any]]]:
+        messages = self.repo.get_course_messages(
+            uid=uid,
+            password=password,
+            course_id=course_id,
+        )
+        if messages is None:
+            return None
+
+        result = []
+        for message in reversed(messages):
+            author = message.get('author_id')
+            author_id = author[0] if isinstance(author, (list, tuple)) and author else None
+            author_name = (
+                str(author[1])
+                if isinstance(author, (list, tuple)) and len(author) > 1
+                else '-'
+            )
+            result.append({
+                'id': int(message.get('id') or 0),
+                'author_name': author_name,
+                'body': self._message_text(message.get('body')),
+                'created_at': str(message.get('date') or ''),
+                'is_own': (
+                    partner_id is not None
+                    and str(author_id) == str(partner_id)
+                ),
+            })
+        return result
+
+    def post_course_message(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        body: str,
+    ) -> Optional[int]:
+        message = body.strip()
+        if not message:
+            raise ValueError('Pesan tidak boleh kosong.')
+        escaped_body = html.escape(message).replace('\n', '<br/>')
+        return self.repo.post_course_message(
+            uid=uid,
+            password=password,
+            course_id=course_id,
+            body=escaped_body,
+        )
 
     def _map_slide_type(self, slide_category: str, slide_type: str) -> str:
         """Normalkan tipe materi ke kategori yang dikenali Flutter."""
@@ -102,4 +163,3 @@ class ElearningService:
         if not res:
             return None
         return res['content'], res['filename'], res['mimetype']
-

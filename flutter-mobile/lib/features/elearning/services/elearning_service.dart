@@ -89,4 +89,41 @@ class ElearningService {
       json['detail'] ?? json['message'] ?? 'Gagal mengambil konten materi',
     );
   }
+
+  Future<List<dynamic>> fetchCourseMessages(
+    String token,
+    int courseId,
+  ) async {
+    final url = Uri.parse('$baseUrl/elearning/courses/$courseId/messages');
+    final response = await http
+        .get(url, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+    final json = jsonDecode(response.body);
+    if (response.statusCode == 200 && json['success'] == true) {
+      return json['data'] as List<dynamic>;
+    }
+    throw Exception(
+      json['detail'] ?? json['message'] ?? 'Gagal mengambil diskusi kursus',
+    );
+  }
+
+  Future<void> sendCourseMessage(
+    String token,
+    int courseId,
+    String body,
+  ) async {
+    final url = Uri.parse('$baseUrl/elearning/courses/$courseId/messages');
+    final response = await http
+        .post(
+          url,
+          headers: _headers(token),
+          body: jsonEncode({'body': body}),
+        )
+        .timeout(const Duration(seconds: 15));
+    final json = jsonDecode(response.body);
+    if (response.statusCode == 200 && json['success'] == true) return;
+    throw Exception(
+      json['detail'] ?? json['message'] ?? 'Gagal mengirim pesan',
+    );
+  }
 }

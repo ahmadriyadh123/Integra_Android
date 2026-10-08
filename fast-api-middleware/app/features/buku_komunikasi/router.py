@@ -3,11 +3,34 @@ from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.buku_komunikasi.service import BukuKomunikasiService
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
 from app.features.buku_komunikasi.schemas import APIResponseBukuKomunikasi, UpdateNoteRequest, UpdateFeedbackRequest
+from app.features.auth.repository import AuthRepository
 
 router = APIRouter(
     prefix="/buku-komunikasi",
     tags=["Menu Buku Komunikasi"]
 )
+
+
+def _resolve_student_id(creds: dict, odoo_client) -> int:
+    student_id = creds.get('student_id')
+    if isinstance(student_id, int) and student_id > 0:
+        return student_id
+
+    student_id, _, _, _ = AuthRepository(odoo_client).resolve_student_context(
+        uid=creds['uid'],
+        password=creds['password'],
+        partner_id=creds.get('partner_id'),
+    )
+    if not student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Data siswa belum terhubung dengan akun Odoo Anda. "
+                "Pastikan relasi user/partner ke siswa sudah diatur."
+            ),
+        )
+    return student_id
+
 
 @router.get("", response_model=APIResponseBukuKomunikasi)
 def get_buku_komunikasi(
@@ -15,13 +38,14 @@ def get_buku_komunikasi(
     odoo_client = Depends(get_odoo_client)
 ):
     try:
+        student_id = _resolve_student_id(creds, odoo_client)
         repo = BukuKomunikasiRepository(odoo_client)
         service = BukuKomunikasiService(repo)
 
         data = service.get_buku_komunikasi(
             uid=creds['uid'],
             password=creds['password'],
-            student_id=creds.get('student_id'),
+            student_id=student_id,
             jenjang=creds.get('jenjang', 'sd')
         )
 
@@ -38,6 +62,8 @@ def get_buku_komunikasi(
             data=data
         )
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -75,6 +101,8 @@ def submit_parent_feedback(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(ve)
         )
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(
@@ -91,11 +119,12 @@ def submit_daily_note(
     try:
         repo = BukuKomunikasiRepository(odoo_client)
         service = BukuKomunikasiService(repo)
+        student_id = _resolve_student_id(creds, odoo_client)
         
         success = service.save_daily_note(
             uid=creds['uid'],
             password=creds['password'],
-            student_id=creds.get('student_id'),
+            student_id=student_id,
             line_id=payload.line_id, 
             day=payload.day, 
             note_text=payload.note_text,
@@ -115,6 +144,8 @@ def submit_daily_note(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(ve)
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

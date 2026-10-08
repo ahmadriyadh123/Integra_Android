@@ -13,22 +13,13 @@ class Settings(BaseSettings):
     # Database PostgreSQL khusus Middleware (Tenant Registry)
     DATABASE_URL: str = "postgresql://user:password@localhost:5432/middleware_db"
 
-    # Default/Fallback Odoo Config (Opsional jika tenant tidak spesifik)
-    ODOO_HOST: str = "localhost"
-    ODOO_DB: str = "odoo_db"
-    ODOO_SCHEME: str = "http"
-    ODOO_PORT: int = 8069
-    ODOO_ADMIN_USER: str = "admin"
-    ODOO_ADMIN_PASS: str = ""
     ODOO_FILESTORE_PATH: str = ""
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 30
-
-    @property
-    def ODOO_URL(self) -> str:
-        return f"{self.ODOO_SCHEME}://{self.ODOO_HOST}:{self.ODOO_PORT}"
+    SCHOOL_ADMIN_USERNAME: str = ""
+    SCHOOL_ADMIN_PASSWORD: str = ""
 
     @property
     def cors_origins(self) -> list[str]:
@@ -46,21 +37,17 @@ settings = Settings()
 if settings.APP_ENV.lower() == "production":
     if len(settings.JWT_SECRET_KEY) < 32:
         raise ValueError("JWT_SECRET_KEY production harus minimal 32 karakter")
-    if settings.ODOO_ADMIN_PASS in {"", "admin_password_here"}:
-        raise ValueError("ODOO_ADMIN_PASS production harus diisi dengan secret yang valid")
 
 
-def get_attachment_base64(store_fname: str, odoo_db: str = None) -> str | None:
+def get_attachment_base64(store_fname: str, odoo_db: str) -> str | None:
     """Membaca file gambar dari Odoo Filestore berdasarkan nama DB Tenant"""
-    if not store_fname or not settings.ODOO_FILESTORE_PATH:
+    if not store_fname or not odoo_db or not settings.ODOO_FILESTORE_PATH:
         return None
     try:
         clean_store_fname = os.path.normpath(store_fname)
         base_filestore = os.path.normpath(settings.ODOO_FILESTORE_PATH)
         
-        # Gunakan odoo_db spesifik dari tenant jika ada
-        target_db = odoo_db or settings.ODOO_DB
-        file_path = os.path.join(base_filestore, target_db, clean_store_fname)
+        file_path = os.path.join(base_filestore, odoo_db, clean_store_fname)
 
         if os.path.exists(file_path) and os.path.isfile(file_path):
             with open(file_path, "rb") as image_file:

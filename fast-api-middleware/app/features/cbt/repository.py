@@ -25,8 +25,7 @@ class CbtRepository:
                     model='op.student',
                     domain=domain_student,
                     fields=['grade'],
-                    limit=1,
-                    use_sudo=True
+                    limit=1
                 )
                 if records and records[0].get('grade'):
                     g = records[0]['grade']
@@ -115,8 +114,7 @@ class CbtRepository:
                 model='cbt.soal.jawaban',
                 domain=[('soal_id', '=', soal['id'])],
                 fields=['id', 'kode', 'teks_jawaban', 'sequence'],
-                order='sequence asc, id asc',
-                use_sudo=True
+                order='sequence asc, id asc'
             )
             soal['options'] = opsi_list
 

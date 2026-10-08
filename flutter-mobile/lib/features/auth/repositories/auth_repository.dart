@@ -4,6 +4,7 @@ import 'dart:io';
 import '../local/auth_local_storage.dart';
 import '../models/auth_model.dart';
 import '../services/auth_service.dart';
+import '../../../services/tenant_api_config.dart';
 
 class AuthRepository {
   final AuthService apiService;
@@ -15,13 +16,21 @@ class AuthRepository {
   });
 
   Future<AuthResult> login(String username, String password) async {
-    try {
-      final data = await apiService.login(username, password);
-      return AuthResult.fromJson(data);
-    } catch (e) {
-      rethrow;
+    final data = await apiService.login(username, password);
+    final token = data['access_token'];
+    final tokenType = data['token_type'];
+    if (token is! String ||
+        tokenType is! String ||
+        tokenType.toLowerCase() != 'bearer' ||
+        !isTokenForSelectedSchool(token)) {
+      throw const TenantTokenMismatchException();
     }
+
+    return AuthResult.fromJson(data);
   }
+
+  bool isTokenForSelectedSchool(String token) =>
+      apiService.tenantApiConfig.tokenMatchesSelectedSchool(token);
 
   /// Validasi session token ke backend.
   /// Throw exception jika token invalid atau expired.

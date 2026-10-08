@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 class TeacherInfoCard extends StatelessWidget {
   final String teacherName;
+  final VoidCallback onChatTap;
 
-  const TeacherInfoCard({super.key, required this.teacherName});
+  const TeacherInfoCard({
+    super.key,
+    required this.teacherName,
+    required this.onChatTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +70,17 @@ class TeacherInfoCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(12),
+          IconButton(
+            onPressed: onChatTap,
+            tooltip: 'Buka diskusi kursus',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFECFDF5),
+              foregroundColor: primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Icon(Icons.chat_bubble_outline_rounded, color: primaryColor, size: 20),
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
           ),
         ],
       ),

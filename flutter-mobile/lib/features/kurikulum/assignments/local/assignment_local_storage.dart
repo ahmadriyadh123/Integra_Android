@@ -2,7 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 class AssignmentLocalStorage {
   static const String _boxName = 'assignment_box';
-  static const String _keyAssignments = 'cached_assignments';
+  static const String _keyAssignmentsPrefix = 'cached_assignments';
 
   Future<Box> _getBox() async {
     if (!Hive.isBoxOpen(_boxName)) {
@@ -11,17 +11,29 @@ class AssignmentLocalStorage {
     return Hive.box(_boxName);
   }
 
-  Future<void> saveAssignments(List<Map<String, dynamic>> assignments) async {
+  String _assignmentsKey(String cacheScope) {
+    if (cacheScope.trim().isEmpty) {
+      throw ArgumentError.value(cacheScope, 'cacheScope', 'Tidak boleh kosong');
+    }
+    return '${_keyAssignmentsPrefix}_$cacheScope';
+  }
+
+  Future<void> saveAssignments(
+    List<Map<String, dynamic>> assignments, {
+    required String cacheScope,
+  }) async {
     try {
       final box = await _getBox();
-      await box.put(_keyAssignments, assignments);
+      await box.put(_assignmentsKey(cacheScope), assignments);
     } catch (_) {}
   }
 
-  Future<List<Map<String, dynamic>>?> loadAssignments() async {
+  Future<List<Map<String, dynamic>>?> loadAssignments({
+    required String cacheScope,
+  }) async {
     try {
       final box = await _getBox();
-      final data = box.get(_keyAssignments);
+      final data = box.get(_assignmentsKey(cacheScope));
       if (data is List) {
         return data
             .whereType<Map>()
@@ -32,10 +44,10 @@ class AssignmentLocalStorage {
     return null;
   }
 
-  Future<void> clear() async {
+  Future<void> clear({required String cacheScope}) async {
     try {
       final box = await _getBox();
-      await box.delete(_keyAssignments);
+      await box.delete(_assignmentsKey(cacheScope));
     } catch (_) {}
   }
 }

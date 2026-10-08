@@ -115,3 +115,29 @@ class CourseItem {
     );
   }
 }
+
+class CourseMessage {
+  final int id;
+  final String authorName;
+  final String body;
+  final DateTime? createdAt;
+  final bool isOwn;
+
+  const CourseMessage({
+    required this.id,
+    required this.authorName,
+    required this.body,
+    required this.createdAt,
+    required this.isOwn,
+  });
+
+  factory CourseMessage.fromJson(Map<String, dynamic> json) {
+    return CourseMessage(
+      id: _asInt(json['id']),
+      authorName: _asString(json['author_name'], fallback: 'Peserta'),
+      body: _asString(json['body']),
+      createdAt: DateTime.tryParse(_asString(json['created_at'])),
+      isOwn: json['is_own'] == true,
+    );
+  }
+}

@@ -37,5 +37,4 @@ def test_scorm_attachment_fault_logs_context_without_credentials(caplog):
         domain=[("res_model", "=", "slide.slide"), ("res_id", "=", 321)],
         fields=["id", "name", "datas", "mimetype"],
         limit=1,
-        use_sudo=False,
     )

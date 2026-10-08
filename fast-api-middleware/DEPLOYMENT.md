@@ -23,7 +23,7 @@ Expose only ports `80` and `443` publicly. Keep FastAPI port `8000` private to t
 - A Linux server or container platform with Docker installed.
 - A DNS A/AAAA record such as `api.example.com` pointing to the server.
 - A valid TLS certificate for the API domain.
-- Network access from the server to the Odoo host and port.
+- Network access from the server to each Odoo instance registered for a school.
 - Production values stored in the platform secret manager.
 
 ## 3. Environment and secrets
@@ -34,26 +34,38 @@ Required values:
 
 ```env
 APP_ENV=production
-ODOO_HOST=your-odoo-host.example.com
-ODOO_DB=your_odoo_database
-ODOO_SCHEME=https
-ODOO_PORT=443
-ODOO_ADMIN_USER=admin
-ODOO_ADMIN_PASS=<secret>
 JWT_SECRET_KEY=<at-least-32-random-characters>
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_DAYS=1
-CORS_ALLOW_ORIGINS=https://app.example.com
+CORS_ALLOW_ORIGINS=https://app.example.com,https://school-admin.example.com
+SCHOOL_ADMIN_USERNAME=<initial-admin-username>
+SCHOOL_ADMIN_PASSWORD=<initial-admin-password-at-least-12-characters>
 ```
 
-`ODOO_ADMIN_USER` and `ODOO_ADMIN_PASS` are required for middleware operations
-that create or update student submissions and attachments. Use a dedicated
-Odoo integration account with access to `op.assignment.sub.line` and
-`ir.attachment`, including permission to attach a file to a submission record.
-Do not rely on the student login for these operations; the middleware fails
-explicitly if the service account cannot authenticate or Odoo denies its access.
+Each school's Odoo URL and database name are configured in the middleware's
+`school_tenants` registry (through the school admin interface). API requests
+select the tenant with `X-School-ID`; Odoo features use that tenant's URL and
+database. There is no global Odoo host/database fallback in the environment.
+
+On first startup, these two variables bootstrap the first record in the
+`school_admin_accounts` table. The backend stores a salted PBKDF2-SHA256
+password hash and checks subsequent logins against the database; it does not
+compare login credentials with the environment variables. Bootstrap values do
+not overwrite an existing account. Keep both values available only until the
+initial account has been created, then remove the password from the deployment
+environment/secret configuration. Back up the registry database and restrict
+database access because it contains the admin password hashes.
+
+The middleware calls Odoo using the authenticated student's UID and password.
+Grant student groups only the ACL and record-rule access required for their own
+records, including the assignment submission and attachment operations used by
+the application. Keep unlink access disabled unless explicitly required.
 
 Use an empty `CORS_ALLOW_ORIGINS` for mobile-only clients. For multiple browser origins, separate them with commas. Rotate the JWT secret before the first production release; rotating it invalidates existing sessions.
+When hosting `school-admin-web` separately, add its exact HTTPS origin to
+`CORS_ALLOW_ORIGINS` so its credentialed requests can use the admin session
+cookie. Keep the web app and API on the same site (for example, sibling
+subdomains) so the browser accepts the `SameSite=Strict` cookie.
 
 ## 4. Build and run with Docker
 
@@ -115,7 +127,9 @@ docker logs --tail 100 sekolah-middleware
 Expected results:
 
 - `/health/live` returns HTTP `200` with `{"status":"ok"}`.
-- `/health/ready` returns HTTP `200` only when the Odoo host and port are reachable.
+- `/health/ready` returns HTTP `200` when the middleware's tenant-registry
+  database is reachable. Odoo connectivity is specific to each registered
+  school and is exercised by that school's authenticated API requests.
 - The container remains running without a restart loop.
 
 Configure `/health/live` as the liveness probe and `/health/ready` as the readiness probe.

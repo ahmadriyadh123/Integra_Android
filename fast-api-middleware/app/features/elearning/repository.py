@@ -92,6 +92,54 @@ class ElearningRepository:
 
         return records[0] if records else None
 
+    def get_course_messages(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, Any]]]:
+        if not self.get_course_by_id(uid, password, course_id):
+            return None
+
+        return self.odoo.search_read(
+            uid=uid,
+            password=password,
+            model='mail.message',
+            domain=[
+                ('model', '=', 'slide.channel'),
+                ('res_id', '=', course_id),
+                ('message_type', '=', 'comment'),
+            ],
+            fields=['id', 'author_id', 'body', 'date'],
+            limit=limit,
+            order='date desc, id desc',
+        )
+
+    def post_course_message(
+        self,
+        uid: int,
+        password: str,
+        course_id: int,
+        body: str,
+    ) -> Optional[int]:
+        if not self.get_course_by_id(uid, password, course_id):
+            return None
+
+        message_id = self.odoo.execute_kw(
+            uid=uid,
+            password=password,
+            model='slide.channel',
+            method='message_post',
+            args=[[course_id]],
+            kwargs={
+                'body': body,
+                'message_type': 'comment',
+                'subtype_xmlid': 'mail.mt_comment',
+            },
+        )
+        return int(message_id)
+
     def get_slides_by_course_id(
         self,
         uid: int,
@@ -158,7 +206,7 @@ class ElearningRepository:
         fields = ['id', 'name', 'datas', 'mimetype']
         logger.info(
             "[elearning/scorm] RPC lookup started db=%s uid=%s slide_id=%s "
-            "model=ir.attachment method=search_read use_sudo=false fields=%s",
+            "model=ir.attachment method=search_read fields=%s",
             self.odoo.db,
             uid,
             slide_id,
@@ -175,7 +223,6 @@ class ElearningRepository:
                 ],
                 fields=fields,
                 limit=1,
-                use_sudo=False,
             )
         except xmlrpc.client.Fault as exc:
             logger.error(
@@ -208,5 +255,3 @@ class ElearningRepository:
                 'mimetype': mimetype
             }
         return None
-
-

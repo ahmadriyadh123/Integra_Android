@@ -55,6 +55,28 @@ class ElearningRepository {
     return apiService.fetchSlideContent(token, slideId);
   }
 
+  Future<List<CourseMessage>> getCourseMessages(
+    String token,
+    int courseId,
+  ) async {
+    final data = await apiService.fetchCourseMessages(token, courseId);
+    return data
+        .map(
+          (item) => CourseMessage.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> sendCourseMessage(
+    String token,
+    int courseId,
+    String body,
+  ) {
+    return apiService.sendCourseMessage(token, courseId, body);
+  }
+
   Future<List<Map<String, dynamic>>?> loadCachedCourses() {
     return localStorage.loadCourses();
   }

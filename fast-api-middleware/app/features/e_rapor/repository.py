@@ -201,6 +201,84 @@ class ERaporRepository:
             logger.warning(f"Gagal mencari op.student dari user_id {uid}: {e}")
         return None
     
+    def resolve_student_id(
+        self,
+        uid: int,
+        password: str,
+        partner_id: Optional[int] = None,
+    ) -> Optional[int]:
+        """Resolve the authenticated Odoo user to an op.student record."""
+        student_fields = self.odoo.execute_kw(
+            uid,
+            password,
+            "op.student",
+            "fields_get",
+            [],
+            {"attributes": ["type"]},
+        )
+        if not isinstance(student_fields, dict):
+            raise RuntimeError("Odoo tidak mengembalikan metadata field op.student.")
+
+        if "user_id" in student_fields:
+            students = self.odoo.search_read(
+                uid,
+                password,
+                "op.student",
+                [("user_id", "=", uid)],
+                ["id"],
+                1,
+            )
+            if students and isinstance(students[0].get("id"), int):
+                return students[0]["id"]
+
+        if partner_id and "partner_id" in student_fields:
+            students = self.odoo.search_read(
+                uid,
+                password,
+                "op.student",
+                [("partner_id", "=", partner_id)],
+                ["id"],
+                2,
+            )
+            if len(students) == 1 and isinstance(students[0].get("id"), int):
+                return students[0]["id"]
+
+        user_fields = self.odoo.execute_kw(
+            uid,
+            password,
+            "res.users",
+            "fields_get",
+            [],
+            {"attributes": ["type"]},
+        )
+        if not isinstance(user_fields, dict):
+            raise RuntimeError("Odoo tidak mengembalikan metadata field res.users.")
+
+        relation_fields = [
+            field for field in ("student_line", "student_id")
+            if field in user_fields
+        ]
+        if not relation_fields:
+            return None
+
+        users = self.odoo.search_read(
+            uid,
+            password,
+            "res.users",
+            [("id", "=", uid)],
+            relation_fields,
+            1,
+        )
+        if not users:
+            return None
+
+        for field in relation_fields:
+            value = users[0].get(field)
+            if isinstance(value, (list, tuple)) and value and isinstance(value[0], int):
+                value = value[0]
+            if isinstance(value, int) and value > 0:
+                return value
+        return None
     def get_student_reports(
         self, uid: int, password: str, student_id: int, jenjang: Optional[str] = None
     ) -> List[Dict[str, Any]]:

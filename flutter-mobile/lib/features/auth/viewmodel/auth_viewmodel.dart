@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/auth_model.dart';
 import '../repositories/auth_repository.dart';
+import '../../../services/tenant_api_config.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository repository;
@@ -47,6 +48,11 @@ class AuthViewModel extends ChangeNotifier {
       );
 
       return true;
+    } on TenantTokenMismatchException catch (error) {
+      _authResult = null;
+      await repository.clearAuth();
+      _errorMessage = error.message.toString();
+      return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;
@@ -71,6 +77,15 @@ class AuthViewModel extends ChangeNotifier {
       } catch (_) {
         // Jika parsing gagal, clear dan restart login
         await repository.clearAuth();
+        return false;
+      }
+
+      if (!repository.isTokenForSelectedSchool(_authResult!.accessToken)) {
+        _authResult = null;
+        await repository.clearAuth();
+        _errorMessage =
+            'Sekolah yang dipilih berubah. Silakan login kembali.';
+        notifyListeners();
         return false;
       }
 

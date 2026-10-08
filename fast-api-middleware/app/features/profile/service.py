@@ -8,7 +8,7 @@ class ProfileService:
 
     def _parse_many2one(self, val: Any, fallback: str = '-') -> str:
         """Helper membaca nilai [id, name] bawaan Odoo Many2one"""
-        if isinstance(val, list) and len(val) > 1:
+        if isinstance(val, (list, tuple)) and len(val) > 1:
             return str(val[1])
         if isinstance(val, str):
             return val
@@ -67,7 +67,11 @@ class ProfileService:
 
         # Susun identitas utama dan partner Odoo untuk response profil.
         partner_val = record.get("partner_id")
-        partner_id = partner_val[0] if isinstance(partner_val, list) and partner_val else None
+        partner_id = (
+            partner_val[0]
+            if isinstance(partner_val, (list, tuple)) and partner_val
+            else partner_val if isinstance(partner_val, int) else None
+        )
         nama_lengkap = self._parse_many2one(partner_val, "-")
 
         # Normalisasi foto agar client menerima URL yang konsisten.
@@ -81,7 +85,10 @@ class ProfileService:
         ttl_str = f"{tempat_lahir}, {b_date_str}" if tempat_lahir != "-" or b_date_str != "-" else "-"
 
         # Hitung usia hanya jika tanggal lahir tersedia dan valid.
-        usia_str = self._calculate_age_str(record.get("birth_date"), str(record.get("age") or ""))
+        usia_str = self._calculate_age_str(
+            record.get("birth_date") or record.get("date_of_birth"),
+            str(record.get("age") or ""),
+        )
 
         return {
             "profile": {
@@ -90,12 +97,35 @@ class ProfileService:
                 "partner_id": partner_id,
                 "foto_siswa": foto_url,
                 "nama_lengkap": nama_lengkap,
-                "nis": str(record.get("nis") or "-"),
-                "nisn": str(record.get("nisn") or "-"),
-                "kelas": self._parse_many2one(record.get("grade"), "-"),
-                "rombel": self._parse_many2one(record.get("rombel"), "-"),
-                "tempat_lahir": tempat_lahir,
-                "tanggal_lahir": b_date_str,
+                "nis": str(
+                    record.get("nis")
+                    or record.get("gr_no")
+                    or record.get("student_code")
+                    or "-"
+                ),
+                "nisn": str(record.get("nisn") or record.get("nisn_no") or "-"),
+                "kelas": self._parse_many2one(
+                    record.get("grade")
+                    or record.get("course_id")
+                    or record.get("class_id"),
+                    "-",
+                ),
+                "rombel": self._parse_many2one(
+                    record.get("rombel")
+                    or record.get("batch_id")
+                    or record.get("division_id"),
+                    "-",
+                ),
+                "tempat_lahir": str(
+                    record.get("birth_place")
+                    or record.get("place_of_birth")
+                    or "-"
+                ),
+                "tanggal_lahir": str(
+                    record.get("birth_date")
+                    or record.get("date_of_birth")
+                    or "-"
+                ),
                 "tempat_tanggal_lahir": ttl_str,
                 "usia": usia_str,
                 "status_aktif": bool(record.get("active", True))

@@ -20,12 +20,16 @@ class _FakeAssignmentRepository extends AssignmentRepository {
 
   List<AssignmentItem> assignments = [];
   List<Map<String, dynamic>>? cachedAssignments;
+  final Map<String, Completer<List<AssignmentItem>>> pendingResponses = {};
 
   @override
   Future<List<AssignmentItem>> getAssignments(
     String token, {
     bool forceRefresh = false,
-  }) async => assignments;
+  }) async {
+    final pendingResponse = pendingResponses[token];
+    return pendingResponse == null ? assignments : pendingResponse.future;
+  }
 
   @override
   Future<Map<String, dynamic>> submitAssignment({
@@ -43,12 +47,43 @@ class _FakeAssignmentRepository extends AssignmentRepository {
   };
 
   @override
-  Future<void> saveCachedAssignments(List<Map<String, dynamic>> data) async {
+  Future<void> saveCachedAssignments(
+    List<Map<String, dynamic>> data, {
+    required String token,
+  }) async {
     cachedAssignments = data;
   }
 }
 
 void main() {
+  test(
+    'late response from previous user cannot replace current assignments',
+    () async {
+      final repository = _FakeAssignmentRepository();
+      final viewModel = AssignmentViewModel(repository: repository);
+      final firstUserResponse = Completer<List<AssignmentItem>>();
+      final secondUserResponse = Completer<List<AssignmentItem>>();
+      repository.pendingResponses['first-user'] = firstUserResponse;
+      repository.pendingResponses['second-user'] = secondUserResponse;
+
+      final firstUserFetch = viewModel.fetchAssignments(
+        'first-user',
+        forceRefresh: true,
+      );
+      final secondUserFetch = viewModel.fetchAssignments(
+        'second-user',
+        forceRefresh: true,
+      );
+
+      secondUserResponse.complete([_assignment(title: 'Tugas user kedua')]);
+      await secondUserFetch;
+      firstUserResponse.complete([_assignment(title: 'Tugas user pertama')]);
+      await firstUserFetch;
+
+      expect(viewModel.items.single.title, 'Tugas user kedua');
+    },
+  );
+
   test(
     'successful upload adds student attachment even when assignment list is empty',
     () async {
@@ -87,3 +122,15 @@ void main() {
     },
   );
 }
+
+AssignmentItem _assignment({required String title}) => AssignmentItem(
+  id: title == 'Tugas user pertama' ? 1 : 2,
+  masterAssignmentId: 1,
+  title: title,
+  subject: SubjectInfo(name: 'PAI'),
+  facultyId: 1,
+  batchId: 3,
+  description: '',
+  state: 'publish',
+  maxMarks: 100,
+);

@@ -18,28 +18,36 @@ class AuthService {
     this.client,
   });
 
-  Future<List<SchoolOption>> fetchSchools() async {
+  Future<List<SchoolOption>?> loadCachedSchools() async {
     final preferences = await SharedPreferences.getInstance();
     final cacheKey = '$_schoolsCacheKeyPrefix${baseUrl.trim()}';
     final cachedSchools = preferences.getString(cacheKey);
-    if (cachedSchools != null) {
-      try {
-        final decoded = json.decode(cachedSchools);
-        if (decoded is! List) {
-          throw const FormatException('Format daftar sekolah tidak valid');
-        }
-        return decoded
-            .map((school) {
-              if (school is! Map<String, dynamic>) {
-                throw const FormatException('Data sekolah tidak valid');
-              }
-              return SchoolOption.fromJson(school);
-            })
-            .toList(growable: false);
-      } on FormatException {
-        await preferences.remove(cacheKey);
+    if (cachedSchools == null) return null;
+
+    try {
+      final decoded = json.decode(cachedSchools);
+      if (decoded is! List) {
+        throw const FormatException('Format daftar sekolah tidak valid');
       }
+      return decoded
+          .map((school) {
+            if (school is! Map<String, dynamic>) {
+              throw const FormatException('Data sekolah tidak valid');
+            }
+            return SchoolOption.fromJson(school);
+          })
+          .toList(growable: false);
+    } on FormatException {
+      await preferences.remove(cacheKey);
+      return null;
     }
+  }
+
+  Future<List<SchoolOption>> fetchSchools({bool forceRefresh = false}) async {
+    final preferences = await SharedPreferences.getInstance();
+    final cacheKey = '$_schoolsCacheKeyPrefix${baseUrl.trim()}';
+    final cachedSchools = await loadCachedSchools();
+    if (cachedSchools != null && !forceRefresh) return cachedSchools;
 
     if (baseUrl.trim().isEmpty) {
       throw Exception(

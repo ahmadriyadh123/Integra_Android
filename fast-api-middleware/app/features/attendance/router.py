@@ -29,8 +29,9 @@ def get_attendance_history(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Data siswa tidak ditemukan dalam sesi Anda. "
-                "Silakan logout dan login ulang untuk memperbarui sesi."
+                "Akun Odoo belum terhubung ke data siswa. "
+                "Pastikan pengguna terhubung ke record op.student melalui "
+                "student_line, student_id, partner_id, atau user_id."
             )
         )
 

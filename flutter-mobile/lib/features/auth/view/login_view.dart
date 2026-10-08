@@ -29,7 +29,9 @@ class _LoginViewState extends State<LoginView> {
   late String? _selectedSchoolId;
   List<SchoolOption> _schools = const [];
   bool _isLoadingSchools = true;
+  bool _isRefreshingSchools = false;
   String? _schoolLoadError;
+  String? _schoolRefreshError;
   bool _isPasswordVisible = false;
 
   @override
@@ -38,7 +40,9 @@ class _LoginViewState extends State<LoginView> {
     _selectedSchoolId = widget.initialSchoolId.isEmpty
         ? null
         : widget.initialSchoolId;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSchools());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _loadSchools(showCachedFirst: true),
+    );
   }
 
   @override
@@ -49,24 +53,60 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
-  Future<void> _loadSchools() async {
+  Future<void> _loadSchools({bool showCachedFirst = false}) async {
+    final authService = context.read<AuthService>();
+    if (showCachedFirst) {
+      try {
+        final cachedSchools = await authService.loadCachedSchools();
+        if (!mounted) return;
+        if (cachedSchools != null) {
+          setState(() {
+            _schools = cachedSchools;
+            _isLoadingSchools = false;
+          });
+        }
+      } catch (error) {
+        if (!mounted) return;
+        setState(() {
+          _schoolLoadError = error.toString().replaceFirst('Exception: ', '');
+          _isLoadingSchools = false;
+        });
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
-      _isLoadingSchools = true;
+      _isLoadingSchools = _schools.isEmpty;
+      _isRefreshingSchools = true;
       _schoolLoadError = null;
+      _schoolRefreshError = null;
     });
 
     try {
-      final schools = await context.read<AuthService>().fetchSchools();
+      final schools = await authService.fetchSchools(forceRefresh: true);
       if (!mounted) return;
       setState(() {
         _schools = schools;
         _isLoadingSchools = false;
+        _isRefreshingSchools = false;
+        _schoolLoadError = schools.isEmpty
+            ? 'Belum ada sekolah aktif yang tersedia.'
+            : null;
+        if (!schools.any((school) => school.id == _selectedSchoolId)) {
+          _selectedSchoolId = null;
+        }
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _isLoadingSchools = false;
-        _schoolLoadError = error.toString().replaceFirst('Exception: ', '');
+        _isRefreshingSchools = false;
+        final message = error.toString().replaceFirst('Exception: ', '');
+        if (_schools.isEmpty) {
+          _schoolLoadError = message;
+        } else {
+          _schoolRefreshError = message;
+        }
       });
     }
   }
@@ -238,20 +278,51 @@ class _LoginViewState extends State<LoginView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Nama sekolah',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0F172A),
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Nama sekolah',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _isRefreshingSchools ? null : () => _loadSchools(),
+              icon: _isRefreshingSchools
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 17),
+              label: const Text('Perbarui'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        if (_schoolRefreshError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Gagal memperbarui daftar. Menampilkan data tersimpan: '
+              '$_schoolRefreshError',
+              style: const TextStyle(color: Color(0xFFB45309), fontSize: 12),
+            ),
+          ),
+        const SizedBox(height: 4),
         FormField<String>(
           key: ValueKey(selectedSchoolId),
           initialValue: selectedSchoolId,
           validator: (value) {
-            if (_schoolLoadError != null) {
+            if (_schoolLoadError != null && _schools.isEmpty) {
               return 'Daftar sekolah tidak tersedia';
             }
             if (value == null) return 'Silakan pilih sekolah';
@@ -330,9 +401,8 @@ class _LoginViewState extends State<LoginView> {
               ],
               builder: (context, menuController, child) {
                 final isEnabled =
-                    widget.onSchoolIdSaved != null &&
                     !_isLoadingSchools &&
-                    _schoolLoadError == null;
+                    (_schoolLoadError == null || _schools.isNotEmpty);
                 return InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: isEnabled
@@ -418,7 +488,7 @@ class _LoginViewState extends State<LoginView> {
             ),
           ),
         ),
-        if (_schoolLoadError != null)
+        if (_schoolLoadError != null && _schools.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Row(
