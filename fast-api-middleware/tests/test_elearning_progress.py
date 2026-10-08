@@ -28,6 +28,30 @@ def test_course_detail_maps_student_completion_to_slides_and_percentage():
     repository.get_completed_slide_ids.assert_called_once_with(22, "secret", 5, 7)
 
 
+def test_course_list_progress_is_scoped_to_student_and_course_ids():
+    repository = Mock()
+    repository.get_published_courses.return_value = [
+        {
+            "id": 5,
+            "name": "Matematika",
+            "user_id": [3, "Guru"],
+            "total_slides": 4,
+            "description": "",
+        }
+    ]
+    repository.get_progress_by_course.return_value = {5: {10, 11}, 99: {20}}
+
+    courses = ElearningService(repository).get_courses_list(
+        22,
+        "secret",
+        partner_id=7,
+    )
+
+    assert courses[0]["completed_slides"] == 2
+    assert courses[0]["progress_percent"] == 50
+    repository.get_progress_by_course.assert_called_once_with(22, "secret", 7)
+
+
 def test_repository_creates_native_odoo_completion_record():
     odoo = Mock()
     odoo.search_read.side_effect = [
@@ -59,6 +83,24 @@ def test_repository_does_not_mark_scorm_complete_when_only_opened():
     odoo = Mock()
     odoo.search_read.return_value = [
         {"id": 10, "slide_type": "scorm", "slide_category": "scorm"}
+    ]
+    repository = ElearningRepository(odoo)
+
+    assert not repository.mark_slide_completed(
+        uid=22,
+        password="secret",
+        course_id=5,
+        slide_id=10,
+        partner_id=7,
+        source="opened",
+    )
+    odoo.execute_kw.assert_not_called()
+
+
+def test_repository_does_not_mark_quiz_complete_when_opened():
+    odoo = Mock()
+    odoo.search_read.return_value = [
+        {"id": 10, "slide_type": "quiz", "slide_category": "quiz"}
     ]
     repository = ElearningRepository(odoo)
 

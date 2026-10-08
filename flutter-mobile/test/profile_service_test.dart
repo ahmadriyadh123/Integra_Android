@@ -9,10 +9,13 @@ import 'package:flutter_application_1/services/tenant_api_config.dart';
 void main() {
   test('fetches a profile image once for concurrent and later calls', () async {
     var requestCount = 0;
-    final payload = base64Url
-        .encode(utf8.encode(jsonEncode({'school_id': 123})))
-        .replaceAll('=', '');
-    final token = 'header.$payload.signature';
+    String encodeSegment(Object value) =>
+        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+    final token = [
+      encodeSegment({'alg': 'HS256', 'typ': 'JWT'}),
+      encodeSegment({'school_id': 123}),
+      base64Url.encode(utf8.encode('signature')).replaceAll('=', ''),
+    ].join('.');
     final service = ProfileService(
       baseUrl: 'https://example.com/api/v1',
       tenantApiConfig: TenantApiConfig(schoolId: '123'),

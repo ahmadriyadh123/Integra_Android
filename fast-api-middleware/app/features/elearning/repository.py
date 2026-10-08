@@ -160,7 +160,12 @@ class ElearningRepository:
             str(slide.get('slide_type') or '').lower() == 'scorm'
             or str(slide.get('slide_category') or '').lower() == 'scorm'
         )
-        if source == 'opened' and is_scorm:
+        slide_types = {
+            str(slide.get('slide_type') or '').lower(),
+            str(slide.get('slide_category') or '').lower(),
+        }
+        is_quiz = bool(slide_types & {'quiz', 'question'})
+        if source == 'opened' and (is_scorm or is_quiz):
             return False
         if source == 'scorm' and (
             not is_scorm

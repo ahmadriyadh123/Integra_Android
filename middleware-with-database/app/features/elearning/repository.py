@@ -37,7 +37,12 @@ class ElearningRepository:
                     c.name,
                     c.user_id,
                     p.name AS teacher_name,
-                    c.total_slides,
+                    (
+                        SELECT COUNT(*)
+                        FROM slide_slide total_slide
+                        WHERE total_slide.channel_id = c.id
+                          AND total_slide.is_published = TRUE
+                    ) AS total_slides,
                     COALESCE((
                         SELECT COUNT(DISTINCT sp.slide_id)
                         FROM slide_slide_partner sp
@@ -65,7 +70,12 @@ class ElearningRepository:
                     c.name,
                     c.user_id,
                     p.name AS teacher_name,
-                    c.total_slides,
+                    (
+                        SELECT COUNT(*)
+                        FROM slide_slide total_slide
+                        WHERE total_slide.channel_id = c.id
+                          AND total_slide.is_published = TRUE
+                    ) AS total_slides,
                     0 AS completed_slides,
                     c.description,
                     c.is_published
@@ -166,7 +176,12 @@ class ElearningRepository:
             str(slide.get("slide_type") or "").lower() == "scorm"
             or str(slide.get("slide_category") or "").lower() == "scorm"
         )
-        if source == "opened" and is_scorm:
+        slide_types = {
+            str(slide.get("slide_type") or "").lower(),
+            str(slide.get("slide_category") or "").lower(),
+        }
+        is_quiz = bool(slide_types & {"quiz", "question"})
+        if source == "opened" and (is_scorm or is_quiz):
             return False
         if source == "scorm" and (
             not is_scorm
@@ -178,12 +193,19 @@ class ElearningRepository:
 
         await self.db.execute(
             text("""
-                INSERT INTO slide_slide_partner (slide_id, partner_id, completed)
-                VALUES (:slide_id, :partner_id, TRUE)
+                INSERT INTO slide_slide_partner
+                    (slide_id, partner_id, channel_id, completed)
+                VALUES (:slide_id, :partner_id, :course_id, TRUE)
                 ON CONFLICT (slide_id, partner_id)
-                DO UPDATE SET completed = TRUE;
+                DO UPDATE SET
+                    channel_id = EXCLUDED.channel_id,
+                    completed = TRUE;
             """),
-            {"slide_id": slide_id, "partner_id": partner_id},
+            {
+                "slide_id": slide_id,
+                "partner_id": partner_id,
+                "course_id": course_id,
+            },
         )
         await self.db.commit()
         return True

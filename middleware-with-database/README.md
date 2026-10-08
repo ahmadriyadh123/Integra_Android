@@ -15,6 +15,10 @@ filestore bersama dengan susunan `<database-sekolah>/<store_fname>`.
 Attachment SCORM publik juga dapat diambil backend melalui endpoint HTTP Odoo
 `/web/content/<attachment_id>?download=true`; fallback ini tidak memakai
 JSON-RPC. Attachment privat tetap memerlukan filestore yang dapat diakses backend.
+Progres E-Learning dibaca dan disimpan per peserta pada tabel
+`slide_slide_partner`, lalu dikaitkan ke materi dan course tenant yang sama.
+Dokumen/video ditandai selesai ketika dibuka; SCORM hanya saat player melaporkan
+`completed` atau `passed`. Persentase course memakai jumlah materi terbit.
 
 Saat startup, tabel `school_tenants` dibuat di database registry jika belum ada,
 dengan kolom yang sama seperti daftar tenant yang digunakan admin: `id`,

@@ -10,6 +10,7 @@ import 'auth/viewmodel/auth_viewmodel.dart';
 import 'profile/viewmodel/profile_viewmodel.dart';
 import 'profile/services/profile_service.dart';
 import 'profile/repositories/profile_repository.dart';
+import 'profile/local/profile_local_storage.dart';
 
 import 'kehadiran/local/attendance_local_storage.dart';
 import 'kehadiran/services/attendance_service.dart';
@@ -86,8 +87,10 @@ List<SingleChildWidget> getAppProviders(
       create: (_) =>
           ProfileService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
     ),
-    ProxyProvider<ProfileService, ProfileRepository>(
-      update: (_, service, _) => ProfileRepository(apiService: service),
+    Provider<ProfileLocalStorage>(create: (_) => ProfileLocalStorage()),
+    ProxyProvider2<ProfileService, ProfileLocalStorage, ProfileRepository>(
+      update: (_, service, storage, _) =>
+          ProfileRepository(apiService: service, localStorage: storage),
     ),
     ChangeNotifierProxyProvider<ProfileRepository, ProfileViewModel>(
       create: (context) => ProfileViewModel(

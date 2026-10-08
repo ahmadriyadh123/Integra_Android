@@ -73,35 +73,12 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   Future<void> _openUrl(
     String? url, {
     bool isScorm = false,
+    bool markCompletedOnOpen = true,
     int? slideId,
   }) async {
     if (url == null || url.isEmpty) {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
-    }
-
-    if (!isScorm && slideId != null) {
-      try {
-        await _vm.markSlideCompleted(
-          widget.authToken,
-          widget.courseId,
-          slideId,
-          source: 'opened',
-        );
-        await _vm.fetchCourseDetail(
-          widget.authToken,
-          widget.courseId,
-          forceRefresh: true,
-        );
-        await _vm.fetchCourses(widget.authToken, forceRefresh: true);
-      } catch (e) {
-        if (mounted) {
-          _showSnack(
-            'Materi dibuka, tetapi progres belum tersimpan: '
-            '${e.toString().replaceAll('Exception: ', '')}',
-          );
-        }
-      }
     }
 
     String fullUrl = url;
@@ -186,9 +163,38 @@ class _DetailCourseViewState extends State<DetailCourseView> {
 
     final uri = Uri.parse(fullUrl);
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched && !isScorm && markCompletedOnOpen && slideId != null) {
+        await _recordOpenedMaterial(slideId);
+      }
     } else {
       _showSnack('Tidak dapat membuka materi.');
+    }
+  }
+
+  Future<void> _recordOpenedMaterial(int slideId) async {
+    try {
+      await _vm.markSlideCompleted(
+        widget.authToken,
+        widget.courseId,
+        slideId,
+        source: 'opened',
+      );
+      await _vm.fetchCourseDetail(
+        widget.authToken,
+        widget.courseId,
+        forceRefresh: true,
+      );
+      await _vm.fetchCourses(widget.authToken, forceRefresh: true);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(
+        'Materi dibuka, tetapi progres belum tersimpan: '
+        '${error.toString().replaceAll('Exception: ', '')}',
+      );
     }
   }
 
@@ -417,6 +423,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                         : () => _openUrl(
                             firstVideoSlide.downloadUrl,
                             isScorm: false,
+                            markCompletedOnOpen: true,
                             slideId: firstVideoSlide.id,
                           ),
                   ),
@@ -573,6 +580,8 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                                       onTap: () => _openUrl(
                                         slide.downloadUrl,
                                         isScorm: slide.isScorm,
+                                        markCompletedOnOpen:
+                                            slide.isVideo || slide.isPdf,
                                         slideId: slide.id,
                                       ),
                                     ),

@@ -7,6 +7,8 @@ import '../home/home_view.dart';
 import '../elearning/lesson_view.dart';
 import '../elearning/viewmodel/elearning_viewmodel.dart';
 import '../profile/profile_view.dart';
+import '../profile/viewmodel/profile_viewmodel.dart';
+import '../../services/tenant_api_config.dart';
 
 class DashboardView extends StatefulWidget {
   final String authToken;
@@ -29,6 +31,15 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthViewModel>();
+      context.read<ProfileViewModel>().loadProfileOnce(
+            token: widget.authToken,
+            user: auth.user,
+            schoolId: context.read<TenantApiConfig>().schoolId,
+          );
+    });
     _restoreLastTab();
   }
 
