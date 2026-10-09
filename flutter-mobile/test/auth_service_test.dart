@@ -95,4 +95,24 @@ void main() {
 
     expect(cached.single.name, 'Sekolah A');
   });
+
+  test('login sends the currently selected school id', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '8'),
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/v1/auth/login');
+        expect(request.headers['X-School-ID'], '8');
+        return http.Response(
+          '{"success":true,"data":{"access_token":"token","token_type":"bearer"}}',
+          200,
+        );
+      }),
+    );
+
+    final result = await service.login('siswa', 'password');
+
+    expect(result['access_token'], 'token');
+  });
 }

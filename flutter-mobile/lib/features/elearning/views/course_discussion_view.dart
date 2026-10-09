@@ -187,11 +187,6 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
               const Icon(Icons.cloud_off_rounded, color: Color(0xFF94A3B8)),
               const SizedBox(height: 10),
               Text(_loadError!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _loadMessages,
-                child: const Text('Coba lagi'),
-              ),
             ],
           ),
         ),
@@ -210,55 +205,43 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
                 color: Color(0xFFEA580C),
               ),
               title: Text(_loadError!, style: const TextStyle(fontSize: 12)),
-              trailing: IconButton(
-                tooltip: 'Coba lagi',
-                onPressed: () => _loadMessages(),
-                icon: const Icon(Icons.refresh_rounded),
-              ),
             ),
           ),
         Expanded(
-          child: RefreshIndicator(
-            color: _discussionGreen,
-            onRefresh: _loadMessages,
-            child: _messages.isEmpty
-                ? ListView(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 100),
-                      Center(
-                        child: Icon(
-                          Icons.forum_outlined,
-                          size: 42,
-                          color: Color(0xFFCBD5E1),
-                        ),
+          child: _messages.isEmpty
+              ? ListView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 100),
+                    Center(
+                      child: Icon(
+                        Icons.forum_outlined,
+                        size: 42,
+                        color: Color(0xFFCBD5E1),
                       ),
-                      SizedBox(height: 12),
-                      Center(
-                        child: Text(
-                          'Belum ada diskusi.\nMulai percakapan di sini.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 18,
                     ),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) =>
-                        _buildMessageBubble(_messages[index]),
+                    SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        'Belum ada diskusi.\nMulai percakapan di sini.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Color(0xFF64748B), height: 1.5),
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
                   ),
-          ),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) =>
+                      _buildMessageBubble(_messages[index]),
+                ),
         ),
       ],
     );

@@ -90,81 +90,10 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: vm.reports.length + 1,
+                itemCount: vm.reports.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 14),
-                itemBuilder: (context, i) => i == 0
-                    ? _buildIntro(vm.reports.length)
-                    : _buildCard(context, vm.reports[i - 1]),
+                itemBuilder: (context, i) => _buildCard(context, vm.reports[i]),
               ),
-      ),
-    );
-  }
-
-  Widget _buildIntro(int reportCount) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [deepTeal, Color(0xFF0F766E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: deepTeal.withValues(alpha: 0.22),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.auto_stories_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Rapor Perkembangan',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$reportCount laporan akademik tersedia',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.insights_rounded,
-            color: Color(0xFFFDE68A),
-            size: 24,
-          ),
-        ],
       ),
     );
   }

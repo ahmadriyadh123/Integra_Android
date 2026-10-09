@@ -57,16 +57,17 @@ class AuthService {
 
     try {
       final uri = Uri.parse('$baseUrl/auth/schools');
-      final response = await (client == null
-              ? http.get(
-                  uri,
-                  headers: const {'Content-Type': 'application/json'},
-                )
-              : client!.get(
-                  uri,
-                  headers: const {'Content-Type': 'application/json'},
-                ))
-          .timeout(const Duration(seconds: 15));
+      final response =
+          await (client == null
+                  ? http.get(
+                      uri,
+                      headers: const {'Content-Type': 'application/json'},
+                    )
+                  : client!.get(
+                      uri,
+                      headers: const {'Content-Type': 'application/json'},
+                    ))
+              .timeout(const Duration(seconds: 15));
       final jsonResponse = json.decode(response.body);
 
       if (response.statusCode != 200 || jsonResponse['success'] != true) {
@@ -111,18 +112,23 @@ class AuthService {
     final url = Uri.parse('$baseUrl/auth/login');
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: tenantApiConfig.headers(),
-            body: json.encode({'username': username, 'password': password}),
-          )
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () {
-              throw TimeoutException('Waktu tunggu koneksi habis');
-            },
-          );
+      final request = client == null
+          ? http.post(
+              url,
+              headers: tenantApiConfig.headers(),
+              body: json.encode({'username': username, 'password': password}),
+            )
+          : client!.post(
+              url,
+              headers: tenantApiConfig.headers(),
+              body: json.encode({'username': username, 'password': password}),
+            );
+      final response = await request.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Waktu tunggu koneksi habis');
+        },
+      );
 
       final jsonResponse = json.decode(response.body);
 

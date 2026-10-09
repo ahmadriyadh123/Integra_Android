@@ -1,6 +1,23 @@
 import xmlrpc.client
+from urllib.parse import urlsplit
 from typing import List, Dict, Any
 from app.core.models import SchoolTenant
+
+ODOO_RPC_TIMEOUT_SECONDS = 8
+
+
+class _TimeoutTransport(xmlrpc.client.Transport):
+    def make_connection(self, host: str):
+        connection = super().make_connection(host)
+        connection.timeout = ODOO_RPC_TIMEOUT_SECONDS
+        return connection
+
+
+class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+    def make_connection(self, host: str):
+        connection = super().make_connection(host)
+        connection.timeout = ODOO_RPC_TIMEOUT_SECONDS
+        return connection
 
 
 class OdooAccessError(PermissionError):
@@ -13,9 +30,22 @@ class OdooRPCClient:
             raise ValueError("URL dan nama database Odoo tenant wajib diisi.")
         self.url = url.rstrip("/")
         self.db = db
-        
-        self.common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
-        self.models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+        transport = (
+            _TimeoutSafeTransport()
+            if urlsplit(self.url).scheme == "https"
+            else _TimeoutTransport()
+        )
+        self.common = xmlrpc.client.ServerProxy(
+            f"{self.url}/xmlrpc/2/common", transport=transport
+        )
+        object_transport = (
+            _TimeoutSafeTransport()
+            if urlsplit(self.url).scheme == "https"
+            else _TimeoutTransport()
+        )
+        self.models = xmlrpc.client.ServerProxy(
+            f"{self.url}/xmlrpc/2/object", transport=object_transport
+        )
 
     @classmethod
     def get_client(cls, tenant: SchoolTenant) -> "OdooRPCClient":

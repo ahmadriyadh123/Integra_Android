@@ -13,6 +13,8 @@ class SchoolTenant(Base):
     school_name = Column(String, nullable=False)
     odoo_url = Column(String, nullable=False)  # Misal: https://sma1.sekolah.id
     odoo_db = Column(String, nullable=False)   # Misal: db_sma1
+    elearning_db_user = Column("user_db", String(120), nullable=True)
+    elearning_db_secret_ref = Column("secret_ref_db", String(500), nullable=True)
     is_active = Column(Boolean, default=True)
 
 

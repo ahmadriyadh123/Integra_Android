@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 from app.core.database import Base
-from app.core.models import SchoolAdminAccount
+from app.core.models import SchoolAdminAccount, SchoolTenant
 from app.features.admin.bootstrap import seed_initial_admin
 from app.features.admin import router as admin_router
 from app.features.admin.schemas import SchoolCreate, SchoolUpdate
@@ -32,6 +32,18 @@ def test_school_create_normalizes_code_and_url():
     assert school.odoo_db == "sekolah_db"
 
 
+def test_school_tenant_maps_elearning_credentials_to_registry_column_names():
+    columns = SchoolTenant.__table__.columns
+
+    assert columns.user_db is not None
+    assert columns.secret_ref_db is not None
+    assert SchoolTenant.elearning_db_user.property.columns[0].name == "user_db"
+    assert (
+        SchoolTenant.elearning_db_secret_ref.property.columns[0].name
+        == "secret_ref_db"
+    )
+
+
 def test_school_create_rejects_invalid_odoo_url():
     with pytest.raises(ValidationError):
         SchoolCreate(
@@ -40,6 +52,74 @@ def test_school_create_rejects_invalid_odoo_url():
             odoo_url="javascript:alert(1)",
             odoo_db="sekolah_db",
         )
+
+
+def test_school_create_accepts_elearning_database_user_and_secret_reference():
+    school = SchoolCreate(
+        school_code="SDN-001",
+        school_name="SD Negeri 1",
+        odoo_url="https://odoo.example.id",
+        odoo_db="odoo_school",
+        elearning_db_user="elearning_reader",
+        elearning_db_secret_ref="schools/SDN-001/postgres",
+    )
+
+    assert school.elearning_db_user == "elearning_reader"
+    assert school.elearning_db_secret_ref == "schools/SDN-001/postgres"
+
+
+def test_school_create_requires_user_and_secret_reference_together():
+    with pytest.raises(ValidationError, match="referensi secret"):
+        SchoolCreate(
+            school_code="SDN-001",
+            school_name="SD Negeri 1",
+            odoo_url="https://odoo.example.id",
+            odoo_db="odoo_school",
+            elearning_db_user="elearning_reader",
+        )
+
+
+def test_school_create_rejects_plaintext_elearning_database_password():
+    with pytest.raises(ValidationError, match="elearning_db_password"):
+        SchoolCreate(
+            school_code="SDN-001",
+            school_name="SD Negeri 1",
+            odoo_url="https://odoo.example.id",
+            odoo_db="odoo_school",
+            elearning_db_password="must-not-be-stored",
+        )
+
+
+def test_school_update_trims_elearning_database_credentials():
+    update = SchoolUpdate(
+        elearning_db_user=" elearning_reader ",
+        elearning_db_secret_ref=" schools/SDN-001/postgres ",
+    )
+    assert update.elearning_db_user == "elearning_reader"
+    assert update.elearning_db_secret_ref == "schools/SDN-001/postgres"
+
+
+def test_admin_school_response_never_exposes_secret_reference():
+    school = type(
+        "School",
+        (),
+        {
+            "id": 7,
+            "school_code": "SDN-001",
+            "school_name": "SD Negeri 1",
+            "odoo_url": "https://odoo.example.id",
+            "odoo_db": "odoo_school",
+            "elearning_db_user": "elearning_reader",
+            "elearning_db_secret_ref": "schools/SDN-001/postgres",
+            "is_active": True,
+        },
+    )()
+
+    result = admin_router._school_data(school)
+
+    assert result["elearning_db_secret_configured"] is True
+    assert "elearning_db_secret_ref" not in result
+    assert "schools/SDN-001/postgres" not in repr(result)
 
 
 def test_school_update_rejects_null_values():

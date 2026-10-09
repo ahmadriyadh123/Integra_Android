@@ -14,7 +14,13 @@ class AuthRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
-    def _resolve_student_and_jenjang(self, uid: int, password: str, partner_id: Optional[int]) -> tuple[Optional[int], str, Optional[int], str]:
+    def _resolve_student_and_jenjang(
+        self,
+        uid: int,
+        password: str,
+        partner_id: Optional[int],
+        user_data: Optional[Dict[str, Any]] = None,
+    ) -> tuple[Optional[int], str, Optional[int], str]:
         """
         Cari student_id, jenjang, dan course_id siswa.
         Return: (student_id, jenjang, course_id)
@@ -24,42 +30,38 @@ class AuthRepository:
         course_id = None
         course_name = ''
 
-        # Utamakan relasi student_line karena langsung menghubungkan user ke siswa.
-        try:
-            records = self.odoo.search_read(
-                uid=uid, password=password,
-                model='res.users',
-                domain=[('id', '=', uid)],
-                fields=['student_line'],
-                limit=1
-            )
-            if records:
-                val = records[0].get('student_line')
-                if isinstance(val, list) and val:
-                    student_id_from_user = int(val[0])
-                elif isinstance(val, int) and val:
-                    student_id_from_user = val
-        except Exception as e:
-            logger.debug(f"[auth] res.users.student_line tidak tersedia: {e}")
+        if user_data is not None:
+            for field in ("student_line", "student_id"):
+                value = user_data.get(field)
+                if isinstance(value, list) and value:
+                    student_id_from_user = int(value[0])
+                    break
+                if isinstance(value, int) and value:
+                    student_id_from_user = value
+                    break
 
-        # Gunakan student_id sebagai alternatif pada instalasi Odoo yang berbeda.
-        if not student_id_from_user:
+        # Reuse user fields when the login query already loaded them.
+        if not student_id_from_user and user_data is None:
             try:
                 records = self.odoo.search_read(
-                    uid=uid, password=password,
-                    model='res.users',
-                    domain=[('id', '=', uid)],
-                    fields=['student_id'],
-                    limit=1
+                    uid=uid,
+                    password=password,
+                    model="res.users",
+                    domain=[("id", "=", uid)],
+                    fields=["student_line", "student_id"],
+                    limit=1,
                 )
                 if records:
-                    val = records[0].get('student_id')
-                    if isinstance(val, list) and val:
-                        student_id_from_user = int(val[0])
-                    elif isinstance(val, int) and val:
-                        student_id_from_user = val
-            except Exception as e:
-                logger.debug(f"[auth] res.users.student_id tidak tersedia: {e}")
+                    for field in ("student_line", "student_id"):
+                        value = records[0].get(field)
+                        if isinstance(value, list) and value:
+                            student_id_from_user = int(value[0])
+                            break
+                        if isinstance(value, int) and value:
+                            student_id_from_user = value
+                            break
+            except Exception as error:
+                logger.debug("[auth] user/student relation fields unavailable: %s", error)
 
         # Cari melalui op.student jika dua relasi user sebelumnya tidak tersedia.
         if not student_id_from_user and partner_id:
@@ -147,13 +149,30 @@ class AuthRepository:
             if not uid:
                 return None
 
-            user_records = self.odoo.search_read(
-                uid=uid, password=password,
-                model='res.users',
-                domain=[('id', '=', uid)],
-                fields=['id', 'name', 'login', 'email', 'partner_id'],
-                limit=1
-            )
+            core_user_fields = ["id", "name", "login", "email", "partner_id"]
+            try:
+                user_records = self.odoo.search_read(
+                    uid=uid,
+                    password=password,
+                    model="res.users",
+                    domain=[("id", "=", uid)],
+                    fields=core_user_fields + ["student_line", "student_id"],
+                    limit=1,
+                )
+            except xmlrpc.client.Fault as exc:
+                logger.debug(
+                    "[auth] Optional student fields unavailable for uid=%s: %s",
+                    uid,
+                    exc,
+                )
+                user_records = self.odoo.search_read(
+                    uid=uid,
+                    password=password,
+                    model="res.users",
+                    domain=[("id", "=", uid)],
+                    fields=core_user_fields,
+                    limit=1,
+                )
 
             if not user_records:
                 return None
@@ -162,7 +181,17 @@ class AuthRepository:
             partner_val = user_data.get('partner_id')
             partner_id = partner_val[0] if isinstance(partner_val, list) and partner_val else None
 
-            student_id, jenjang, course_id, course_name = self._resolve_student_and_jenjang(uid, password, partner_id) if partner_id else (None, "sd", None, '')
+            has_student_relation = any(
+                user_data.get(field) for field in ("student_line", "student_id")
+            )
+            if partner_id or has_student_relation:
+                student_id, jenjang, course_id, course_name = (
+                    self._resolve_student_and_jenjang(
+                        uid, password, partner_id, user_data=user_data
+                    )
+                )
+            else:
+                student_id, jenjang, course_id, course_name = None, "sd", None, ""
 
             return {
                 "uid": uid,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 
 import 'models/elearning_model.dart';
@@ -42,7 +41,13 @@ class _CourseColor {
 
 class PelajaranView extends StatefulWidget {
   final String authToken;
-  const PelajaranView({super.key, required this.authToken});
+  final ValueChanged<bool>? onCoursePageChanged;
+
+  const PelajaranView({
+    super.key,
+    required this.authToken,
+    this.onCoursePageChanged,
+  });
 
   @override
   State<PelajaranView> createState() => _PelajaranViewState();
@@ -50,6 +55,7 @@ class PelajaranView extends StatefulWidget {
 
 class _PelajaranViewState extends State<PelajaranView> {
   String _searchQuery = '';
+  bool _isOpeningCourse = false;
 
   @override
   void initState() {
@@ -74,23 +80,34 @@ class _PelajaranViewState extends State<PelajaranView> {
         .toList();
   }
 
-  void _navigateToDetail(BuildContext context, CourseItem course, int index) {
+  Future<void> _navigateToDetail(
+    BuildContext context,
+    CourseItem course,
+    int index,
+  ) async {
+    if (_isOpeningCourse) return;
+    _isOpeningCourse = true;
     final colors = _courseColors[index % _courseColors.length];
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        settings: const RouteSettings(name: '/elearning/course-detail'),
-        builder: (_) => DetailCourseView(
-          courseId: course.id,
-          title: course.title,
-          teacher: course.teacherName,
-          authToken: widget.authToken,
-          iconData: colors.iconData,
-          iconBgColor: colors.bg,
-          iconColor: colors.icon,
+    widget.onCoursePageChanged?.call(true);
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/elearning/course-detail'),
+          builder: (_) => DetailCourseView(
+            courseId: course.id,
+            title: course.title,
+            teacher: course.teacherName,
+            authToken: widget.authToken,
+            iconData: colors.iconData,
+            iconBgColor: colors.bg,
+            iconColor: colors.icon,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      _isOpeningCourse = false;
+      widget.onCoursePageChanged?.call(false);
+    }
   }
 
   @override
@@ -115,18 +132,12 @@ class _PelajaranViewState extends State<PelajaranView> {
                     child: CircularProgressIndicator(color: _green),
                   );
                 }
-                return AppRefreshIndicator(
-                  color: _green,
-                  onRefresh: () =>
-                      vm.fetchCourses(widget.authToken, forceRefresh: true),
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: vm.coursesError != null
-                        ? _buildError(vm)
-                        : !vm.hasCourses
-                        ? _buildEmpty()
-                        : _buildBodyContent(vm),
-                  ),
+                return SingleChildScrollView(
+                  child: vm.coursesError != null
+                      ? _buildError(vm)
+                      : !vm.hasCourses
+                      ? _buildEmpty()
+                      : _buildBodyContent(vm),
                 );
               },
             ),
@@ -345,21 +356,6 @@ class _PelajaranViewState extends State<PelajaranView> {
             vm.coursesError!,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () =>
-                vm.fetchCourses(widget.authToken, forceRefresh: true),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Coba Lagi'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _green,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
         ],
       ),

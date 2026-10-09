@@ -10,12 +10,14 @@ class HomeView extends StatelessWidget {
   final String authToken;
   final void Function(Widget page)? onMenuTap;
   final void Function(int index)? onTabSwitch;
+  final ValueChanged<bool>? onCoursePageChanged;
 
   const HomeView({
     super.key,
     required this.authToken,
     this.onMenuTap,
     this.onTabSwitch,
+    this.onCoursePageChanged,
   });
 
   static const Color backgroundSlate = Color(0xFFF8FAFC);
@@ -27,14 +29,14 @@ class HomeView extends StatelessWidget {
     final profile = context.watch<ProfileViewModel>().profile;
 
     final String studentName = profile?.name.isNotEmpty == true
-      ? profile!.name
-      : user?.name.isNotEmpty == true
+        ? profile!.name
+        : user?.name.isNotEmpty == true
         ? user!.name
         : user?.username ?? 'Siswa';
 
     final String className = profile?.className.isNotEmpty == true
-      ? profile!.className
-      : user?.className.isNotEmpty == true
+        ? profile!.className
+        : user?.className.isNotEmpty == true
         ? user!.className
         : '';
 
@@ -129,6 +131,7 @@ class HomeView extends StatelessWidget {
                         authToken: authToken,
                         onMenuTap: onMenuTap,
                         onTabSwitch: onTabSwitch,
+                        onCoursePageChanged: onCoursePageChanged,
                       ),
                     ],
                   ),

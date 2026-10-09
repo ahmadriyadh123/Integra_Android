@@ -265,21 +265,6 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: textSlate),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () =>
-                vm.fetchCalendars(widget.authToken, forceRefresh: true),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Coba Lagi'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
         ],
       ),
     );

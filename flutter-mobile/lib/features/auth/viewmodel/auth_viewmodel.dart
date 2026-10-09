@@ -23,6 +23,7 @@ class AuthViewModel extends ChangeNotifier {
   UserProfile? get user => _authResult?.user;
 
   Future<bool> login(String username, String password) async {
+    if (_isLoading) return false;
     if (username.trim().isEmpty || password.trim().isEmpty) {
       _errorMessage = 'Username dan password tidak boleh kosong';
       notifyListeners();
@@ -35,8 +36,6 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       final result = await repository.login(username.trim(), password);
-      _authResult = result;
-
       await repository.saveAuth(
         {
           'access_token': result.accessToken,
@@ -47,6 +46,7 @@ class AuthViewModel extends ChangeNotifier {
         password: password,
       );
 
+      _authResult = result;
       return true;
     } on TenantTokenMismatchException catch (error) {
       _authResult = null;
@@ -54,6 +54,7 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = error.message.toString();
       return false;
     } catch (e) {
+      _authResult = null;
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;
     } finally {

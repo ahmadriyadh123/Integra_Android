@@ -192,17 +192,6 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
                   ),
                   const SizedBox(height: 16),
                   Text(_viewModel.error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => _viewModel.prepareScorm(
-                      widget.scormUrl,
-                      widget.authToken,
-                      odooUsername: widget.odooUsername,
-                      odooPassword: widget.odooPassword,
-                      odooDb: widget.odooDb,
-                    ),
-                    child: const Text('Coba Lagi'),
-                  ),
                 ],
               ),
             )

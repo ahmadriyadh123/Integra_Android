@@ -92,13 +92,15 @@ class CurriculumTimelineItem extends StatelessWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: const Color(0xFF1E293B),
-                                decoration: isCompleted ? TextDecoration.lineThrough : null,
                               ),
                             ),
                           ),
                           if (badgeText != null) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: badgeColor ?? const Color(0xFFECFDF5),
                                 borderRadius: BorderRadius.circular(12),

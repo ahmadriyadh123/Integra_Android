@@ -98,22 +98,6 @@ class _AssignmentListViewState extends State<AssignmentListView> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 13, color: textMuted),
                       ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => vm.fetchAssignments(
-                          widget.authToken,
-                          forceRefresh: true,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Coba Lagi'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryEmerald,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),

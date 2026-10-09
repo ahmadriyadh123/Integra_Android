@@ -29,7 +29,7 @@ class _LoginViewState extends State<LoginView> {
   late String? _selectedSchoolId;
   List<SchoolOption> _schools = const [];
   bool _isLoadingSchools = true;
-  bool _isRefreshingSchools = false;
+  bool _isLoginRequestPending = false;
   String? _schoolLoadError;
   String? _schoolRefreshError;
   bool _isPasswordVisible = false;
@@ -77,7 +77,6 @@ class _LoginViewState extends State<LoginView> {
     if (!mounted) return;
     setState(() {
       _isLoadingSchools = _schools.isEmpty;
-      _isRefreshingSchools = true;
       _schoolLoadError = null;
       _schoolRefreshError = null;
     });
@@ -88,7 +87,6 @@ class _LoginViewState extends State<LoginView> {
       setState(() {
         _schools = schools;
         _isLoadingSchools = false;
-        _isRefreshingSchools = false;
         _schoolLoadError = schools.isEmpty
             ? 'Belum ada sekolah aktif yang tersedia.'
             : null;
@@ -100,7 +98,6 @@ class _LoginViewState extends State<LoginView> {
       if (!mounted) return;
       setState(() {
         _isLoadingSchools = false;
-        _isRefreshingSchools = false;
         final message = error.toString().replaceFirst('Exception: ', '');
         if (_schools.isEmpty) {
           _schoolLoadError = message;
@@ -112,29 +109,35 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _onLoginPressed() async {
+    if (_isLoginRequestPending) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     final schoolId = _selectedSchoolId;
     if (schoolId == null) return;
-    context.read<TenantApiConfig>().schoolId = schoolId;
-    await widget.onSchoolIdSaved?.call(schoolId);
-    if (!mounted) return;
+    setState(() => _isLoginRequestPending = true);
+    try {
+      context.read<TenantApiConfig>().schoolId = schoolId;
+      await widget.onSchoolIdSaved?.call(schoolId);
+      if (!mounted) return;
 
-    final viewModel = context.read<AuthViewModel>();
-    final success = await viewModel.login(
-      _usernameController.text,
-      _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      final token = viewModel.token;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => DashboardView(authToken: token)),
-        (route) => false,
+      final viewModel = context.read<AuthViewModel>();
+      final success = await viewModel.login(
+        _usernameController.text,
+        _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      if (success) {
+        final token = viewModel.token;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => DashboardView(authToken: token)),
+          (route) => false,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoginRequestPending = false);
     }
   }
 
@@ -258,7 +261,7 @@ class _LoginViewState extends State<LoginView> {
               builder: (context, viewModel, _) {
                 return PrimaryButton(
                   text: 'Login',
-                  isLoading: viewModel.isLoading,
+                  isLoading: _isLoginRequestPending || viewModel.isLoading,
                   onPressed: _onLoginPressed,
                 );
               },
@@ -288,21 +291,6 @@ class _LoginViewState extends State<LoginView> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF0F172A),
                 ),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: _isRefreshingSchools ? null : () => _loadSchools(),
-              icon: _isRefreshingSchools
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded, size: 17),
-              label: const Text('Perbarui'),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
           ],

@@ -75,22 +75,6 @@ class _AttendanceViewState extends State<AttendanceView> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => viewModel.fetchAttendance(
-                            widget.authToken,
-                            forceRefresh: true,
-                          ),
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: const Text('Coba Lagi'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0284C7),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),

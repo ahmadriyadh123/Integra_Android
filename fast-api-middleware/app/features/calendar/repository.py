@@ -21,7 +21,6 @@ class CalendarRepository:
 
         fields = [
             'id',
-            'course_id',
             'semester_id',
             'tahun_id',
             'link_dokumen',
@@ -42,14 +41,23 @@ class CalendarRepository:
             raise RuntimeError(f"Odoo tidak mengembalikan metadata field {model_name}.")
 
         available = set(available_fields)
-        requested_fields = [field for field in fields if field in available]
         if 'id' not in available:
             raise RuntimeError(f"Model {model_name} tidak memiliki field id.")
-        if 'course_id' not in available:
+        class_field = next(
+            (field for field in ('course_id', 'kelas_id') if field in available),
+            None,
+        )
+        if class_field is None:
             raise RuntimeError(
-                f"Model {model_name} tidak memiliki field course_id; "
+                f"Model {model_name} tidak memiliki field course_id atau kelas_id; "
                 "kalender tidak dapat difilter berdasarkan kelas."
             )
+
+        requested_fields = [
+            'id',
+            class_field,
+            *(field for field in fields if field != 'id' and field in available),
+        ]
 
         order_fields = []
         if 'tahun_id' in available:
@@ -57,11 +65,15 @@ class CalendarRepository:
         if 'semester_id' in available:
             order_fields.append('semester_id asc')
 
-        return self.odoo.search_read(
+        records = self.odoo.search_read(
             uid=uid,
             password=password,
             model=model_name,
-            domain=[('course_id', '=', course_id)],
+            domain=[(class_field, '=', course_id)],
             fields=requested_fields,
             order=', '.join(order_fields) or None,
         )
+        if class_field != 'course_id':
+            for record in records:
+                record['course_id'] = record.pop(class_field, None)
+        return records

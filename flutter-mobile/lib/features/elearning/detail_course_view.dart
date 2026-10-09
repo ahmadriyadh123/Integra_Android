@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
@@ -313,16 +312,8 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         showBackButton: true,
         onBack: () => Navigator.pop(context),
       ),
-      body: AppRefreshIndicator(
-        color: _green,
-        onRefresh: () => vm.fetchCourseDetail(
-          widget.authToken,
-          widget.courseId,
-          forceRefresh: true,
-        ),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Container(
+      body: SingleChildScrollView(
+        child: Container(
             constraints: BoxConstraints(
               minHeight: MediaQuery.of(context).size.height * 0.7,
             ),
@@ -354,27 +345,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                     color: Color(0xFF475569),
                   ),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      vm.fetchCourseDetail(
-                        widget.authToken,
-                        widget.courseId,
-                        forceRefresh: true,
-                      ),
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('Coba Lagi'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _green,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
               ],
-            ),
           ),
         ),
       ),
@@ -398,16 +369,8 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     return Consumer<ElearningViewModel>(
       builder: (context, vm, _) => Stack(
         children: [
-          AppRefreshIndicator(
-            color: _green,
-            onRefresh: () => vm.fetchCourseDetail(
-              widget.authToken,
-              widget.courseId,
-              forceRefresh: true,
-            ),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
+          SingleChildScrollView(
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CourseHeaderBanner(
@@ -598,7 +561,6 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                 ],
               ),
             ),
-          ),
 
           // Bottom CTA
           if (firstPlayableSlide != null)

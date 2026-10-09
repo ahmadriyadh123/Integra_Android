@@ -16,7 +16,12 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.models import SchoolAdminAccount, SchoolTenant
-from app.features.admin.schemas import AdminLoginRequest, SchoolCreate, SchoolUpdate
+from app.features.admin.schemas import (
+    AdminLoginRequest,
+    SchoolCreate,
+    SchoolUpdate,
+    validate_elearning_db_config,
+)
 from app.features.admin.security import (
     hash_password,
     normalize_username,
@@ -156,6 +161,8 @@ def _school_data(school: SchoolTenant) -> dict:
         "school_name": school.school_name,
         "odoo_url": school.odoo_url,
         "odoo_db": school.odoo_db,
+        "elearning_db_user": school.elearning_db_user,
+        "elearning_db_secret_configured": bool(school.elearning_db_secret_ref),
         "is_active": school.is_active,
     }
 
@@ -310,6 +317,19 @@ def update_school(
 
     for field, value in updates.items():
         setattr(school, field, value)
+    try:
+        validate_elearning_db_config(
+            {
+                field: getattr(school, field)
+                for field in ("elearning_db_user", "elearning_db_secret_ref")
+            }
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
     _commit_school(db)
     db.refresh(school)
     return {"success": True, "data": _school_data(school)}

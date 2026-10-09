@@ -35,12 +35,14 @@ class HomeQuickMenu extends StatefulWidget {
 
   final void Function(Widget page)? onMenuTap;
   final void Function(int index)? onTabSwitch;
+  final ValueChanged<bool>? onCoursePageChanged;
 
   const HomeQuickMenu({
     super.key,
     required this.authToken,
     this.onMenuTap,
     this.onTabSwitch,
+    this.onCoursePageChanged,
   });
 
   @override
@@ -68,7 +70,10 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
         title: 'E-Learning',
         icon: Icons.menu_book_rounded,
         color: const Color(0xFF0284C7),
-        destination: PelajaranView(authToken: widget.authToken),
+        destination: PelajaranView(
+          authToken: widget.authToken,
+          onCoursePageChanged: widget.onCoursePageChanged,
+        ),
       ),
       QuickMenuItem(
         title: 'Kalender',
