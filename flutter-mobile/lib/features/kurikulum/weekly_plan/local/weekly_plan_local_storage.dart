@@ -18,30 +18,41 @@ class WeeklyPlanLocalStorage {
   }
 
   /// Simpan daftar weekly plan ke Hive.
-  Future<void> saveWeeklyPlanList(List<dynamic> plans) async {
+  String _snapshotKey(String scope) {
+    if (scope.trim().isEmpty) {
+      throw ArgumentError.value(scope, 'scope', 'Tidak boleh kosong');
+    }
+    return '${keyList}_$scope';
+  }
+
+  Future<void> saveWeeklyPlanList(
+    List<dynamic> plans, {
+    required String scope,
+    required String cursor,
+    required int fullSyncAt,
+  }) async {
     final box = await _getBox();
-    await box.put(keyList, plans);
-    await box.put(keyTimestamp, DateTime.now().millisecondsSinceEpoch);
+    await box.put(_snapshotKey(scope), {
+      'items': plans,
+      'cursor': cursor,
+      'full_sync_at': fullSyncAt,
+      'saved_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<Map<String, dynamic>?> loadWeeklyPlanSnapshot({
+    required String scope,
+  }) async {
+    final value = (await _getBox()).get(_snapshotKey(scope));
+    return value is Map ? Map<String, dynamic>.from(value) : null;
   }
 
   /// Baca daftar weekly plan dari Hive.
   /// Kembalikan null jika data kedaluwarsa atau tidak ada di cache.
-  Future<List<dynamic>?> loadWeeklyPlanList() async {
+  Future<List<dynamic>?> loadWeeklyPlanList({required String scope}) async {
     final box = await _getBox();
-    
-    // Cek kesegaran cache
-    final ts = box.get(keyTimestamp) as int?;
-    if (ts == null) return null;
-
-    final savedTime = DateTime.fromMillisecondsSinceEpoch(ts);
-    final isExpired = DateTime.now().difference(savedTime) > cacheTtl;
-    
-    if (isExpired) {
-      await clearCache();
-      return null;
-    }
-
-    final plans = box.get(keyList);
+    final snapshot = box.get(_snapshotKey(scope));
+    final plans = snapshot is Map ? snapshot['items'] : null;
     if (plans is List) {
       return plans;
     }
@@ -49,9 +60,8 @@ class WeeklyPlanLocalStorage {
   }
 
   /// Hapus seluruh cache data weekly plan.
-  Future<void> clearCache() async {
+  Future<void> clearCache({required String scope}) async {
     final box = await _getBox();
-    await box.delete(keyList);
-    await box.delete(keyTimestamp);
+    await box.delete(_snapshotKey(scope));
   }
 }

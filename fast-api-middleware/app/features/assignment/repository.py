@@ -1,5 +1,5 @@
 import base64
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from app.core.odoo_client import OdooRPCClient
 
@@ -66,7 +66,197 @@ class AssignmentRepository:
             )
         return candidates[0]
 
-    def get_assignments_by_student(self, uid: int, password: str, student_id: int) -> List[Dict[str, Any]]:
+    def _search_all(
+        self,
+        uid: int,
+        password: str,
+        model: str,
+        domain: list,
+        fields: list,
+        order: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        offset = 0
+        page_size = 80
+        while True:
+            page = self.odoo_client.search_read(
+                uid=uid,
+                password=password,
+                model=model,
+                domain=domain,
+                fields=fields,
+                limit=page_size,
+                offset=offset,
+                order=order,
+            )
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            offset += len(page)
+
+    @staticmethod
+    def _relation_id(value: Any) -> Optional[int]:
+        if isinstance(value, (list, tuple)) and value and isinstance(value[0], int):
+            return value[0]
+        if isinstance(value, int):
+            return value
+        return None
+
+    @staticmethod
+    def _overlap_cursor(cursor: str) -> str:
+        try:
+            value = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            value -= timedelta(minutes=2)
+            return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError as exc:
+            raise ValueError("Cursor assignment tidak valid.") from exc
+
+    def get_assignment_sync_delta(
+        self, uid: int, password: str, student_id: int, cursor: Optional[str]
+    ) -> Dict[str, Any]:
+        """Find assignment records changed through their own or related Odoo rows."""
+        started_at = datetime.now(timezone.utc)
+        watermark = started_at.strftime("%Y-%m-%d %H:%M:%S")
+        if cursor is None:
+            return {
+                "full_sync": True,
+                "assignment_ids": None,
+                "removed_ids": [],
+                "next_cursor": watermark,
+            }
+
+        since = self._overlap_cursor(cursor)
+        student_field = self._student_relation_field(uid, password)
+        metadata: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for model in (
+            "op.assignment",
+            "op.assignment.sub.line",
+            "grading.assignment",
+            "ir.attachment",
+        ):
+            fields = self.odoo_client.execute_kw(
+                uid, password, model, "fields_get", [],
+                {"attributes": ["type", "relation"]},
+            )
+            if not isinstance(fields, dict) or "write_date" not in fields:
+                raise RuntimeError(
+                    f"Model {model} tidak menyediakan write_date; "
+                    "sinkronisasi cursor tugas tidak aman."
+                )
+            metadata[model] = fields
+
+        assignment_meta = metadata["op.assignment"]
+        grading_field = next(
+            (
+                name for name, info in assignment_meta.items()
+                if info.get("type") == "many2one"
+                and info.get("relation") == "grading.assignment"
+            ),
+            None,
+        )
+        if not grading_field:
+            raise RuntimeError(
+                "Relasi op.assignment.grading_assignment_id tidak dapat "
+                "diidentifikasi untuk sinkronisasi cursor."
+            )
+        for model, required in (
+            ("op.assignment.sub.line", ("student_id", "assignment_id")),
+            ("ir.attachment", ("res_model", "res_id")),
+        ):
+            missing = [field for field in required if field not in metadata[model]]
+            if missing:
+                raise RuntimeError(
+                    f"Field relasi model {model} tidak tersedia: {missing}; "
+                    "sinkronisasi cursor tugas tidak aman."
+                )
+
+        changed_ids: set[int] = set()
+        changed_assignments = self._search_all(
+            uid, password, "op.assignment",
+            [
+                (student_field, "in", [student_id]),
+                ("write_date", ">=", since),
+            ],
+            ["id"],
+        )
+        changed_ids.update(row["id"] for row in changed_assignments)
+
+        changed_submissions = self._search_all(
+            uid, password, "op.assignment.sub.line",
+            [
+                ("student_id", "=", student_id),
+                ("write_date", ">=", since),
+            ],
+            ["id", "assignment_id"],
+        )
+        changed_ids.update(
+            assignment_id
+            for row in changed_submissions
+            if (assignment_id := self._relation_id(row.get("assignment_id")))
+        )
+
+        changed_grades = self._search_all(
+            uid, password, "grading.assignment",
+            [("write_date", ">=", since)],
+            ["id"],
+        )
+        grade_ids = [row["id"] for row in changed_grades]
+        if grade_ids:
+            changed_grade_assignments = self._search_all(
+                uid, password, "op.assignment",
+                [
+                    (student_field, "in", [student_id]),
+                    (grading_field, "in", grade_ids),
+                ],
+                ["id"],
+            )
+            changed_ids.update(row["id"] for row in changed_grade_assignments)
+
+        changed_attachments = self._search_all(
+            uid, password, "ir.attachment",
+            [
+                ("write_date", ">=", since),
+                ("res_model", "in", ["op.assignment", "op.assignment.sub.line"]),
+            ],
+            ["id", "res_model", "res_id"],
+        )
+        changed_submission_ids = []
+        for attachment in changed_attachments:
+            if attachment.get("res_model") == "op.assignment":
+                changed_ids.add(attachment["res_id"])
+            elif attachment.get("res_model") == "op.assignment.sub.line":
+                changed_submission_ids.append(attachment["res_id"])
+        if changed_submission_ids:
+            attached_submissions = self._search_all(
+                uid, password, "op.assignment.sub.line",
+                [
+                    ("id", "in", changed_submission_ids),
+                    ("student_id", "=", student_id),
+                ],
+                ["id", "assignment_id"],
+            )
+            changed_ids.update(
+                assignment_id
+                for row in attached_submissions
+                if (assignment_id := self._relation_id(row.get("assignment_id")))
+            )
+
+        return {
+            "full_sync": False,
+            "assignment_ids": sorted(changed_ids),
+            "removed_ids": [],
+            "next_cursor": watermark,
+        }
+
+    def get_assignments_by_student(
+        self,
+        uid: int,
+        password: str,
+        student_id: int,
+        assignment_ids: Optional[List[int]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Mengambil penugasan yang secara eksplisit terhubung ke record op.student.
         """
@@ -76,6 +266,10 @@ class AssignmentRepository:
             ('state', '!=', 'cancel'),
             (student_field, 'in', [student_id]),
         ]
+        if assignment_ids is not None:
+            if not assignment_ids:
+                return []
+            domain.append(('id', 'in', assignment_ids))
 
         fields = [
             'id',
@@ -91,13 +285,8 @@ class AssignmentRepository:
             'submission_date'
         ]
 
-        assignments = self.odoo_client.search_read(
-            uid=uid,
-            password=password,
-            model='op.assignment',
-            domain=domain,
-            fields=fields,
-            order='submission_date asc'
+        assignments = self._search_all(
+            uid, password, 'op.assignment', domain, fields, order='submission_date asc'
         )
 
         grading_ids = [
@@ -108,13 +297,9 @@ class AssignmentRepository:
         ]
         grading_issued_dates = {}
         if grading_ids:
-            grading_records = self.odoo_client.search_read(
-                uid=uid,
-                password=password,
-                model='grading.assignment',
-                domain=[('id', 'in', grading_ids)],
-                fields=['id', 'issued_date'],
-                limit=len(grading_ids),
+            grading_records = self._search_all(
+                uid, password, 'grading.assignment',
+                [('id', 'in', grading_ids)], ['id', 'issued_date'],
             )
             grading_issued_dates = {
                 record.get('id'): record.get('issued_date')
@@ -157,6 +342,11 @@ class AssignmentRepository:
 
             subj_raw = oa.get('subject_id')
             subj_id = subj_raw[0] if isinstance(subj_raw, (list, tuple)) else None
+            subj_name = (
+                subj_raw[1]
+                if isinstance(subj_raw, (list, tuple)) and len(subj_raw) > 1
+                else None
+            )
 
             fac_raw = oa.get('faculty_id')
             fac_id = fac_raw[0] if isinstance(fac_raw, (list, tuple)) else 0
@@ -169,6 +359,7 @@ class AssignmentRepository:
                 'master_assignment_id': master_id,
                 'title': oa.get('name') or 'Tugas',
                 'subject_id': subj_id,
+                'subject_name': subj_name or 'Umum',
                 'faculty_id': fac_id,
                 'batch_id': batch_id_val,
                 'description': oa.get('description') or '',

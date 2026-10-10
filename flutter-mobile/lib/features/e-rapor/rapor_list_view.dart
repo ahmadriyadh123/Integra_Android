@@ -17,7 +17,6 @@ class RaporListViewPage extends StatefulWidget {
 
 class _RaporListViewPageState extends State<RaporListViewPage> {
   static const Color primaryTeal = Color(0xFF059669);
-  static const Color deepTeal = Color(0xFF064E3B);
   static const Color warmAmber = Color(0xFFF59E0B);
   static const Color darkSlate = Color(0xFF0F172A);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
@@ -114,107 +113,77 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(19),
-        child: Container(
-          decoration: const BoxDecoration(
-            border: Border(left: BorderSide(color: warmAmber, width: 5)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 17, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Material(
+          color: Colors.white,
+          child: InkWell(
+            onTap: () => _openPdf(context, report),
+            child: Container(
+              decoration: const BoxDecoration(
+                border: Border(left: BorderSide(color: warmAmber, width: 5)),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.school_rounded,
-                        size: 14,
-                        color: primaryTeal,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        report.academicYear,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: deepTeal,
-                          letterSpacing: 0.4,
+                      Expanded(
+                        child: _buildReportField(
+                          'Jenis Rapor',
+                          report.reportType,
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildReportField('Tahun', report.academicYear),
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Rata-rata: ${report.averageScore.toStringAsFixed(1)}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFB45309),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildReportField('Semester', report.semester),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildReportField('Kelas', report.className),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                report.semester,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: darkSlate,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.class_outlined,
-                    size: 13,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    report.className,
-                    style: const TextStyle(fontSize: 12, color: textSlate),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Divider(height: 1, color: borderSlate),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _openPdf(context, report),
-                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                  label: const Text(
-                    'Lihat E-Rapor PDF',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: deepTeal,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildReportField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: textSlate,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: darkSlate,
+          ),
+        ),
+      ],
     );
   }
 

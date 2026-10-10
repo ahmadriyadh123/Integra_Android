@@ -9,6 +9,29 @@ class CalendarService {
 
   CalendarService({required this.baseUrl, required this.tenantApiConfig});
 
+  Future<Map<String, dynamic>> syncCalendars(
+    String token, {
+    String? cursor,
+  }) async {
+    final query = <String, String>{};
+    if (cursor != null) query['cursor'] = cursor;
+    final uri = Uri.parse('$baseUrl/calendar/sync')
+        .replace(queryParameters: query);
+    final response = await http
+        .get(uri, headers: tenantApiConfig.headers(token: token))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Gagal menyinkronkan kalender (${response.statusCode}): ${response.body}',
+      );
+    }
+    final decoded = json.decode(response.body);
+    if (decoded is! Map || decoded['success'] != true || decoded['data'] is! Map) {
+      throw const FormatException('Respons sinkronisasi kalender tidak valid.');
+    }
+    return Map<String, dynamic>.from(decoded['data'] as Map);
+  }
+
   Future<Map<String, dynamic>> fetchCalendars(String token) async {
     final url = Uri.parse('$baseUrl/calendar/list');
 

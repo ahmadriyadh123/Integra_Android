@@ -18,6 +18,27 @@ class AuthService {
     this.client,
   });
 
+  Future<http.Response> _get(
+    Uri uri, {
+    Map<String, String>? headers,
+  }) => client?.get(uri, headers: headers) ?? http.get(uri, headers: headers);
+
+  Future<http.Response> _post(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) =>
+      client?.post(uri, headers: headers, body: body) ??
+      http.post(uri, headers: headers, body: body);
+
+  Map<String, dynamic> _decodeObject(String body, String responseName) {
+    final decoded = json.decode(body);
+    if (decoded is! Map) {
+      throw FormatException('Respons $responseName tidak valid.');
+    }
+    return Map<String, dynamic>.from(decoded);
+  }
+
   Future<List<SchoolOption>?> loadCachedSchools() async {
     final preferences = await SharedPreferences.getInstance();
     final cacheKey = '$_schoolsCacheKeyPrefix${baseUrl.trim()}';
@@ -57,18 +78,11 @@ class AuthService {
 
     try {
       final uri = Uri.parse('$baseUrl/auth/schools');
-      final response =
-          await (client == null
-                  ? http.get(
-                      uri,
-                      headers: const {'Content-Type': 'application/json'},
-                    )
-                  : client!.get(
-                      uri,
-                      headers: const {'Content-Type': 'application/json'},
-                    ))
-              .timeout(const Duration(seconds: 15));
-      final jsonResponse = json.decode(response.body);
+      final response = await _get(
+        uri,
+        headers: const {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 15));
+      final jsonResponse = _decodeObject(response.body, 'daftar sekolah');
 
       if (response.statusCode != 200 || jsonResponse['success'] != true) {
         throw Exception(
@@ -112,31 +126,28 @@ class AuthService {
     final url = Uri.parse('$baseUrl/auth/login');
 
     try {
-      final request = client == null
-          ? http.post(
-              url,
-              headers: tenantApiConfig.headers(),
-              body: json.encode({'username': username, 'password': password}),
-            )
-          : client!.post(
-              url,
-              headers: tenantApiConfig.headers(),
-              body: json.encode({'username': username, 'password': password}),
-            );
-      final response = await request.timeout(
+      final response = await _post(
+        url,
+        headers: tenantApiConfig.headers(),
+        body: json.encode({'username': username, 'password': password}),
+      ).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
           throw TimeoutException('Waktu tunggu koneksi habis');
         },
       );
 
-      final jsonResponse = json.decode(response.body);
+      final jsonResponse = _decodeObject(response.body, 'login');
 
       if (response.statusCode == 200 && jsonResponse['success'] == true) {
-        return jsonResponse['data'] as Map<String, dynamic>;
+        final data = jsonResponse['data'];
+        if (data is Map) return Map<String, dynamic>.from(data);
+        throw const FormatException('Data login tidak valid.');
       } else {
         final message =
-            jsonResponse['detail'] ?? jsonResponse['message'] ?? 'Login gagal';
+            jsonResponse['detail']?.toString() ??
+            jsonResponse['message']?.toString() ??
+            'Login gagal';
         throw Exception(message);
       }
     } on TimeoutException {
@@ -155,8 +166,10 @@ class AuthService {
     final url = Uri.parse('$baseUrl/auth/validate');
 
     try {
-      final response = await http
-          .post(url, headers: tenantApiConfig.headers(token: token))
+      final response = await _post(
+        url,
+        headers: tenantApiConfig.headers(token: token),
+      )
           .timeout(
             const Duration(seconds: 10),
             onTimeout: () {
@@ -164,7 +177,7 @@ class AuthService {
             },
           );
 
-      final jsonResponse = json.decode(response.body);
+      final jsonResponse = _decodeObject(response.body, 'validasi token');
 
       if (response.statusCode != 200 || jsonResponse['success'] != true) {
         throw Exception('Token tidak valid atau expired');
@@ -188,18 +201,17 @@ class AuthService {
     final url = Uri.parse('$baseUrl/auth/change-password');
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: tenantApiConfig.headers(token: token),
-            body: json.encode({
-              'current_password': currentPassword,
-              'new_password': newPassword,
-            }),
-          )
+      final response = await _post(
+        url,
+        headers: tenantApiConfig.headers(token: token),
+        body: json.encode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        }),
+      )
           .timeout(const Duration(seconds: 15));
 
-      final jsonResponse = json.decode(response.body);
+      final jsonResponse = _decodeObject(response.body, 'ganti password');
       if (response.statusCode != 200 || jsonResponse['success'] != true) {
         throw Exception(
           jsonResponse['detail'] ??

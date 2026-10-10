@@ -29,6 +29,19 @@ class APIResponseCbtList(BaseModel):
     data: CbtExamListResponse
 
 
+class CbtExamSyncResponse(BaseModel):
+    is_full_sync: bool
+    exams: List[CbtExamItemResponse]
+    removed_ids: List[int]
+    cursor: str
+
+
+class APIResponseCbtSync(BaseModel):
+    success: bool
+    message: str
+    data: CbtExamSyncResponse
+
+
 class VerifyTokenRequest(BaseModel):
     jadwal_ujian_id: int
     token_input: str

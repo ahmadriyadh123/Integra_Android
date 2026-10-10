@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from app.core.odoo_client import OdooRPCClient
 from typing import List, Dict, Any, Optional
 
@@ -62,6 +63,168 @@ class CbtRepository:
                 logger.warning("[cbt repository] Model cbt.jadwal.ujian belum tersedia di Odoo")
                 return []
             raise
+
+    def _require_write_date(self, uid: int, password: str, model: str) -> None:
+        fields = self.odoo.execute_kw(
+            uid=uid,
+            password=password,
+            model=model,
+            method='fields_get',
+            args=[],
+            kwargs={'attributes': ['type']},
+        )
+        if 'write_date' not in fields:
+            raise RuntimeError(
+                f"Cursor sync tidak tersedia: {model}.write_date tidak ditemukan"
+            )
+
+    def validate_schedule_sync_sources(
+        self, uid: int, password: str, student_id: Optional[int]
+    ) -> None:
+        self._require_write_date(uid, password, 'cbt.jadwal.ujian')
+        if student_id:
+            self._require_write_date(uid, password, 'cbt.hasil.ujian')
+
+    def get_schedules_sync_delta(
+        self,
+        uid: int,
+        password: str,
+        course_id: Optional[int],
+        student_id: Optional[int],
+        cursor: Optional[str],
+    ) -> Dict[str, Any]:
+        """Return changed schedules and result-driven schedule updates."""
+        if not course_id and (student_id or uid):
+            domain_student = (
+                [('id', '=', student_id)]
+                if student_id
+                else [('user_id', '=', uid)]
+            )
+            students = self.odoo.search_read(
+                uid=uid,
+                password=password,
+                model='op.student',
+                domain=domain_student,
+                fields=['grade'],
+                limit=1,
+            )
+            if students and students[0].get('grade'):
+                grade = students[0]['grade']
+                if isinstance(grade, list) and grade:
+                    course_id = int(grade[0])
+                elif isinstance(grade, int):
+                    course_id = grade
+        if not course_id:
+            raise ValueError('Kelas siswa tidak ditemukan untuk sinkronisasi CBT')
+
+        self._require_write_date(uid, password, 'cbt.jadwal.ujian')
+        if student_id:
+            self._require_write_date(uid, password, 'cbt.hasil.ujian')
+
+        watermark = datetime.now(timezone.utc)
+        changed_after = None
+        if cursor:
+            changed_after = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
+            if changed_after.tzinfo is None:
+                changed_after = changed_after.replace(tzinfo=timezone.utc)
+            changed_after -= timedelta(minutes=2)
+        changed_after_value = (
+            changed_after.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            if changed_after
+            else None
+        )
+
+        fields = [
+            'id', 'name', 'status', 'mata_pelajaran_id',
+            'tanggal_mulai', 'tanggal_selesai',
+            'durasi_menit', 'jumlah_soal_ditampilkan',
+            'token_ujian', 'bank_soal_id', 'jenis_ujian_id',
+            'passing_grade', 'acak_soal', 'acak_jawaban',
+            'tampilkan_nilai_langsung', 'kode_ujian',
+            'active', 'kelas_ids', 'write_date',
+        ]
+        domain = [('kelas_ids', 'in', [course_id])] if course_id else []
+        if changed_after:
+            domain.append(('write_date', '>=', changed_after_value))
+
+        changed_schedules = []
+        offset = 0
+        while True:
+            page = self.odoo.execute_kw(
+                uid=uid,
+                password=password,
+                model='cbt.jadwal.ujian',
+                method='search_read',
+                args=[domain],
+                kwargs={
+                    'fields': fields,
+                    'order': 'write_date asc, id asc',
+                    'limit': 500,
+                    'offset': offset,
+                    'context': {'active_test': False},
+                },
+            )
+            changed_schedules.extend(page)
+            if len(page) < 500:
+                break
+            offset += len(page)
+
+        changed_ids = {record['id'] for record in changed_schedules}
+        if student_id:
+            result_domain = [
+                ('student_id', '=', student_id),
+                ('write_date', '>=', changed_after_value)
+                if changed_after_value else ('write_date', '>=', '1970-01-01 00:00:00'),
+            ]
+            changed_results = []
+            offset = 0
+            while True:
+                page = self.odoo.search_read(
+                    uid=uid,
+                    password=password,
+                    model='cbt.hasil.ujian',
+                    domain=result_domain,
+                    fields=['jadwal_ujian_id'],
+                    limit=500,
+                    offset=offset,
+                )
+                changed_results.extend(page)
+                if len(page) < 500:
+                    break
+                offset += len(page)
+            result_schedule_ids = {
+                result['jadwal_ujian_id'][0]
+                for result in changed_results
+                if isinstance(result.get('jadwal_ujian_id'), list)
+                and result['jadwal_ujian_id']
+            }
+            changed_ids.update(result_schedule_ids)
+
+        active_domain = [('id', 'in', list(changed_ids)), ('active', '=', True)]
+        if course_id:
+            active_domain.append(('kelas_ids', 'in', [course_id]))
+        current_schedules = []
+        if changed_ids:
+            current_schedules = self.odoo.search_read(
+                uid=uid,
+                password=password,
+                model='cbt.jadwal.ujian',
+                domain=active_domain,
+                fields=fields,
+                limit=1000,
+            )
+        current_ids = {record['id'] for record in current_schedules}
+        removed_ids = sorted(
+            record['id']
+            for record in changed_schedules
+            if record.get('active') is False and record['id'] not in current_ids
+        )
+
+        return {
+            'schedules': current_schedules,
+            'removed_ids': removed_ids,
+            'cursor': watermark.isoformat(),
+        }
 
     def get_schedule_by_id(
         self, uid: int, password: str, jadwal_id: int

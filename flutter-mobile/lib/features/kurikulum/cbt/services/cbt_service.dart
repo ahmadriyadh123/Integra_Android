@@ -50,6 +50,30 @@ class CbtService {
     }
   }
 
+  Future<Map<String, dynamic>> syncCbtSchedules(
+    String token, {
+    String? cursor,
+  }) async {
+    if (token.trim().isEmpty) {
+      throw Exception('Token login kosong. Jalankan login terlebih dahulu.');
+    }
+    final url = Uri.parse(
+      '$baseUrl/cbt/schedules/sync',
+    ).replace(queryParameters: cursor == null ? null : {'cursor': cursor});
+    final response = await http
+        .get(url, headers: tenantApiConfig.headers(token: token))
+        .timeout(const Duration(seconds: 15));
+    final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse['data'] as Map<String, dynamic>;
+    }
+    final message =
+        jsonResponse['detail'] ??
+        jsonResponse['message'] ??
+        'Gagal menyinkronkan jadwal CBT';
+    throw Exception(message);
+  }
+
   /// Verifikasi token ujian ke middleware/Odoo
   Future<bool> verifyExamToken(
     String token,
@@ -153,7 +177,7 @@ class CbtService {
             body: json.encode({
               'jadwal_ujian_id': jadwalId,
               'answers': answers,
-              if (waktuMulai != null) 'waktu_mulai': waktuMulai,
+              'waktu_mulai': ?waktuMulai,
             }),
           )
           .timeout(

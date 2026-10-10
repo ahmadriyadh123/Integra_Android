@@ -2,7 +2,7 @@ import logging
 import base64
 from io import BytesIO
 from urllib.parse import quote
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
 
@@ -51,6 +51,37 @@ def get_my_assignments(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data penugasan: {str(e)}"
         )
+
+
+@router.get("/sync")
+def sync_my_assignments(
+    cursor: str | None = Query(None),
+    credentials: Dict[str, Any] = Depends(get_current_user_credentials),
+    odoo_client: OdooRPCClient = Depends(get_odoo_client),
+):
+    student_id = credentials.get("student_id")
+    if not student_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda.",
+        )
+    try:
+        service = AssignmentService(AssignmentRepository(odoo_client))
+        data = service.sync_student_assignments(
+            uid=credentials["uid"],
+            password=credentials["password"],
+            student_id=student_id,
+            cursor=cursor,
+        )
+        return {"success": True, "data": data}
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("[assignments/sync] Gagal sinkron uid=%s", credentials.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal sinkronisasi data penugasan: {exc}",
+        ) from exc
 
 
 @router.post("/{assignment_id}/submit")

@@ -1,6 +1,6 @@
 import xmlrpc.client
 from urllib.parse import urlsplit
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.core.models import SchoolTenant
 
 ODOO_RPC_TIMEOUT_SECONDS = 8
@@ -83,15 +83,18 @@ class OdooRPCClient:
         uid: int, 
         password: str, 
         model: str, 
-        domain: list = None, 
-        fields: list = None, 
+        domain: Optional[list] = None,
+        fields: Optional[list] = None,
         limit: int = 80, 
-        order: str = None,
+        order: Optional[str] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         kwargs = {
             'fields': fields or [],
             'limit': limit
         }
+        if offset:
+            kwargs['offset'] = offset
         if order:
             kwargs['order'] = order
         return self.execute_kw(

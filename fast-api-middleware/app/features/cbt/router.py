@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.cbt.schemas import (
     APIResponseCbtList,
@@ -8,6 +8,7 @@ from app.features.cbt.schemas import (
     SubmitExamPayload,
     APIResponseSubmitExam,
     APIResponseRiwayatUjian,
+    APIResponseCbtSync,
 )
 from app.features.cbt.repository import CbtRepository
 from app.features.cbt.service import CbtService
@@ -52,6 +53,40 @@ def get_cbt_schedules(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil jadwal CBT: {str(e)}"
+        )
+
+
+@router.get("/schedules/sync", response_model=APIResponseCbtSync)
+def sync_cbt_schedules(
+    cursor: str | None = Query(default=None),
+    creds: dict = Depends(get_current_user_credentials),
+    odoo_client = Depends(get_odoo_client)
+):
+    """Incrementally synchronize class schedules and student completion changes."""
+    if not creds.get("student_id") and not creds.get("course_id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Data siswa atau kelas tidak ditemukan. Silakan login ulang.",
+        )
+    try:
+        service = CbtService(CbtRepository(odoo_client))
+        data = service.get_exam_list_sync(
+            uid=creds["uid"],
+            password=creds["password"],
+            course_id=creds.get("course_id"),
+            student_id=creds.get("student_id"),
+            cursor=cursor,
+        )
+        return APIResponseCbtSync(
+            success=True,
+            message="Berhasil menyinkronkan jadwal ujian CBT",
+            data=data,
+        )
+    except Exception as e:
+        logger.error(f"[cbt/schedules/sync] Error uid={creds['uid']}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal menyinkronkan jadwal CBT: {str(e)}",
         )
 
 

@@ -22,6 +22,11 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _detail = await repository.getBukuKomunikasi(token, forceRefresh: forceRefresh);
+      if (repository.lastSyncError != null) {
+        _errorMessage =
+            'Gagal memperbarui Buku Komunikasi; menampilkan cache lokal. '
+            '${repository.lastSyncError}';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

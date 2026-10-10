@@ -193,6 +193,8 @@ def test_assignment_response_includes_uploaded_student_file():
     )
     result = service.get_student_assignments(uid=17, password="secret", student_id=121)
 
+    assert result[0].subject.name == "PAI"
+    assert result[0].issued_date == datetime(2026, 3, 31, 23, 0)
     assert result[0].student_submission is not None
     assert result[0].submission_deadline == deadline
     assert result[0].student_submission.state == "submit"

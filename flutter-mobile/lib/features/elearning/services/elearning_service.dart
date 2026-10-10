@@ -6,11 +6,57 @@ import 'package:flutter_application_1/services/tenant_api_config.dart';
 class ElearningService {
   final String baseUrl;
   final TenantApiConfig tenantApiConfig;
+  final http.Client? httpClient;
 
-  ElearningService({required this.baseUrl, required this.tenantApiConfig});
+  ElearningService({
+    required this.baseUrl,
+    required this.tenantApiConfig,
+    this.httpClient,
+  });
 
   Map<String, String> _headers(String token) =>
       tenantApiConfig.headers(token: token);
+
+  Future<Map<String, dynamic>> syncCourses(
+    String token, {
+    String? cursor,
+  }) async {
+    final uri = Uri.parse('$baseUrl/elearning/courses/sync').replace(
+      queryParameters: cursor == null ? null : {'cursor': cursor},
+    );
+    try {
+      final client = httpClient;
+      final response = await (client == null
+              ? http.get(uri, headers: _headers(token))
+              : client.get(uri, headers: _headers(token)))
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
+
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 &&
+          decoded is Map &&
+          decoded['success'] == true) {
+        final data = decoded['data'];
+        if (data is Map) return Map<String, dynamic>.from(data);
+        throw const FormatException('Format sinkronisasi kursus tidak valid');
+      }
+      final error = decoded is Map
+          ? decoded['detail'] ?? decoded['message']
+          : null;
+      throw Exception(error ?? 'Gagal menyinkronkan kursus');
+    } on TimeoutException {
+      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+    } on http.ClientException catch (e) {
+      throw Exception('Gagal terhubung ke server: ${e.message}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Terjadi kesalahan saat menyinkronkan kursus');
+    }
+  }
 
   Future<List<dynamic>> fetchCourses(String token) async {
     // Semua request e-learning membawa token session yang sama.
@@ -48,8 +94,10 @@ class ElearningService {
   ) async {
     final url = Uri.parse('$baseUrl/elearning/courses/$courseId');
     try {
-      final response = await http
-          .get(url, headers: _headers(token))
+      final client = httpClient;
+      final response = await (client == null
+              ? http.get(url, headers: _headers(token))
+              : client.get(url, headers: _headers(token)))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -106,8 +154,7 @@ class ElearningService {
           headers: _headers(token),
           body: jsonEncode({
             'source': source,
-            if (completionStatus != null)
-              'completion_status': completionStatus,
+            'completion_status': ?completionStatus,
           }),
         )
         .timeout(const Duration(seconds: 15));

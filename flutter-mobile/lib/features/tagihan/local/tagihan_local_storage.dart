@@ -16,44 +16,32 @@ class TagihanLocalStorage {
   }
 
   /// Mendapatkan key dinamis berdasarkan status pembayaran (all, paid, not_paid, dll.)
-  String _getCacheKey(String? paymentState) {
-    return 'tagihan_summary_${paymentState ?? 'all'}';
-  }
-
-  String _getTimestampKey(String? paymentState) {
-    return 'tagihan_summary_ts_${paymentState ?? 'all'}';
+  String _getCacheKey(String? paymentState, String scope) {
+    return 'tagihan_summary_${scope}_${paymentState ?? 'all'}';
   }
 
   /// Menyimpan data ringkasan tagihan ke cache lokal Hive.
-  Future<void> saveTagihanSummary(String? paymentState, Map<String, dynamic> data) async {
+  Future<void> saveTagihanSummary(
+    String? paymentState,
+    Map<String, dynamic> data, {
+    required String scope,
+  }) async {
     final box = await _getBox();
-    final cacheKey = _getCacheKey(paymentState);
-    final tsKey = _getTimestampKey(paymentState);
-    
-    await box.put(cacheKey, data);
-    await box.put(tsKey, DateTime.now().millisecondsSinceEpoch);
+    await box.put(_getCacheKey(paymentState, scope), {
+      'data': data,
+      'saved_at': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   /// Membaca data ringkasan tagihan dari cache lokal Hive.
   /// Mengembalikan null jika data kedaluwarsa atau tidak ditemukan.
-  Future<Map<String, dynamic>?> loadTagihanSummary(String? paymentState) async {
+  Future<Map<String, dynamic>?> loadTagihanSummary(
+    String? paymentState, {
+    required String scope,
+  }) async {
     final box = await _getBox();
-    final cacheKey = _getCacheKey(paymentState);
-    final tsKey = _getTimestampKey(paymentState);
-
-    // Cek kesegaran cache
-    final ts = box.get(tsKey) as int?;
-    if (ts == null) return null;
-
-    final savedTime = DateTime.fromMillisecondsSinceEpoch(ts);
-    final isExpired = DateTime.now().difference(savedTime) > cacheTtl;
-
-    if (isExpired) {
-      await clearCache(paymentState);
-      return null;
-    }
-
-    final rawData = box.get(cacheKey);
+    final snapshot = box.get(_getCacheKey(paymentState, scope));
+    final rawData = snapshot is Map ? snapshot['data'] : null;
     if (rawData is Map) {
       return Map<String, dynamic>.from(rawData);
     }
@@ -61,18 +49,17 @@ class TagihanLocalStorage {
   }
 
   /// Menghapus cache berdasarkan status pembayaran tertentu.
-  Future<void> clearCache(String? paymentState) async {
+  Future<void> clearCache(String? paymentState, {required String scope}) async {
     final box = await _getBox();
-    final cacheKey = _getCacheKey(paymentState);
-    final tsKey = _getTimestampKey(paymentState);
-    
-    await box.delete(cacheKey);
-    await box.delete(tsKey);
+    await box.delete(_getCacheKey(paymentState, scope));
   }
 
   /// Menghapus seluruh cache tagihan.
-  Future<void> clearAllCache() async {
+  Future<void> clearAllCache({required String scope}) async {
     final box = await _getBox();
-    await box.clear();
+    final prefix = 'tagihan_summary_${scope}_';
+    for (final key in box.keys.where((key) => key.toString().startsWith(prefix))) {
+      await box.delete(key);
+    }
   }
 }

@@ -84,8 +84,7 @@ class AuthViewModel extends ChangeNotifier {
       if (!repository.isTokenForSelectedSchool(_authResult!.accessToken)) {
         _authResult = null;
         await repository.clearAuth();
-        _errorMessage =
-            'Sekolah yang dipilih berubah. Silakan login kembali.';
+        _errorMessage = 'Sekolah yang dipilih berubah. Silakan login kembali.';
         notifyListeners();
         return false;
       }

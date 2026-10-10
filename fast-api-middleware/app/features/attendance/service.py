@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from app.features.attendance.repository import AttendanceRepository
 
 class AttendanceService:
@@ -13,8 +14,8 @@ class AttendanceService:
             return val
         return fallback
     
-    def get_student_history(self, uid: int, password: str, student_id: Optional[int] = None, student_name: str = "Siswa", limit: int = 100) -> List[Dict[str, Any]]:
-        raw_records = self.repo.get_attendance_history(uid=uid, password=password, student_id=student_id, limit=limit)
+    def get_student_history(self, uid: int, password: str, student_id: Optional[int] = None, student_name: str = "Siswa", limit: int = 100, cursor: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        raw_records = self.repo.get_attendance_history(uid=uid, password=password, student_id=student_id, limit=limit, cursor=cursor)
         
         cleaned_data = []
         for item in raw_records:
@@ -31,6 +32,7 @@ class AttendanceService:
                 "sick": bool(item.get("sick")),
                 "status": str(item.get("status") or ""),
                 "remark": str(item.get("remark") or "-"),
+                "write_date": item.get("write_date"),
             })
             
         return cleaned_data

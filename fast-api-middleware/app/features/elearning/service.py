@@ -1,5 +1,6 @@
 import re
 import html
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from app.features.elearning.repository import ElearningRepository
 
@@ -117,6 +118,56 @@ class ElearningService:
             if partner_id is not None
             else {}
         )
+        return self._map_courses(raw_courses, progress_by_course)
+
+    def get_courses_sync(
+        self,
+        uid: int,
+        password: str,
+        partner_id: Optional[int],
+        cursor: Optional[datetime],
+    ) -> Dict[str, Any]:
+        sync_started_at = datetime.now(timezone.utc)
+        full_sync = cursor is None
+
+        if full_sync:
+            items = self.get_courses_list(uid, password, partner_id)
+            removed_ids: List[int] = []
+        else:
+            normalized_cursor = (
+                cursor.replace(tzinfo=timezone.utc)
+                if cursor.tzinfo is None
+                else cursor.astimezone(timezone.utc)
+            )
+            safe_cursor = min(normalized_cursor, sync_started_at)
+            modified_after = (
+                safe_cursor - timedelta(minutes=2)
+            ).astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            raw_courses, removed_ids = self.repo.get_course_sync_changes(
+                uid=uid,
+                password=password,
+                partner_id=partner_id,
+                modified_after=modified_after,
+            )
+            progress_by_course = (
+                self.repo.get_progress_by_course(uid, password, partner_id)
+                if partner_id is not None
+                else {}
+            )
+            items = self._map_courses(raw_courses, progress_by_course)
+
+        return {
+            'items': items,
+            'removed_ids': removed_ids,
+            'next_cursor': sync_started_at.isoformat().replace('+00:00', 'Z'),
+            'full_sync': full_sync,
+        }
+
+    def _map_courses(
+        self,
+        raw_courses: List[Dict[str, Any]],
+        progress_by_course: Dict[int, set[int]],
+    ) -> List[Dict[str, Any]]:
         result = []
         for c in raw_courses:
             total_slides = int(c.get("total_slides") or 0)

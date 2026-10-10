@@ -119,10 +119,6 @@ class _PelajaranViewState extends State<PelajaranView> {
           // Header dengan search — tidak pakai AppBar agar header tetap full-width
           ElearningHeader(
             onSearchChanged: (val) => setState(() => _searchQuery = val),
-            onClearCacheTap: () {
-              final vm = context.read<ElearningViewModel>();
-              vm.clearAllCache(widget.authToken);
-            },
           ),
           Expanded(
             child: Consumer<ElearningViewModel>(
@@ -133,7 +129,7 @@ class _PelajaranViewState extends State<PelajaranView> {
                   );
                 }
                 return SingleChildScrollView(
-                  child: vm.coursesError != null
+                  child: vm.coursesError != null && !vm.hasCourses
                       ? _buildError(vm)
                       : !vm.hasCourses
                       ? _buildEmpty()
@@ -172,6 +168,25 @@ class _PelajaranViewState extends State<PelajaranView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (vm.coursesError != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Data tersimpan ditampilkan, tetapi sinkronisasi gagal: '
+                '${vm.coursesError}',
+                style: const TextStyle(
+                  color: Color(0xFF9A3412),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
           if (_searchQuery.isEmpty) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

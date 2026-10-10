@@ -13,6 +13,31 @@ class WeeklyPlanService {
   Map<String, String> _headers(String token) =>
       tenantApiConfig.headers(token: token);
 
+  Future<Map<String, dynamic>> syncWeeklyPlanList(
+    String token, {
+    String? cursor,
+  }) async {
+    final query = <String, String>{};
+    if (cursor != null) query['cursor'] = cursor;
+    final uri = Uri.parse('$baseUrl/weekly-plan/list/sync')
+        .replace(queryParameters: query);
+    final response = await http
+        .get(uri, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map ||
+        response.statusCode != 200 ||
+        decoded['success'] != true ||
+        decoded['data'] is! Map) {
+      throw Exception(
+        decoded is Map
+            ? decoded['detail'] ?? 'Gagal menyinkronkan Weekly Plan'
+            : 'Respons sinkronisasi Weekly Plan tidak valid.',
+      );
+    }
+    return Map<String, dynamic>.from(decoded['data']);
+  }
+
   Future<List<dynamic>> fetchWeeklyPlanList(String token) async {
     final url = Uri.parse('$baseUrl/weekly-plan/list');
     try {

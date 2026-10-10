@@ -19,30 +19,32 @@ class BukuKomunikasiLocalStorage {
   }
 
   /// Simpan data buku komunikasi ke Hive.
-  Future<void> saveBukuKomunikasi(Map<String, dynamic> rawData) async {
+  String _key(String prefix, String scope) {
+    if (scope.trim().isEmpty) {
+      throw ArgumentError.value(scope, 'scope', 'Tidak boleh kosong');
+    }
+    return '${prefix}_$scope';
+  }
+
+  Future<void> saveBukuKomunikasi(
+    Map<String, dynamic>? rawData, {
+    required String scope,
+  }) async {
     final box = await _getBox();
-    await box.put(keyData, rawData);
-    await box.put(keyTimestamp, DateTime.now().millisecondsSinceEpoch);
+    await box.put(_key(keyData, scope), {
+      'data': rawData,
+      'saved_at': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   /// Baca data buku komunikasi dari Hive.
   /// Kembalikan null jika data kedaluwarsa atau tidak ada di cache.
-  Future<Map<String, dynamic>?> loadBukuKomunikasi() async {
+  Future<Map<String, dynamic>?> loadBukuKomunikasi({
+    required String scope,
+  }) async {
     final box = await _getBox();
-    
-    // Cek kesegaran cache
-    final ts = box.get(keyTimestamp) as int?;
-    if (ts == null) return null;
-
-    final savedTime = DateTime.fromMillisecondsSinceEpoch(ts);
-    final isExpired = DateTime.now().difference(savedTime) > cacheTtl;
-    
-    if (isExpired) {
-      await clearCache();
-      return null;
-    }
-
-    final rawData = box.get(keyData);
+    final snapshot = box.get(_key(keyData, scope));
+    final rawData = snapshot is Map ? snapshot['data'] : null;
     if (rawData is Map) {
       return Map<String, dynamic>.from(rawData);
     }
@@ -55,10 +57,12 @@ class BukuKomunikasiLocalStorage {
     required String noteText,
     String? month,
     int? week,
+    required String scope,
   }) async {
     final box = await _getBox();
-    final pending = box.get(keyPendingNotes) is List ? List<Map<String, dynamic>>.from(
-      (box.get(keyPendingNotes) as List).map((item) => Map<String, dynamic>.from(item as Map)),
+    final pendingKey = _key(keyPendingNotes, scope);
+    final pending = box.get(pendingKey) is List ? List<Map<String, dynamic>>.from(
+      (box.get(pendingKey) as List).map((item) => Map<String, dynamic>.from(item as Map)),
     ) : <Map<String, dynamic>>[];
 
     pending.add({
@@ -70,12 +74,12 @@ class BukuKomunikasiLocalStorage {
       'saved_at': DateTime.now().toIso8601String(),
     });
 
-    await box.put(keyPendingNotes, pending);
+    await box.put(pendingKey, pending);
   }
 
-  Future<List<Map<String, dynamic>>> loadPendingNotes() async {
+  Future<List<Map<String, dynamic>>> loadPendingNotes({required String scope}) async {
     final box = await _getBox();
-    final raw = box.get(keyPendingNotes);
+    final raw = box.get(_key(keyPendingNotes, scope));
 
     if (raw is! List) return <Map<String, dynamic>>[];
 
@@ -84,15 +88,14 @@ class BukuKomunikasiLocalStorage {
         .toList();
   }
 
-  Future<void> clearPendingNotes() async {
+  Future<void> clearPendingNotes({required String scope}) async {
     final box = await _getBox();
-    await box.delete(keyPendingNotes);
+    await box.delete(_key(keyPendingNotes, scope));
   }
 
   /// Hapus seluruh cache data buku komunikasi.
-  Future<void> clearCache() async {
+  Future<void> clearCache({required String scope}) async {
     final box = await _getBox();
-    await box.delete(keyData);
-    await box.delete(keyTimestamp);
+    await box.delete(_key(keyData, scope));
   }
 }

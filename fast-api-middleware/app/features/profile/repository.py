@@ -34,6 +34,7 @@ class ProfileRepository:
             'partner_id': ('partner_id',),
             'nis': ('nis', 'gr_no', 'student_code'),
             'nisn': ('nisn', 'nisn_no'),
+            'fase': ('fase', 'phase', 'fase_id', 'phase_id'),
             'birth_place': ('birth_place', 'place_of_birth'),
             'birth_date': ('birth_date', 'date_of_birth'),
             'age': ('age',),

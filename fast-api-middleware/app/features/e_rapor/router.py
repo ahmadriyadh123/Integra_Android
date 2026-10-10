@@ -77,6 +77,43 @@ def get_student_reports(
         ) from exc
 
 
+@router.get("/list/sync")
+def sync_student_reports(
+    cursor: Optional[str] = Query(None),
+    jenjang: Optional[str] = Query(None),
+    creds: dict = Depends(get_current_user_credentials),
+    odoo_client: OdooRPCClient = Depends(get_odoo_client),
+):
+    try:
+        repo = ERaporRepository(odoo_client)
+        student_id = _resolve_request_student_id(creds, repo)
+        service = ERaporService(repo)
+        data = service.sync_student_reports(
+            creds["uid"],
+            creds["password"],
+            student_id,
+            jenjang or creds.get("jenjang", "sd"),
+            cursor,
+        )
+        return {
+            "success": True,
+            "message": "Berhasil menyinkronkan daftar e-rapor",
+            "data": data,
+        }
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.exception("[e-rapor/list/sync] Error uid=%s", creds.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal sinkronisasi daftar e-rapor: {exc}",
+        ) from exc
+
+
 @router.get("/{rapor_id}", response_model=APIResponseReportDetail)
 def get_report_card_details(
     rapor_id: int,
@@ -120,6 +157,7 @@ def get_report_card_details(
 @router.get("/pdf/{rapor_id}")
 def get_rapor_pdf(
     rapor_id: int,
+    jenjang: Optional[str] = Query(None, description="Jenjang sekolah: sd, smp, tk"),
     creds: dict = Depends(get_current_user_credentials),
     odoo_client: OdooRPCClient = Depends(get_odoo_client),
 ):
@@ -132,12 +170,13 @@ def get_rapor_pdf(
             creds["uid"],
             creds["password"],
             rapor_id=rapor_id,
-            student_id=student_id
+            student_id=student_id,
+            jenjang=jenjang or creds.get("jenjang", "sd"),
         )
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="File PDF rapor tidak ditemukan. Hubungi admin untuk upload file."
+                detail="Data E-Rapor tidak ditemukan untuk siswa yang sedang login."
             )
         pdf_bytes, filename = result
         return StreamingResponse(
@@ -156,4 +195,3 @@ def get_rapor_pdf(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil PDF rapor: {str(exc)}"
         ) from exc
-

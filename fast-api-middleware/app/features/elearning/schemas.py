@@ -18,6 +18,19 @@ class APIResponseCourseList(BaseModel):
     data: List[CourseItemResponse]
 
 
+class CourseSyncData(BaseModel):
+    items: List[CourseItemResponse]
+    removed_ids: List[int]
+    next_cursor: str
+    full_sync: bool
+
+
+class APIResponseCourseSync(BaseModel):
+    success: bool
+    message: str
+    data: CourseSyncData
+
+
 class SlideItemResponse(BaseModel):
     id: int
     title: str

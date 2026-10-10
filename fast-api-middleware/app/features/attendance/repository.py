@@ -1,5 +1,6 @@
 from app.core.odoo_client import OdooRPCClient
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 
 class AttendanceRepository:
@@ -11,7 +12,8 @@ class AttendanceRepository:
         uid: int,
         password: str,
         student_id: Optional[int] = None,
-        limit: int = 100
+        limit: int = 100,
+        cursor: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         Ambil riwayat presensi dari op.attendance.line.
@@ -27,7 +29,8 @@ class AttendanceRepository:
             'absent',
             'sick',
             'status',
-            'remark'
+            'remark',
+            'write_date',
         ]
 
         # Jika student_id tidak ada di JWT, kembalikan kosong untuk keamanan
@@ -35,11 +38,21 @@ class AttendanceRepository:
             return []
 
         # Filter student_id directly in Odoo for the authenticated user.
+        domain = [('student_id', '=', student_id)]
+        if cursor is not None:
+            domain.append(
+                (
+                    'write_date',
+                    '>=',
+                    (cursor - timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M:%S'),
+                )
+            )
+
         records = self.odoo.search_read(
             uid=uid,
             password=password,
             model='op.attendance.line',
-            domain=[('student_id', '=', student_id)],
+            domain=domain,
             fields=fields,
             limit=limit,
             order='attendance_date desc, id desc'

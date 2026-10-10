@@ -139,7 +139,7 @@ class _AssignmentListViewState extends State<AssignmentListView> {
                             onChanged: (val) => vm.setSearchQuery(val),
                             decoration: InputDecoration(
                               hintText:
-                                  'Cari judul, mata pelajaran, atau tipe...',
+                                  'Cari nama tugas atau mata pelajaran...',
                               hintStyle: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF94A3B8),
@@ -335,9 +335,19 @@ class _AssignmentListViewState extends State<AssignmentListView> {
   }
 
   Widget _buildAssignmentCard(BuildContext context, AssignmentItem item) {
-    // Styling status deadline
-    final bool isOverdue = item.isOverdue;
-    final String deadlineText = _formatDateTime(item.submissionDeadline);
+    final attachments = item.studentSubmission?.attachments ?? [];
+    final status = _assignmentStatus(item);
+    final startedAt = _formatDateTime(item.issuedDate);
+    final deadline = _formatDateTime(item.submissionDeadline);
+    final marks = item.studentSubmission?.marks;
+    final gradeText = item.isGraded && marks != null
+        ? '${marks.toStringAsFixed(marks.truncateToDouble() == marks ? 0 : 1)} / ${item.maxMarks.toStringAsFixed(0)}'
+        : 'Belum dinilai';
+    final uploadText = attachments.isEmpty
+        ? (item.isSubmitted ? 'Terkumpul' : 'Belum ada berkas')
+        : attachments.length == 1
+        ? attachments.first.fileName
+        : '${attachments.length} berkas diunggah';
 
     return InkWell(
       onTap: () {
@@ -356,127 +366,153 @@ class _AssignmentListViewState extends State<AssignmentListView> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF1F5F9)),
-          boxShadow: [
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+              color: Color(0x080F172A),
+              blurRadius: 12,
+              offset: Offset(0, 4),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card: Subject Pill & Type Badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      const Icon(
-                        Icons.book_outlined,
-                        size: 12,
-                        color: Color(0xFFD97706),
+                      Expanded(
+                        child: Container(
+                          alignment: Alignment.centerLeft,
+                          child: _buildSubjectPill(item.subject.name),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.subject.name,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFD97706),
+                      _buildStatusPill(status.$1, status.$2, status.$3),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      item.description.trim(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: textMuted,
+                        height: 1.35,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDateInfo(
+                          icon: Icons.play_circle_outline_rounded,
+                          label: 'Mulai',
+                          value: startedAt.isEmpty ? '-' : startedAt,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDateInfo(
+                          icon: Icons.event_outlined,
+                          label: 'Deadline',
+                          value: deadline.isEmpty ? 'Tanpa batas' : deadline,
+                          valueColor: item.isOverdue
+                              ? const Color(0xFFDC2626)
+                              : textDark,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Judul Tugas
-            Text(
-              item.title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: textDark,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            if (item.description.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                item.description,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: textMuted,
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            const SizedBox(height: 12),
-
-            // Footer: Deadline Info & Status Submission
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Deadline
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 14,
-                        color: isOverdue
-                            ? const Color(0xFFEF4444)
-                            : const Color(0xFF64748B),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          deadlineText.isNotEmpty
-                              ? 'Batas: $deadlineText'
-                              : 'Tanpa batas waktu',
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          attachments.isNotEmpty
+                              ? Icons.attach_file_rounded
+                              : Icons.upload_file_outlined,
+                          size: 16,
+                          color: attachments.isNotEmpty
+                              ? primaryEmerald
+                              : textMuted,
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            uploadText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: textDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const SizedBox(
+                          height: 20,
+                          child: VerticalDivider(
+                            width: 1,
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Icon(
+                          item.isGraded
+                              ? Icons.grade_rounded
+                              : Icons.workspace_premium_outlined,
+                          size: 16,
+                          color: item.isGraded ? primaryEmerald : textMuted,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          gradeText,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isOverdue
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            color: isOverdue
-                                ? const Color(0xFFEF4444)
-                                : const Color(0xFF64748B),
+                            fontWeight: FontWeight.w700,
+                            color: item.isGraded ? primaryEmerald : textMuted,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-
-                // Submission Status Badge
-                _buildStatusBadge(item),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -484,98 +520,109 @@ class _AssignmentListViewState extends State<AssignmentListView> {
     );
   }
 
-  Widget _buildStatusBadge(AssignmentItem item) {
-    if (item.isGraded) {
-      final marks = item.studentSubmission?.marks ?? 0.0;
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFECFDF5),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFA7F3D0)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.star_rounded, size: 12, color: primaryEmerald),
-            const SizedBox(width: 4),
-            Text(
-              'Nilai: ${marks.toStringAsFixed(marks.truncateToDouble() == marks ? 0 : 1)}/${item.maxMarks.toStringAsFixed(0)}',
+  Widget _buildSubjectPill(String subject) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.menu_book_rounded, size: 13, color: primaryEmerald),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              subject,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
                 color: primaryEmerald,
               ),
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (item.isSubmitted) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0F9FF),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFBAE6FD)),
+  Widget _buildStatusPill(String label, Color color, Color background) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle_outline_rounded,
-              size: 12,
-              color: Color(0xFF0284C7),
-            ),
-            SizedBox(width: 4),
-            Text(
-              'Sudah Dikumpulkan',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0284C7),
+      ),
+    );
+  }
+
+  Widget _buildDateInfo({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color valueColor = textDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: textMuted),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (item.isOverdue) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFFCA5A5)),
-        ),
-        child: const Text(
-          'Terlambat',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFDC2626),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: valueColor,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+            ],
           ),
         ),
-      );
-    }
+      ],
+    );
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: const Text(
-        'Perlu Dikumpulkan',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFFD97706),
-        ),
-      ),
+  (String, Color, Color) _assignmentStatus(AssignmentItem item) {
+    if (item.isGraded) {
+      return ('Dinilai', const Color(0xFF047857), const Color(0xFFECFDF5));
+    }
+    if (item.isSubmitted) {
+      return ('Terkumpul', const Color(0xFF0369A1), const Color(0xFFF0F9FF));
+    }
+    if (item.isOverdue) {
+      return ('Terlambat', const Color(0xFFB91C1C), const Color(0xFFFEF2F2));
+    }
+    return (
+      'Perlu dikumpulkan',
+      const Color(0xFFB45309),
+      const Color(0xFFFFFBEB),
     );
   }
 

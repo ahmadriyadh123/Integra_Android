@@ -55,6 +55,38 @@ class AssignmentService {
     }
   }
 
+  Future<Map<String, dynamic>> syncAssignments(
+    String token, {
+    String? cursor,
+  }) async {
+    final cleanBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    var base = cleanBase;
+    while (base.contains('/api/v1/api/v1/')) {
+      base = base.replaceAll('/api/v1/api/v1/', '/api/v1/');
+    }
+    final uri = Uri.parse(
+      '$base/assignments/sync',
+    ).replace(queryParameters: cursor == null ? null : {'cursor': cursor});
+    final response = await http.get(
+      uri,
+      headers: tenantApiConfig.headers(token: token),
+    );
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode == 200 &&
+        decoded is Map &&
+        decoded['success'] == true &&
+        decoded['data'] is Map) {
+      return Map<String, dynamic>.from(decoded['data']);
+    }
+    throw Exception(
+      decoded is Map
+          ? decoded['detail'] ?? 'Gagal menyinkronkan data penugasan'
+          : 'Respons sinkronisasi penugasan tidak valid.',
+    );
+  }
+
   Future<Map<String, dynamic>> submitAssignment({
     required String token,
     required int assignmentId,
@@ -121,10 +153,7 @@ class AssignmentService {
   }) async {
     final response = await http.get(
       attachmentUri(fileUrl),
-      headers: tenantApiConfig.headers(
-        token: token,
-        includeContentType: false,
-      ),
+      headers: tenantApiConfig.headers(token: token, includeContentType: false),
     );
     if (response.statusCode != 200) {
       var message = 'Gagal mengunduh lampiran';

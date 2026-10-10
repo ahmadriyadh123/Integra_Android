@@ -61,6 +61,11 @@ class AttendanceViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
+      final syncError = repository.lastSyncError;
+      if (syncError != null) {
+        _errorMessage =
+            'Gagal memperbarui presensi; menampilkan cache lokal. $syncError';
+      }
       _syncActiveMonth();
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');

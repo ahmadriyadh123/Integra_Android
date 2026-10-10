@@ -16,6 +16,7 @@ class ReportCardHeader(BaseModel):
     id: int
     student_id: int
     student_name: str = "-"
+    jenis_rapor: str = "-"
     kelas: str = "-"
     semester: str = "-"
     tahun_ajaran: str = "-"

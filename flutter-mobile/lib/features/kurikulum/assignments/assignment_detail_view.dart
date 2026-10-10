@@ -363,12 +363,6 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
             value: _formatDate(assignment.submissionDeadline),
             isHighlight: assignment.isOverdue,
           ),
-          const SizedBox(height: 8),
-          _buildInfoRow(
-            icon: Icons.grade_rounded,
-            label: 'Nilai Maksimal',
-            value: '${assignment.maxMarks.toStringAsFixed(0)} Poin',
-          ),
         ],
       ),
     );

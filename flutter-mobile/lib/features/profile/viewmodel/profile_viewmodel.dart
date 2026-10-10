@@ -52,12 +52,12 @@ class ProfileViewModel extends ChangeNotifier {
     _errorMessage = null;
     _profile = StudentProfile.fromUserProfile(user);
     notifyListeners();
+    StudentProfile? cached;
     try {
-      final cached = await profileRepository.loadCachedProfile(cacheKey);
+      cached = await profileRepository.loadCachedProfile(cacheKey);
       if (cached != null) {
         _profile = cached;
         notifyListeners();
-        return;
       }
 
       final fresh = await profileRepository.getMyProfile(token);
@@ -65,6 +65,11 @@ class ProfileViewModel extends ChangeNotifier {
       _profile = fresh;
     } catch (error) {
       _errorMessage = error.toString().replaceAll('Exception: ', '');
+      if (cached != null) {
+        _profile = cached;
+        _errorMessage =
+            'Gagal memperbarui profil; menampilkan cache lokal. $_errorMessage';
+      }
     }
     notifyListeners();
   }
@@ -83,6 +88,15 @@ class ProfileViewModel extends ChangeNotifier {
       _profile = fresh;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
+      final cacheKey = _activeCacheKey;
+      if (cacheKey != null) {
+        final cached = await profileRepository.loadCachedProfile(cacheKey);
+        if (cached != null) {
+          _profile = cached;
+          _errorMessage =
+              'Gagal memperbarui profil; menampilkan cache lokal. $_errorMessage';
+        }
+      }
     }
     notifyListeners();
   }

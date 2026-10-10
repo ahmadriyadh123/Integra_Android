@@ -9,6 +9,34 @@ class AttendanceService {
 
   AttendanceService({required this.baseUrl, required this.tenantApiConfig});
 
+  Future<Map<String, dynamic>> syncAttendanceHistory(
+    String token, {
+    String? cursor,
+    int limit = 500,
+  }) async {
+    if (token.trim().isEmpty) {
+      throw Exception('Token login kosong. Silakan login kembali.');
+    }
+    final query = <String, String>{'limit': '$limit'};
+    if (cursor != null) query['cursor'] = cursor;
+    final uri = Uri.parse('$baseUrl/attendance/history/sync')
+        .replace(queryParameters: query);
+    final response = await http
+        .get(uri, headers: tenantApiConfig.headers(token: token))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Gagal menyinkronkan presensi (${response.statusCode}): ${response.body}',
+      );
+    }
+    final decoded = json.decode(response.body);
+    final data = decoded is Map ? decoded['data'] : null;
+    if (decoded['success'] != true || data is! Map) {
+      throw const FormatException('Respons sinkronisasi presensi tidak valid.');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<List<dynamic>> fetchAttendanceHistory(
     String token, {
     int limit = 100,

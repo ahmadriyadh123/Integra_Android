@@ -3,10 +3,12 @@ import 'dart:io';
 import '../local/buku_komunikasi_local_storage.dart';
 import '../models/buku_komunikasi_model.dart';
 import '../services/buku_komunikasi_service.dart';
+import 'package:flutter_application_1/services/cache_scope.dart';
 
 class BukuKomunikasiRepository {
   final BukuKomunikasiService apiService;
   final BukuKomunikasiLocalStorage localStorage;
+  String? lastSyncError;
 
   BukuKomunikasiRepository({
     required this.apiService,
@@ -15,18 +17,18 @@ class BukuKomunikasiRepository {
 
   Future<BukuKomunikasiDetail?> getBukuKomunikasi(String token,
       {bool forceRefresh = false}) async {
-    if (!forceRefresh) {
-      final cached = await localStorage.loadBukuKomunikasi();
-      if (cached != null) {
-        return BukuKomunikasiDetail.fromJson(cached);
-      }
+    final scope = tokenCacheScope(token);
+    final cached = await localStorage.loadBukuKomunikasi(scope: scope);
+    try {
+      final data = await apiService.fetchBukuKomunikasi(token);
+      await localStorage.saveBukuKomunikasi(data, scope: scope);
+      lastSyncError = null;
+      return data == null ? null : BukuKomunikasiDetail.fromJson(data);
+    } catch (error) {
+      lastSyncError = error.toString();
+      if (cached != null) return BukuKomunikasiDetail.fromJson(cached);
+      rethrow;
     }
-
-    final data = await apiService.fetchBukuKomunikasi(token);
-    if (data == null) return null;
-
-    await localStorage.saveBukuKomunikasi(data);
-    return BukuKomunikasiDetail.fromJson(data);
   }
 
   Future<bool> submitDailyNote({
@@ -48,7 +50,9 @@ class BukuKomunikasiRepository {
       );
 
       if (result) {
-        await localStorage.clearCache();
+        await localStorage.clearCache(
+          scope: tokenCacheScope(token),
+        );
       }
       return result;
     } on SocketException catch (_) {
@@ -58,6 +62,7 @@ class BukuKomunikasiRepository {
         noteText: noteText,
         month: month,
         week: week,
+        scope: tokenCacheScope(token),
       );
       return true;
     } on HttpException catch (_) {
@@ -67,6 +72,7 @@ class BukuKomunikasiRepository {
         noteText: noteText,
         month: month,
         week: week,
+        scope: tokenCacheScope(token),
       );
       return true;
     } catch (_) {

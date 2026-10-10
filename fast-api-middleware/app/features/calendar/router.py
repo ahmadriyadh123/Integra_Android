@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.calendar.schemas import APIResponseCalendar
@@ -61,3 +62,38 @@ def get_academic_calendars(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data kalender dari Odoo: {str(e)}"
         )
+@router.get("/sync")
+def sync_academic_calendars(
+    cursor: datetime | None = None,
+    creds: dict = Depends(get_current_user_credentials),
+    odoo_client = Depends(get_odoo_client),
+):
+    course_id = creds.get("course_id")
+    if type(course_id) is not int or course_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akun Odoo belum terhubung ke kelas siswa.",
+        )
+    try:
+        items = CalendarService(CalendarRepository(odoo_client)).get_calendars_list(
+            uid=creds["uid"],
+            password=creds["password"],
+            course_id=course_id,
+            jenjang=creds.get("jenjang", "sd"),
+            cursor=cursor,
+        )["calendars"]
+        return {
+            "success": True,
+            "data": {
+                "items": items,
+                "removed_ids": [],
+                "next_cursor": datetime.now(timezone.utc).isoformat(),
+                "full_sync": cursor is None,
+            },
+        }
+    except Exception as exc:
+        logger.exception("[calendar/sync] Error uid=%s", creds.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan kalender akademik.",
+        ) from exc

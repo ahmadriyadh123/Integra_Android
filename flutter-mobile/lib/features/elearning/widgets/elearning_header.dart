@@ -2,15 +2,8 @@ import 'package:flutter/material.dart';
 
 class ElearningHeader extends StatelessWidget {
   final ValueChanged<String>? onSearchChanged;
-  final VoidCallback? onRefreshTap;
-  final VoidCallback? onClearCacheTap;
 
-  const ElearningHeader({
-    super.key,
-    this.onSearchChanged,
-    this.onRefreshTap,
-    this.onClearCacheTap,
-  });
+  const ElearningHeader({super.key, this.onSearchChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -50,16 +43,6 @@ class ElearningHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onClearCacheTap != null)
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_sweep_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                  tooltip: 'Hapus Cache',
-                  onPressed: onClearCacheTap,
-                ),
             ],
           ),
           const SizedBox(height: 14),

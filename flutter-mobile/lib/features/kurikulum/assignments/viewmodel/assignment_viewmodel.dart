@@ -103,6 +103,10 @@ class AssignmentViewModel extends ChangeNotifier {
           );
           if (requestId != _fetchRequestId) return;
           _items = fresh;
+          _errorMessage = repository.lastSyncError == null
+              ? null
+              : 'Gagal memperbarui tugas; menampilkan cache lokal. '
+                    '${repository.lastSyncError}';
         } catch (_) {
           if (requestId != _fetchRequestId) return;
         } finally {

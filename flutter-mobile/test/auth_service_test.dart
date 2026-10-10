@@ -115,4 +115,46 @@ void main() {
 
     expect(result['access_token'], 'token');
   });
+
+  test('validate and change password use the injected HTTP client', () async {
+    final requestedPaths = <String>[];
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    await service.validateToken('');
+    await service.changePassword(
+      token: '',
+      currentPassword: 'old-password',
+      newPassword: 'new-password',
+    );
+
+    expect(requestedPaths, [
+      '/api/v1/auth/validate',
+      '/api/v1/auth/change-password',
+    ]);
+  });
+
+  test('login rejects a successful response without an object payload', () async {
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient(
+        (request) async => http.Response(
+          '{"success":true,"data":[]}',
+          200,
+        ),
+      ),
+    );
+
+    await expectLater(
+      service.login('student', 'password'),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }

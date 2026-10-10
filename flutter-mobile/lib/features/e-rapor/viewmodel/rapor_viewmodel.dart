@@ -38,6 +38,11 @@ class RaporViewModel extends ChangeNotifier {
 
     try {
       _reports = await repository.getReportList(token, forceRefresh: forceRefresh);
+      if (repository.lastSyncError != null) {
+        _errorMessage =
+            'Gagal memperbarui E-Rapor; menampilkan cache lokal. '
+            '${repository.lastSyncError}';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -54,6 +59,11 @@ class RaporViewModel extends ChangeNotifier {
 
     try {
       _currentDetail = await repository.getReportDetail(token, raporId, forceRefresh: forceRefresh);
+      if (repository.lastSyncError != null) {
+        _errorMessage =
+            'Gagal memperbarui detail E-Rapor; menampilkan cache lokal. '
+            '${repository.lastSyncError}';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

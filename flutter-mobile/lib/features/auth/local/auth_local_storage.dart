@@ -1,10 +1,39 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+abstract interface class AuthSecretStorage {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+  Future<void> delete(String key);
+}
+
+class FlutterAuthSecretStorage implements AuthSecretStorage {
+  FlutterAuthSecretStorage({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> read(String key) => _storage.read(key: key);
+
+  @override
+  Future<void> write(String key, String value) =>
+      _storage.write(key: key, value: value);
+
+  @override
+  Future<void> delete(String key) => _storage.delete(key: key);
+}
 
 class AuthLocalStorage {
   static const String _boxName = 'auth_session';
   static const String _keyAuth = 'auth_result';
   static const String _keyUsername = 'saved_username';
   static const String _keyPassword = 'saved_password';
+
+  AuthLocalStorage({AuthSecretStorage? secretStorage})
+    : _secretStorage = secretStorage ?? FlutterAuthSecretStorage();
+
+  final AuthSecretStorage _secretStorage;
 
   Future<Box> _box() async {
     if (!Hive.isBoxOpen(_boxName)) {
@@ -13,15 +42,17 @@ class AuthLocalStorage {
     return Hive.box(_boxName);
   }
 
-  /// Simpan lengkap auth result + credentials untuk offline-first login.
-  Future<void> saveAuth(Map<String, dynamic> authData, {
+  /// Save the session in Hive and credentials in secure platform storage.
+  Future<void> saveAuth(
+    Map<String, dynamic> authData, {
     required String username,
     required String password,
   }) async {
     final box = await _box();
+    await _secretStorage.write(_keyPassword, password);
     await box.put(_keyAuth, authData);
     await box.put(_keyUsername, username);
-    await box.put(_keyPassword, password);
+    await box.delete(_keyPassword);
   }
 
   /// Load auth result dari Hive (untuk offline restore tanpa API call).
@@ -40,27 +71,19 @@ class AuthLocalStorage {
 
   Future<String> loadPassword() async {
     final box = await _box();
-    final value = box.get(_keyPassword);
-    return value is String ? value : '';
-  }
+    final securePassword = await _secretStorage.read(_keyPassword);
+    if (securePassword != null) return securePassword;
 
-  Future<void> updateSavedPassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    final box = await _box();
-    final savedPassword = box.get(_keyPassword);
-
-    if (savedPassword is! String) {
-      await box.put(_keyPassword, newPassword);
-      return;
+    // Migrate passwords written by older versions from Hive to secure storage.
+    final legacyPassword = box.get(_keyPassword);
+    if (legacyPassword is! String) {
+      if (legacyPassword != null) await box.delete(_keyPassword);
+      return '';
     }
 
-    if (savedPassword != currentPassword) {
-      throw Exception('Password lama tidak sesuai dengan data lokal.');
-    }
-
-    await box.put(_keyPassword, newPassword);
+    await _secretStorage.write(_keyPassword, legacyPassword);
+    await box.delete(_keyPassword);
+    return legacyPassword;
   }
 
   static const String _keyLastTabIndex = 'last_tab_index';
@@ -78,10 +101,13 @@ class AuthLocalStorage {
 
   Future<void> clearAuth() async {
     final box = await _box();
-    await box.delete(_keyAuth);
-    await box.delete(_keyUsername);
-    await box.delete(_keyPassword);
-    await box.delete(_keyLastTabIndex);
+    await Future.wait([
+      box.delete(_keyAuth),
+      box.delete(_keyUsername),
+      box.delete(_keyPassword),
+      box.delete(_keyLastTabIndex),
+      _secretStorage.delete(_keyPassword),
+    ]);
   }
 
   Future<bool> hasSavedAuth() async {

@@ -10,6 +10,34 @@ class ElearningRepository:
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
+    def _search_all(
+        self,
+        uid: int,
+        password: str,
+        model: str,
+        domain: list,
+        fields: list,
+        order: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        page_size = 80
+        offset = 0
+        records: List[Dict[str, Any]] = []
+        while True:
+            page = self.odoo.search_read(
+                uid=uid,
+                password=password,
+                model=model,
+                domain=domain,
+                fields=fields,
+                limit=page_size,
+                order=order,
+                offset=offset,
+            )
+            records.extend(page)
+            if len(page) < page_size:
+                return records
+            offset += len(page)
+
     def _slide_download_url(
         self,
         slide_type: Optional[str],
@@ -54,14 +82,117 @@ class ElearningRepository:
 
         domain = [('is_published', '=', True)]
 
-        return self.odoo.search_read(
+        return self._search_all(
             uid=uid,
             password=password,
             model='slide.channel',
             domain=domain,
             fields=fields,
-            order='name asc'
+            order='name asc, id asc',
         )
+
+    def get_course_sync_changes(
+        self,
+        uid: int,
+        password: str,
+        partner_id: Optional[int],
+        modified_after: str,
+    ) -> tuple[List[Dict[str, Any]], List[int]]:
+        modified_domain = [('write_date', '>=', modified_after)]
+        changed_channels = self._search_all(
+            uid=uid,
+            password=password,
+            model='slide.channel',
+            domain=modified_domain,
+            fields=['id'],
+            order='id asc',
+        )
+        course_ids = {
+            int(record['id'])
+            for record in changed_channels
+            if record.get('id')
+        }
+
+        changed_slides = self._search_all(
+            uid=uid,
+            password=password,
+            model='slide.slide',
+            domain=modified_domain,
+            fields=['id', 'channel_id'],
+            order='id asc',
+        )
+        slide_ids = {
+            int(record['id'])
+            for record in changed_slides
+            if record.get('id')
+        }
+        course_ids.update(
+            int(channel[0])
+            for record in changed_slides
+            if isinstance((channel := record.get('channel_id')), (list, tuple))
+            and channel
+        )
+
+        if partner_id is not None:
+            changed_progress = self._search_all(
+                uid=uid,
+                password=password,
+                model='slide.slide.partner',
+                domain=[
+                    ('partner_id', '=', partner_id),
+                    *modified_domain,
+                ],
+                fields=['slide_id'],
+                order='id asc',
+            )
+            slide_ids.update(
+                int(slide[0])
+                for record in changed_progress
+                if isinstance((slide := record.get('slide_id')), (list, tuple))
+                and slide
+            )
+
+        if slide_ids:
+            related_slides = self._search_all(
+                uid=uid,
+                password=password,
+                model='slide.slide',
+                domain=[('id', 'in', sorted(slide_ids))],
+                fields=['channel_id'],
+                order='id asc',
+            )
+            course_ids.update(
+                int(channel[0])
+                for record in related_slides
+                if isinstance((channel := record.get('channel_id')), (list, tuple))
+                and channel
+            )
+
+        if not course_ids:
+            return [], []
+
+        channels = self._search_all(
+            uid=uid,
+            password=password,
+            model='slide.channel',
+            domain=[('id', 'in', sorted(course_ids))],
+            fields=[
+                'id',
+                'name',
+                'user_id',
+                'total_slides',
+                'description',
+                'is_published',
+            ],
+            order='id asc',
+        )
+        published = [course for course in channels if course.get('is_published')]
+        removed_ids = [
+            int(course['id'])
+            for course in channels
+            if course.get('id') and not course.get('is_published')
+        ]
+        return published, removed_ids
 
     def get_progress_by_course(
         self,
@@ -69,7 +200,7 @@ class ElearningRepository:
         password: str,
         partner_id: int,
     ) -> Dict[int, set[int]]:
-        completed_records = self.odoo.search_read(
+        completed_records = self._search_all(
             uid=uid,
             password=password,
             model='slide.slide.partner',
@@ -88,7 +219,7 @@ class ElearningRepository:
         if not slide_ids:
             return {}
 
-        slides = self.odoo.search_read(
+        slides = self._search_all(
             uid=uid,
             password=password,
             model='slide.slide',

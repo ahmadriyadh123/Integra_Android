@@ -50,6 +50,32 @@ class RaporService {
     }
   }
 
+  Future<Map<String, dynamic>> syncReportList(
+    String token, {
+    String? cursor,
+  }) async {
+    final query = <String, String>{};
+    if (cursor != null) query['cursor'] = cursor;
+    final url = Uri.parse('$baseUrl/e-rapor/list/sync').replace(
+      queryParameters: query,
+    );
+    final response = await http
+        .get(url, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode == 200 &&
+        decoded is Map &&
+        decoded['success'] == true &&
+        decoded['data'] is Map) {
+      return Map<String, dynamic>.from(decoded['data']);
+    }
+    throw Exception(
+      decoded is Map
+          ? decoded['detail'] ?? 'Gagal menyinkronkan daftar E-Rapor'
+          : 'Respons sinkronisasi daftar E-Rapor tidak valid.',
+    );
+  }
+
   Future<Map<String, dynamic>> fetchReportDetail(
     String token,
     int raporId,

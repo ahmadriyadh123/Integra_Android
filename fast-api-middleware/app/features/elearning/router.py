@@ -2,6 +2,8 @@ import io
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from datetime import datetime
+from typing import Optional
 from app.core.dependencies import (
     get_odoo_client,
     get_current_user_credentials
@@ -10,6 +12,7 @@ from app.core.config import settings
 from app.core.odoo_client import OdooRPCClient
 from app.features.elearning.schemas import (
     APIResponseCourseList,
+    APIResponseCourseSync,
     APIResponseCourseDetail,
     APIResponseCourseMessages,
     CreateCourseMessageRequest,
@@ -49,6 +52,35 @@ def get_courses(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data kursus dari Odoo: {str(e)}"
         )
+
+@router.get("/courses/sync", response_model=APIResponseCourseSync)
+def sync_courses(
+    cursor: Optional[datetime] = None,
+    creds: dict = Depends(get_current_user_credentials),
+    odoo: OdooRPCClient = Depends(get_odoo_client),
+):
+    try:
+        service = ElearningService(ElearningRepository(odoo))
+        data = service.get_courses_sync(
+            uid=creds["uid"],
+            password=creds["password"],
+            partner_id=creds.get("partner_id"),
+            cursor=cursor,
+        )
+        return APIResponseCourseSync(
+            success=True,
+            message="Berhasil menyinkronkan daftar kursus E-Learning",
+            data=data,
+        )
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/sync] Error uid=%s",
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal menyinkronkan kursus dari Odoo: {str(e)}",
+        ) from e
 
 @router.get("/courses/{course_id}", response_model=APIResponseCourseDetail)
 def get_course_detail(

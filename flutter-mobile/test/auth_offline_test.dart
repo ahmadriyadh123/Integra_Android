@@ -31,18 +31,6 @@ class FakeAuthService extends AuthService {
 
 class FakeLocalStorage extends AuthLocalStorage {
   String? savedPassword;
-  String? lastUpdatedCurrentPassword;
-  String? lastUpdatedNewPassword;
-
-  @override
-  Future<void> updateSavedPassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    lastUpdatedCurrentPassword = currentPassword;
-    lastUpdatedNewPassword = newPassword;
-    savedPassword = newPassword;
-  }
 
   @override
   Future<String> loadPassword() async => savedPassword ?? '';
@@ -58,6 +46,7 @@ class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
     required String noteText,
     String? month,
     int? week,
+    required String scope,
   }) async {
     pendingNotes.add({
       'line_id': lineId,
@@ -69,7 +58,9 @@ class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> loadPendingNotes() async =>
+  Future<List<Map<String, dynamic>>> loadPendingNotes({
+    required String scope,
+  }) async =>
       List.from(pendingNotes);
 }
 
@@ -293,7 +284,7 @@ void main() {
     });
 
     test(
-      'changePassword falls back to local storage when network is unavailable',
+      'changePassword does not report success or change local password offline',
       () async {
         final fakeService = FakeAuthService();
         final fakeStorage = FakeLocalStorage();
@@ -304,15 +295,16 @@ void main() {
           localStorageService: fakeStorage,
         );
 
-        await repository.changePassword(
-          token: 'token',
-          currentPassword: 'old-password',
-          newPassword: 'new-password-123',
+        await expectLater(
+          repository.changePassword(
+            token: 'token',
+            currentPassword: 'old-password',
+            newPassword: 'new-password-123',
+          ),
+          throwsA(isA<FormatException>()),
         );
 
-        expect(fakeStorage.lastUpdatedCurrentPassword, 'old-password');
-        expect(fakeStorage.lastUpdatedNewPassword, 'new-password-123');
-        expect(fakeStorage.savedPassword, 'new-password-123');
+        expect(fakeStorage.savedPassword, 'old-password');
       },
     );
 
@@ -325,7 +317,7 @@ void main() {
       );
 
       final result = await repository.submitDailyNote(
-        token: 'token',
+        token: 'header.eyJzY2hvb2xfaWQiOjEsInVpZCI6Mn0.signature',
         lineId: 12,
         day: 'senin',
         noteText: 'Saya hadir tepat waktu',

@@ -19,6 +19,10 @@ void main() {
 
     expect(config.tokenMatchesSelectedSchool(_token(7)), isTrue);
     expect(config.headers(token: _token(7))['X-School-ID'], '7');
+    expect(
+      config.headers(token: _token(7))['Authorization'],
+      'Bearer ${_token(7)}',
+    );
   });
 
   test('rejects a token issued for a different selected school', () {

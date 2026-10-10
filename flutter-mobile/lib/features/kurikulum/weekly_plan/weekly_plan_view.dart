@@ -28,10 +28,9 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final vm = context.read<WeeklyPlanViewModel>();
-      if (!vm.isLoading && !vm.hasData && vm.errorMessage == null) {
-        vm.fetchList(widget.authToken);
-      }
+      vm.fetchList(widget.authToken, forceRefresh: true);
     });
   }
 

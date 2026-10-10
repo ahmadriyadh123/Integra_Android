@@ -50,6 +50,11 @@ class WeeklyPlanViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
+      final syncError = repository.lastSyncError;
+      if (syncError != null) {
+        _errorMessage =
+            'Gagal memperbarui Weekly Plan; menampilkan cache lokal. $syncError';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

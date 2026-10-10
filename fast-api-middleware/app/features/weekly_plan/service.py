@@ -2,6 +2,7 @@ import html
 import logging
 import re
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 from app.features.weekly_plan.repository import WeeklyPlanRepository
 
 logger = logging.getLogger(__name__)
@@ -50,11 +51,12 @@ class WeeklyPlanService:
     def get_weekly_plan_list(
         self, uid: int, password: str,
         jenjang: str = 'sd',
-        course_id: Optional[int] = None
+        course_id: Optional[int] = None,
+        cursor: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         raw = self.repo.get_weekly_plans(
             uid=uid, password=password,
-            jenjang=jenjang, course_id=course_id
+            jenjang=jenjang, course_id=course_id, cursor=cursor
         )
 
         weekly_plans = []
@@ -68,6 +70,7 @@ class WeeklyPlanService:
                 "tema": self._str(p.get("tema")),
                 "nama_guru": self._str(p.get("nama_guru")),
                 "status": self._str(p.get("status"), "draft"),
+                "write_date": p.get("write_date"),
             })
 
         return {

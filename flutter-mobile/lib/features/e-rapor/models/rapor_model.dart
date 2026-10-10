@@ -1,4 +1,3 @@
-
 class SubjectGrade {
   final int id;
   final int? subjectId;
@@ -22,7 +21,8 @@ class SubjectGrade {
       subjectId: json['subject_id'] as int?,
       subjectName: json['subject_name'] as String? ?? '-',
       nilaiPengetahuan: (json['nilai_pengetahuan'] as num?)?.toDouble() ?? 0.0,
-      nilaiKeterampilan: (json['nilai_keterampilan'] as num?)?.toDouble() ?? 0.0,
+      nilaiKeterampilan:
+          (json['nilai_keterampilan'] as num?)?.toDouble() ?? 0.0,
       predicate: json['predikat'] as String? ?? '-',
     );
   }
@@ -32,6 +32,7 @@ class ReportCardHeader {
   final int id;
   final int studentId;
   final String studentName;
+  final String reportType;
   final String className;
   final String semester;
   final String academicYear;
@@ -45,6 +46,7 @@ class ReportCardHeader {
     required this.id,
     required this.studentId,
     required this.studentName,
+    this.reportType = '-',
     required this.className,
     required this.semester,
     required this.academicYear,
@@ -58,8 +60,9 @@ class ReportCardHeader {
   factory ReportCardHeader.fromJson(Map<String, dynamic> json) {
     return ReportCardHeader(
       id: json['id'] as int,
-      studentId: (json['student_id'] as num?)?.toInt() ?? 0,      
+      studentId: (json['student_id'] as num?)?.toInt() ?? 0,
       studentName: json['student_name'] as String? ?? '-',
+      reportType: json['jenis_rapor'] as String? ?? '-',
       className: json['kelas'] as String? ?? '-',
       semester: json['semester'] as String? ?? '-',
       academicYear: json['tahun_ajaran'] as String? ?? '-',
@@ -105,10 +108,13 @@ class ReportCardDetail {
       teacherNotes: json['catatan_wali_kelas'] as String? ?? '-',
       pdfUrl: json['file_rapor_pdf'] as String?,
       fileName: json['file_name'] as String?,
-      subjects: (json['subjects'] as List<dynamic>?)
-          ?.map((e) => SubjectGrade.fromJson(
-              Map<String, dynamic>.from(e as Map)))
-          .toList() ??
+      subjects:
+          (json['subjects'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    SubjectGrade.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
+              .toList() ??
           [],
     );
   }

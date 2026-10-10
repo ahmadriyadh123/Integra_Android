@@ -1,5 +1,6 @@
 from app.core.odoo_client import OdooRPCClient
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 
 class CalendarRepository:
@@ -12,6 +13,7 @@ class CalendarRepository:
         password: str,
         course_id: int,
         jenjang: str = 'sd',
+        cursor: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         Ambil kalender akademik khusus kelas siswa dari model kaldik.{jenjang}.
@@ -58,6 +60,22 @@ class CalendarRepository:
             class_field,
             *(field for field in fields if field != 'id' and field in available),
         ]
+        if 'write_date' in available:
+            requested_fields.append('write_date')
+
+        domain = [(class_field, '=', course_id)]
+        if cursor is not None:
+            if 'write_date' not in available:
+                raise RuntimeError(
+                    f"Model {model_name} does not expose write_date for delta sync."
+                )
+            domain.append(
+                (
+                    'write_date',
+                    '>=',
+                    (cursor - timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M:%S'),
+                )
+            )
 
         order_fields = []
         if 'tahun_id' in available:
@@ -69,7 +87,7 @@ class CalendarRepository:
             uid=uid,
             password=password,
             model=model_name,
-            domain=[(class_field, '=', course_id)],
+            domain=domain,
             fields=requested_fields,
             order=', '.join(order_fields) or None,
         )

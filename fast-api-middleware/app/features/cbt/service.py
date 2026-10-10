@@ -54,6 +54,66 @@ class CbtService:
             except Exception as e:
                 logger.warning(f"[cbt service] Failed get_hasil_ujian for student_id={student_id}: {e}")
 
+        return self._format_exam_list(raw, completed_jadwal_ids)
+
+    def get_exam_list_sync(
+        self,
+        uid: int,
+        password: str,
+        course_id: Optional[int] = None,
+        student_id: Optional[int] = None,
+        cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if cursor is None:
+            watermark = datetime.now(timezone.utc)
+            self.repo.validate_schedule_sync_sources(
+                uid=uid,
+                password=password,
+                student_id=student_id,
+            )
+            result = self.get_exam_list(
+                uid=uid,
+                password=password,
+                course_id=course_id,
+                student_id=student_id,
+            )
+            return {
+                'is_full_sync': True,
+                'exams': result['exams'],
+                'removed_ids': [],
+                'cursor': watermark.isoformat(),
+            }
+
+        delta = self.repo.get_schedules_sync_delta(
+            uid=uid,
+            password=password,
+            course_id=course_id,
+            student_id=student_id,
+            cursor=cursor,
+        )
+        schedule_ids = [record['id'] for record in delta['schedules']]
+        completed_ids = set()
+        if student_id and schedule_ids:
+            for schedule_id in schedule_ids:
+                results = self.repo.get_hasil_ujian(
+                    uid=uid,
+                    password=password,
+                    student_id=student_id,
+                    jadwal_id=schedule_id,
+                )
+                if results:
+                    completed_ids.add(schedule_id)
+        formatted = self._format_exam_list(delta['schedules'], completed_ids)
+        return {
+            'is_full_sync': False,
+            'exams': formatted['exams'],
+            'removed_ids': delta['removed_ids'],
+            'cursor': delta['cursor'],
+        }
+
+    def _format_exam_list(
+        self, raw: List[Dict[str, Any]], completed_jadwal_ids: set
+    ) -> Dict[str, Any]:
         now_dt = datetime.now(timezone.utc)
         exams = []
         for e in raw:

@@ -1,5 +1,6 @@
 import logging
 import io
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -18,6 +19,38 @@ router = APIRouter(
     prefix="/weekly-plan",
     tags=["Menu Weekly Plan"]
 )
+
+@router.get("/list/sync")
+def sync_weekly_plans(
+    cursor: Optional[datetime] = Query(None),
+    jenjang: Optional[str] = Query(None),
+    creds: dict = Depends(get_current_user_credentials),
+    odoo_client = Depends(get_odoo_client),
+):
+    try:
+        service = WeeklyPlanService(WeeklyPlanRepository(odoo_client))
+        data = service.get_weekly_plan_list(
+            uid=creds["uid"],
+            password=creds["password"],
+            jenjang=jenjang or creds.get("jenjang", "sd"),
+            course_id=creds.get("course_id"),
+            cursor=cursor,
+        )
+        return {
+            "success": True,
+            "data": {
+                "items": data["weekly_plans"],
+                "removed_ids": [],
+                "next_cursor": datetime.now(timezone.utc).isoformat(),
+                "full_sync": cursor is None,
+            },
+        }
+    except Exception as exc:
+        logger.exception("[weekly-plan/list/sync] Error uid=%s", creds.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan daftar Weekly Plan.",
+        ) from exc
 
 @router.get("/list", response_model=APIResponseWeeklyPlanList)
 def get_weekly_plans(
@@ -175,4 +208,3 @@ def get_weekly_plan_pdf(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil PDF Weekly Plan: {str(e)}"
         )
-

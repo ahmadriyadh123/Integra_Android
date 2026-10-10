@@ -32,10 +32,12 @@ class FakeProfileService extends ProfileService {
       );
 
   int requestCount = 0;
+  bool failRequests = false;
 
   @override
   Future<Map<String, dynamic>> getMyProfile(String token) async {
     requestCount++;
+    if (failRequests) throw Exception('offline');
     return {
       'id': 41,
       'user_id': 12,
@@ -63,7 +65,7 @@ UserProfile _user() => UserProfile(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('requests profile once and reuses the locally stored profile', () async {
+  test('coalesces refresh and refreshes cached profile in a new view model', () async {
     final storage = FakeProfileStorage();
     final service = FakeProfileService();
     final repository = ProfileRepository(
@@ -95,7 +97,8 @@ void main() {
       schoolId: '8',
     );
 
-    expect(service.requestCount, 1);
+    expect(service.requestCount, 2);
+    expect(storage.saveCount, 2);
     expect(nextAppViewModel.profile?.nis, 'NIS-12');
   });
 
@@ -122,7 +125,7 @@ void main() {
   });
 
   test(
-    'cached profile maps into local model without a server request',
+    'cached profile remains available and reports failed refresh offline',
     () async {
       final storage = FakeProfileStorage()
         ..profiles['8:12'] = {
@@ -139,7 +142,7 @@ void main() {
           'usia': '10',
           'status_aktif': true,
         };
-      final service = FakeProfileService();
+      final service = FakeProfileService()..failRequests = true;
       final viewModel = ProfileViewModel(
         repository: ProfileRepository(
           apiService: service,
@@ -153,8 +156,9 @@ void main() {
         schoolId: '8',
       );
 
-      expect(service.requestCount, 0);
+      expect(service.requestCount, 1);
       expect(viewModel.profile?.name, 'Profil Lokal');
+      expect(viewModel.errorMessage, contains('menampilkan cache lokal'));
     },
   );
 }

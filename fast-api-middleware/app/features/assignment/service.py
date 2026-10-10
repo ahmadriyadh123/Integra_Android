@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List, Optional
 from app.features.assignment.repository import AssignmentRepository
 from app.features.assignment.schemas import (
     AssignmentResponse, 
@@ -11,8 +11,14 @@ class AssignmentService:
     def __init__(self, repository: AssignmentRepository):
         self.repository = repository
 
-    def get_student_assignments(self, uid: int, password: str, student_id: int) -> List[AssignmentResponse]:
-        raw_assignments = self.repository.get_assignments_by_student(uid=uid, password=password, student_id=student_id)
+    def get_student_assignments(
+        self,
+        uid: int,
+        password: str,
+        student_id: int,
+        assignment_ids: Optional[List[int]] = None,
+    ) -> List[AssignmentResponse]:
+        raw_assignments = self.repository.get_assignments_by_student(uid=uid, password=password, student_id=student_id, assignment_ids=assignment_ids)
         formatted_list = []
 
         for row in raw_assignments:
@@ -67,7 +73,10 @@ class AssignmentService:
                 id=row['assignment_id'],
                 master_assignment_id=row['master_assignment_id'],
                 title=row['title'],
-                subject=SubjectInfo(id=row['subject_id'], name="Mata Pelajaran" if row['subject_id'] else "Umum"),
+                subject=SubjectInfo(
+                    id=row['subject_id'],
+                    name=row.get('subject_name') or "Umum",
+                ),
                 faculty_id=row['faculty_id'],
                 batch_id=row['batch_id'],
                 description=row['description'],
@@ -81,6 +90,39 @@ class AssignmentService:
             formatted_list.append(assignment_obj)
 
         return formatted_list
+
+    def sync_student_assignments(
+        self,
+        uid: int,
+        password: str,
+        student_id: int,
+        cursor: Optional[str],
+    ) -> Dict[str, Any]:
+        sync = self.repository.get_assignment_sync_delta(
+            uid=uid,
+            password=password,
+            student_id=student_id,
+            cursor=cursor,
+        )
+        assignment_ids = sync["assignment_ids"]
+        items = self.get_student_assignments(
+            uid=uid,
+            password=password,
+            student_id=student_id,
+            assignment_ids=assignment_ids,
+        )
+        present_ids = {item.id for item in items}
+        removed_ids = (
+            []
+            if assignment_ids is None
+            else [item_id for item_id in assignment_ids if item_id not in present_ids]
+        )
+        return {
+            "items": items,
+            "removed_ids": removed_ids,
+            "next_cursor": sync["next_cursor"],
+            "full_sync": sync["full_sync"],
+        }
 
     def submit_assignment(
         self, uid: int, password: str, student_id: int, assignment_id: int, file_bytes: bytes, filename: str

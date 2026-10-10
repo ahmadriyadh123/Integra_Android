@@ -28,6 +28,11 @@ class CbtViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
+      final syncError = repository.lastSyncError;
+      if (syncError != null) {
+        _errorMessage =
+            'Gagal memperbarui jadwal CBT; menampilkan cache lokal. $syncError';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

@@ -1,5 +1,6 @@
 import logging
 import base64
+from datetime import datetime, timedelta
 from app.core.odoo_client import OdooRPCClient
 from typing import List, Dict, Any, Optional
 
@@ -31,7 +32,8 @@ class WeeklyPlanRepository:
 
     def get_weekly_plans(
         self, uid: int, password: str, jenjang: str = 'sd',
-        course_id: Optional[int] = None
+        course_id: Optional[int] = None,
+        cursor: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         Ambil daftar weekly plan menggunakan kredensial user portal.
@@ -39,8 +41,17 @@ class WeeklyPlanRepository:
         """
         fields = [
             'id', 'course_id', 'semester_id', 'tahun_ajaran_id',
-            'pekan', 'status', 'tema', 'nama_guru'
+            'pekan', 'status', 'tema', 'nama_guru', 'write_date'
         ]
+        domain = [('active', '=', True)]
+        if cursor is not None:
+            domain.append(
+                (
+                    'write_date',
+                    '>=',
+                    (cursor - timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M:%S'),
+                )
+            )
         primary_model = self._base_model(jenjang)
         models_to_try = [primary_model] + [
             m for m in JENJANG_MODEL.values() if m != primary_model
@@ -51,7 +62,7 @@ class WeeklyPlanRepository:
                 records = self.odoo.search_read(
                     uid=uid, password=password,
                     model=model,
-                    domain=[('active', '=', True)],
+                    domain=domain,
                     fields=fields,
                     order='id desc'
                 )
@@ -65,9 +76,15 @@ class WeeklyPlanRepository:
                             filtered.append(r)
                     if filtered:
                         return filtered
+                    if cursor is not None:
+                        return []
+                elif cursor is not None:
+                    return records
                 elif records:
                     return records
             except Exception as e:
+                if cursor is not None:
+                    raise
                 logger.warning(f"[weekly_plan repo] Failed search_read model={model}: {e}")
 
         return []
@@ -243,5 +260,3 @@ class WeeklyPlanRepository:
         except Exception as e:
             logger.warning(f"[weekly_plan] gagal fetch logo: {e}")
             return None
-
-

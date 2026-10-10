@@ -74,6 +74,22 @@ class _ProfilTabState extends State<ProfilTab> {
                 className: className,
                 rombel: rombel,
               ),
+              if (profileViewModel.errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    border: Border.all(color: const Color(0xFFFCD34D)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    profileViewModel.errorMessage!,
+                    style: const TextStyle(color: Color(0xFF92400E)),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
 
               const ProfileSectionLabel(title: 'IDENTITAS SISWA'),
