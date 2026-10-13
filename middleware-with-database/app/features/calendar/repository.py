@@ -2,19 +2,33 @@ from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
+
 class CalendarRepository:
+    _table_by_level = {
+        "sd": "kaldik_sd",
+        "smp": "kaldik_smp",
+        "tk": "kaldik_tk",
+    }
+
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
 
-    async def get_academic_calendars(self, jenjang: str = 'sd') -> List[Dict[str, Any]]:
+    async def get_academic_calendars(
+        self, course_id: int, jenjang: str = "sd"
+    ) -> List[Dict[str, Any]]:
         """
-        Mengambil daftar kalender akademik berdasarkan jenjang langsung dari database.
+        Mengambil kalender akademik untuk kelas siswa pada jenjang terkait.
         """
-        table_name = f"kaldik_{jenjang.lower()}"
-        
+        if type(course_id) is not int or course_id <= 0:
+            raise ValueError("Akun siswa belum terhubung ke kelas.")
+        table_name = self._table_by_level.get(jenjang.lower())
+        if table_name is None:
+            raise ValueError(f"Jenjang kalender tidak didukung: {jenjang}.")
+
         query = text(f"""
             SELECT 
                 k.id,
+                k.kelas_id,
                 c.name AS kelas_name,
                 sem.name AS semester_name,
                 ay.name AS tahun_name,
@@ -24,8 +38,9 @@ class CalendarRepository:
             LEFT JOIN op_course c ON c.id = k.kelas_id
             LEFT JOIN op_academic_term sem ON sem.id = k.semester_id
             LEFT JOIN op_academic_year ay ON ay.id = k.tahun_id
+            WHERE k.kelas_id = :course_id
             ORDER BY k.tahun_id DESC, k.semester_id ASC;
         """)
-        
-        result = await self.db.execute(query)
+
+        result = await self.db.execute(query, {"course_id": course_id})
         return [dict(row) for row in result.mappings().all()]

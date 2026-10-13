@@ -1,6 +1,8 @@
-import '../local/cbt_local_storage.dart';
-import '../services/cbt_service.dart';
 import 'package:flutter_application_1/services/cache_scope.dart';
+
+import '../local/cbt_local_storage.dart';
+import '../models/cbt_model.dart';
+import '../services/cbt_service.dart';
 
 class CbtRepository {
   final CbtService apiService;
@@ -9,19 +11,30 @@ class CbtRepository {
 
   CbtRepository({required this.apiService, required this.localStorage});
 
-  /// Mengambil daftar ujian CBT dengan cache-first strategy.
-  /// Mengembalikan list exam mentah.
-  Future<List<Map<String, dynamic>>> getCbtSchedules(
+  Future<List<CbtExamSchedule>> getCbtSchedules(
     String token, {
     bool forceRefresh = false,
   }) async {
     final scope = tokenCacheScope(token, includeStudent: true);
     final snapshot = await localStorage.loadCbtSnapshot(scope: scope);
-    final cached = snapshot?['items'] as List<dynamic>?;
+    final rawCached = snapshot?['items'];
+    final cached = rawCached is List
+        ? rawCached
+              .map(
+                (item) => CbtExamSchedule.fromJson(
+                  _asObject(item, 'Data cache jadwal CBT tidak valid.'),
+                ),
+              )
+              .toList()
+        : null;
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
-      final cursor = snapshot?['cursor'] as String?;
-      final fullSyncAt = snapshot?['full_sync_at'] as int?;
+      final cursor = snapshot?['cursor'] is String
+          ? snapshot!['cursor'] as String
+          : null;
+      final fullSyncAt = snapshot?['full_sync_at'] is int
+          ? snapshot!['full_sync_at'] as int
+          : null;
       final shouldFullSync =
           forceRefresh ||
           cursor == null ||
@@ -31,77 +44,64 @@ class CbtRepository {
         token,
         cursor: shouldFullSync ? null : cursor,
       );
-      final records = data['exams'];
-      final removedIds = data['removed_ids'];
-      final nextCursor = data['cursor'];
-      final isFullSync = data['is_full_sync'];
-      if (records is! List ||
-          removedIds is! List ||
-          nextCursor is! String ||
-          isFullSync is! bool ||
-          isFullSync != shouldFullSync) {
+      if (data.isFullSync != shouldFullSync) {
         throw const FormatException('Respons sinkronisasi CBT tidak valid.');
       }
-      final changed = records
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      final schedules = <int, Map<String, dynamic>>{};
-      if (!isFullSync && cached != null) {
-        for (final record in cached) {
-          if (record is Map && record['id'] is int) {
-            schedules[record['id'] as int] = Map<String, dynamic>.from(record);
-          }
+
+      final schedules = <int, CbtExamSchedule>{};
+      if (!data.isFullSync && cached != null) {
+        for (final schedule in cached) {
+          schedules[schedule.id] = schedule;
         }
       }
-      for (final removedId in removedIds) {
-        if (removedId is int) schedules.remove(removedId);
+      for (final removedId in data.removedIds) {
+        schedules.remove(removedId);
       }
-      for (final record in changed) {
-        final id = record['id'];
-        if (id is int) schedules[id] = record;
+      for (final schedule in data.exams) {
+        schedules[schedule.id] = schedule;
       }
-      final result = schedules.values.toList();
+      final result = schedules.values.toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
       await localStorage.saveCbtSchedules(
-        result,
+        result.map((schedule) => schedule.toJson()).toList(),
         scope: scope,
-        cursor: nextCursor,
-        fullSyncAt: isFullSync ? now : fullSyncAt,
+        cursor: data.cursor,
+        fullSyncAt: data.isFullSync ? now : fullSyncAt,
       );
       lastSyncError = null;
       return result;
     } catch (error) {
       lastSyncError = error.toString();
-      if (cached != null) {
-        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-      }
+      if (cached != null) return cached;
       rethrow;
     }
   }
 
-  /// Verifikasi token ke API
+  Map<String, dynamic> _asObject(dynamic value, String message) {
+    if (value is! Map || value.keys.any((key) => key is! String)) {
+      throw FormatException(message);
+    }
+    return Map<String, dynamic>.from(value);
+  }
+
   Future<bool> verifyToken(
     String token,
     int jadwalId,
     String tokenInput,
-  ) async {
-    return await apiService.verifyExamToken(token, jadwalId, tokenInput);
+  ) {
+    return apiService.verifyExamToken(token, jadwalId, tokenInput);
   }
 
-  /// Ambil soal ujian dari API
-  Future<Map<String, dynamic>> getExamQuestions(
-    String token,
-    int jadwalId,
-  ) async {
-    return await apiService.fetchExamQuestions(token, jadwalId);
+  Future<CbtExamData> getExamQuestions(String token, int jadwalId) {
+    return apiService.fetchExamQuestions(token, jadwalId);
   }
 
-  /// Submit jawaban ujian ke API
-  Future<Map<String, dynamic>> submitExam(
+  Future<CbtSubmitResult> submitExam(
     String token,
     int jadwalId,
-    List<Map<String, dynamic>> answers,
+    List<CbtAnswer> answers,
     String? waktuMulai,
-  ) async {
-    return await apiService.submitExam(token, jadwalId, answers, waktuMulai);
+  ) {
+    return apiService.submitExam(token, jadwalId, answers, waktuMulai);
   }
 }

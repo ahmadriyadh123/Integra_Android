@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.dependencies import (
     get_current_tenant,
     get_current_user_credentials,
+    get_db,
     get_registry_db,
 )
 from app.core.models import SchoolTenant
@@ -47,7 +48,7 @@ def tenant():
         school_code="SEKOLAH-001",
         school_name="Sekolah Alam Bogor",
         odoo_url="https://sekolahalambogor.sch.id",
-        odoo_db="sekolahalambogor.sch.id",
+        odoo_db="sekolah_alam_bogor_db",
         is_active=True,
     )
 
@@ -152,13 +153,53 @@ def test_tenant_engine_targets_school_database(monkeypatch):
         ),
     )
 
-    engine = database.get_tenant_engine("sekolahalambogor.sch.id")
-    assert engine.url.database == "sekolahalambogor.sch.id"
+    engine = database.get_tenant_engine("sekolah_alam_bogor_db")
+    assert engine.url.database == "sekolah_alam_bogor_db"
 
-    database._tenant_engines.pop("sekolahalambogor.sch.id", None)
+    database._tenant_engines.pop("sekolah_alam_bogor_db", None)
     import asyncio
 
     asyncio.run(engine.dispose())
+
+
+@pytest.mark.asyncio
+async def test_missing_tenant_database_returns_configuration_error(tenant, monkeypatch):
+    from fastapi import HTTPException
+    from sqlalchemy.exc import OperationalError
+
+    class MissingDatabaseError(Exception):
+        sqlstate = "3D000"
+
+    class Session:
+        def __init__(self):
+            self.info = {}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def connection(self):
+            raise OperationalError(
+                "connect",
+                {},
+                MissingDatabaseError(
+                    f'database "{tenant.odoo_db}" does not exist'
+                ),
+            )
+
+    monkeypatch.setattr(
+        "app.core.dependencies.create_tenant_session_factory",
+        lambda _database_name: Session,
+    )
+    database_session = get_db(tenant)
+
+    with pytest.raises(HTTPException) as error:
+        await anext(database_session)
+
+    assert error.value.status_code == 503
+    assert "odoo_db" in error.value.detail
 
 
 def test_tenant_database_name_rejects_invalid_characters():

@@ -162,6 +162,15 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
         centerTitle: true,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
+        actions: [
+          IconButton(
+            tooltip: 'Muat ulang SCORM',
+            onPressed: _webController == null
+                ? null
+                : () => _webController!.reload(),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
       body: _viewModel.isLoading
           ? Center(

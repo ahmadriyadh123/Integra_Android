@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
+from fastapi import FastAPI
 
+from app.api import api_router
 from app.features.elearning.repository import ElearningRepository
 from app.features.elearning.service import ElearningService
 
@@ -92,3 +94,42 @@ async def test_course_progress_uses_only_completed_slides_in_returned_course():
     assert courses[0]["completed_slides"] == 2
     assert courses[0]["progress_percent"] == 50
     repository.get_published_courses.assert_awaited_once_with(partner_id=7)
+
+
+@pytest.mark.asyncio
+async def test_course_sync_returns_full_snapshot_and_cursor():
+    repository = Mock()
+    repository.get_published_courses = AsyncMock(
+        return_value=[
+            {
+                "id": 5,
+                "name": "Matematika",
+                "teacher_name": "Guru",
+                "total_slides": 4,
+                "completed_slides": 2,
+                "description": "",
+            }
+        ]
+    )
+
+    sync = await ElearningService(repository).sync_courses_list(
+        partner_id=7,
+        cursor="2026-10-12T00:00:00+00:00",
+    )
+
+    assert sync["items"][0]["id"] == 5
+    assert sync["removed_ids"] == []
+    assert sync["full_sync"] is True
+    assert sync["next_cursor"]
+    repository.get_published_courses.assert_awaited_once_with(partner_id=7)
+
+
+def test_course_sync_route_is_registered_before_dynamic_course_route():
+    app = FastAPI()
+    app.include_router(api_router)
+
+    paths = list(app.openapi()["paths"])
+    assert "/api/v1/elearning/courses/sync" in paths
+    assert paths.index("/api/v1/elearning/courses/sync") < paths.index(
+        "/api/v1/elearning/courses/{course_id}"
+    )

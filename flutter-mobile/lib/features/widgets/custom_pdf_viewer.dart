@@ -16,8 +16,10 @@ class CustomPdfViewer extends StatefulWidget {
     this.pdfBytes,
     this.filePath,
     this.fileName = 'Dokumen.pdf',
-  }) : assert(pdfBytes != null || filePath != null,
-            'pdfBytes atau filePath harus disediakan');
+  }) : assert(
+         pdfBytes != null || filePath != null,
+         'pdfBytes atau filePath harus disediakan',
+       );
 
   @override
   State<CustomPdfViewer> createState() => _CustomPdfViewerState();
@@ -120,7 +122,9 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
       } else if (Platform.isIOS) {
         targetDir = await getApplicationDocumentsDirectory();
       } else {
-        targetDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+        targetDir =
+            await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
       }
 
       // 5. Tulis byte file fisik
@@ -134,19 +138,28 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Berhasil mengunduh $sanitizedFileName',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
               backgroundColor: const Color(0xFF059669),
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               margin: const EdgeInsets.all(16),
               duration: const Duration(seconds: 4),
               action: SnackBarAction(
@@ -174,12 +187,14 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
               filename: widget.fileName,
             );
           } catch (_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Gagal mengunduh file: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Gagal mengunduh file: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
         }
       }
@@ -260,9 +275,7 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
         boxShadow: [
           BoxShadow(
             color: Color(0x08000000),
@@ -306,7 +319,7 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Text(
-                          '${_currentPage} / ${_pageCount == 0 ? '-' : _pageCount}',
+                          '$_currentPage / ${_pageCount == 0 ? '-' : _pageCount}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

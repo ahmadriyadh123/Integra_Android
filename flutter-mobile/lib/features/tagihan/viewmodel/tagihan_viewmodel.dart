@@ -53,11 +53,7 @@ class TagihanViewModel extends ChangeNotifier {
 
     try {
       _summary = await repository.getTagihan(token, forceRefresh: forceRefresh);
-      if (repository.lastSyncError != null) {
-        _errorMessage =
-            'Gagal memperbarui tagihan; menampilkan cache lokal. '
-            '${repository.lastSyncError}';
-      }
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

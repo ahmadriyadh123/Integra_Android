@@ -8,6 +8,7 @@ class WeeklyPlanViewModel extends ChangeNotifier {
   final WeeklyPlanRepository repository;
 
   WeeklyPlanViewModel({required this.repository});
+  String? get lastSyncError => repository.lastSyncError;
 
   // State List
   bool _isLoading = false;
@@ -50,11 +51,7 @@ class WeeklyPlanViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
-      final syncError = repository.lastSyncError;
-      if (syncError != null) {
-        _errorMessage =
-            'Gagal memperbarui Weekly Plan; menampilkan cache lokal. $syncError';
-      }
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -78,14 +75,21 @@ class WeeklyPlanViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchPdfFile(int planId, String token) async {
+  Future<void> fetchPdfFile(
+    int planId,
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     _isGeneratingPdf = true;
     _pdfError = null;
-    _pdfBytes = null;
     notifyListeners();
 
     try {
-      _pdfBytes = await repository.getWeeklyPlanPdfFile(planId, token);
+      _pdfBytes = await repository.getWeeklyPlanPdfFile(
+        planId,
+        token,
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       _pdfError = e.toString().replaceAll('Exception: ', '');
     } finally {

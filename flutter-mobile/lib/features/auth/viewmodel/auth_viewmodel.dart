@@ -1,13 +1,27 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../models/auth_model.dart';
 import '../repositories/auth_repository.dart';
+import '../services/auth_service.dart';
 import '../../../services/tenant_api_config.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository repository;
+  late final StreamSubscription<List<ConnectivityResult>>?
+  _connectivitySubscription;
 
-  AuthViewModel({required this.repository});
+  AuthViewModel({
+    required this.repository,
+    Stream<List<ConnectivityResult>>? connectivityChanges,
+  }) {
+    _connectivitySubscription = connectivityChanges?.listen((results) {
+      if (results.any((result) => result != ConnectivityResult.none)) {
+        unawaited(_retryPendingPasswordChange());
+      }
+    });
+  }
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -17,6 +31,15 @@ class AuthViewModel extends ChangeNotifier {
 
   AuthResult? _authResult;
   AuthResult? get authResult => _authResult;
+
+  bool _passwordChangePending = false;
+  bool get passwordChangePending => _passwordChangePending;
+
+  bool _isSyncingPasswordChange = false;
+  bool get isSyncingPasswordChange => _isSyncingPasswordChange;
+
+  String? _passwordChangeSyncMessage;
+  String? get passwordChangeSyncMessage => _passwordChangeSyncMessage;
 
   bool get isLoggedIn => _authResult != null;
   String get token => _authResult?.accessToken ?? '';
@@ -35,7 +58,26 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await repository.login(username.trim(), password);
+      AuthResult result;
+      var authenticatedOffline = false;
+      try {
+        result = await repository.login(username.trim(), password);
+      } on AuthNetworkException {
+        final offlineResult = await repository.loginOffline(
+          username.trim(),
+          password,
+        );
+        if (offlineResult == null) {
+          _authResult = null;
+          _errorMessage =
+              'Tidak dapat terhubung ke server. Login offline hanya tersedia '
+              'dengan username dan password yang pernah berhasil digunakan.';
+          return false;
+        }
+        result = offlineResult;
+        authenticatedOffline = true;
+      }
+
       await repository.saveAuth(
         {
           'access_token': result.accessToken,
@@ -47,6 +89,19 @@ class AuthViewModel extends ChangeNotifier {
       );
 
       _authResult = result;
+      if (authenticatedOffline) {
+        unawaited(_refreshPendingPasswordChangeState());
+      } else {
+        final resolvedPending = await repository
+            .resolvePendingPasswordChangeAfterLogin(password);
+        if (resolvedPending) {
+          _passwordChangePending = false;
+          _passwordChangeSyncMessage =
+              'Password baru terverifikasi saat login; antrean sinkronisasi selesai.';
+        } else {
+          unawaited(_refreshPendingPasswordChangeState());
+        }
+      }
       return true;
     } on TenantTokenMismatchException catch (error) {
       _authResult = null;
@@ -89,6 +144,7 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
+      unawaited(_refreshPendingPasswordChangeState());
       // Validasi token berjalan terpisah agar pemulihan session tetap cepat.
       _validateSessionInBackground();
 
@@ -139,7 +195,76 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> logout() async {
     _authResult = null;
     _errorMessage = null;
-    await repository.clearAuth();
+    await repository.clearSession();
+    notifyListeners();
+  }
+
+  Future<PasswordChangeStatus> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    _passwordChangeSyncMessage = null;
+    final status = await repository.changePassword(
+      token: token,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    _passwordChangePending = status == PasswordChangeStatus.queued;
+    if (_passwordChangePending) {
+      _passwordChangeSyncMessage =
+          'Perubahan tersimpan dengan aman dan menunggu koneksi untuk disinkronkan.';
+    }
+    notifyListeners();
+    return status;
+  }
+
+  Future<void> _refreshPendingPasswordChangeState() async {
+    try {
+      _passwordChangePending = await repository.hasPendingPasswordChange();
+      if (_passwordChangePending) {
+        _passwordChangeSyncMessage =
+            'Perubahan password menunggu sinkronisasi.';
+        notifyListeners();
+        unawaited(_retryPendingPasswordChange());
+      }
+    } catch (error) {
+      _passwordChangeSyncMessage =
+          'Antrean perubahan password tidak dapat dibaca: $error';
+      notifyListeners();
+    }
+  }
+
+  Future<void> _retryPendingPasswordChange() async {
+    if (_isSyncingPasswordChange || !isLoggedIn || !_passwordChangePending) {
+      return;
+    }
+
+    _isSyncingPasswordChange = true;
+    notifyListeners();
+    try {
+      final synced = await repository.syncPendingPasswordChange(token);
+      if (synced) {
+        _passwordChangePending = false;
+        _passwordChangeSyncMessage =
+            'Password berhasil diperbarui dan disinkronkan ke server.';
+      }
+    } catch (error) {
+      _passwordChangePending = true;
+      _passwordChangeSyncMessage =
+          'Sinkronisasi perubahan password gagal: '
+          '${error.toString().replaceFirst('Exception: ', '')}';
+    } finally {
+      _isSyncingPasswordChange = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> cancelPendingPasswordChange() async {
+    if (_isSyncingPasswordChange || !_passwordChangePending) return;
+    await repository.cancelPendingPasswordChange();
+    _passwordChangePending = false;
+    _passwordChangeSyncMessage =
+        'Permintaan perubahan password tertunda telah dibatalkan.';
     notifyListeners();
   }
 
@@ -152,4 +277,10 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> saveLastTabIndex(int index) => repository.setLastTabIndex(index);
   Future<String> loadUsername() => repository.loadUsername();
   Future<String> loadPassword() => repository.loadPassword();
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
 }

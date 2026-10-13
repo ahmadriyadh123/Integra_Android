@@ -140,21 +140,83 @@ void main() {
     ]);
   });
 
-  test('login rejects a successful response without an object payload', () async {
+  test('classifies transport failures as retryable network failures', () async {
+    const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';
     final service = AuthService(
       baseUrl: 'https://example.com/api/v1',
-      tenantApiConfig: TenantApiConfig(),
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      client: MockClient((request) async {
+        throw http.ClientException('No connection', request.url);
+      }),
+    );
+
+    await expectLater(
+      service.changePassword(
+        token: token,
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+      ),
+      throwsA(isA<AuthNetworkException>()),
+    );
+  });
+
+  test('classifies login transport failures as network failures', () async {
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
       client: MockClient(
-        (request) async => http.Response(
-          '{"success":true,"data":[]}',
-          200,
-        ),
+        (request) async =>
+            throw http.ClientException('No connection', request.url),
       ),
     );
 
     await expectLater(
       service.login('student', 'password'),
-      throwsA(isA<FormatException>()),
+      throwsA(isA<AuthNetworkException>()),
     );
   });
+
+  test(
+    'does not classify server validation errors as network failures',
+    () async {
+      const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+        client: MockClient(
+          (request) async => http.Response(
+            '{"success":false,"detail":"Password lama salah"}',
+            400,
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.changePassword(
+          token: token,
+          currentPassword: 'wrong-password',
+          newPassword: 'new-password',
+        ),
+        throwsA(isNot(isA<AuthNetworkException>())),
+      );
+    },
+  );
+
+  test(
+    'login rejects a successful response without an object payload',
+    () async {
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(),
+        client: MockClient(
+          (request) async => http.Response('{"success":true,"data":[]}', 200),
+        ),
+      );
+
+      await expectLater(
+        service.login('student', 'password'),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
 }

@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:typed_data';
 
 /// Service untuk menyimpan dan membaca cache data Weekly Plan menggunakan Hive.
 class WeeklyPlanLocalStorage {
@@ -23,6 +24,31 @@ class WeeklyPlanLocalStorage {
       throw ArgumentError.value(scope, 'scope', 'Tidak boleh kosong');
     }
     return '${keyList}_$scope';
+  }
+
+  String _pdfKey(int planId, String scope) {
+    if (scope.trim().isEmpty) {
+      throw ArgumentError.value(scope, 'scope', 'Tidak boleh kosong');
+    }
+    return 'weekly_plan_pdf_${scope}_$planId';
+  }
+
+  Future<void> saveWeeklyPlanPdf(
+    int planId,
+    Uint8List pdfBytes, {
+    required String scope,
+  }) async {
+    await (await _getBox()).put(_pdfKey(planId, scope), pdfBytes);
+  }
+
+  Future<Uint8List?> loadWeeklyPlanPdf(
+    int planId, {
+    required String scope,
+  }) async {
+    final value = (await _getBox()).get(_pdfKey(planId, scope));
+    if (value is Uint8List) return value;
+    if (value is List<int>) return Uint8List.fromList(value);
+    return null;
   }
 
   Future<void> saveWeeklyPlanList(

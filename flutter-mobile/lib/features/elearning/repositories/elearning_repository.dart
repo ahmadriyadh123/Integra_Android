@@ -19,7 +19,8 @@ class ElearningRepository {
     final cursor = await localStorage.loadCoursesSyncCursor(
       cacheScope: cacheScope,
     );
-    final fullSync = cached == null ||
+    final fullSync = forceRefresh ||
+        cached == null ||
         cursor == null ||
         await localStorage.isCoursesFullSyncDue(cacheScope: cacheScope);
     final result = await apiService.syncCourses(
@@ -43,9 +44,7 @@ class ElearningRepository {
 
     final remoteCourses = rawItems
         .map(
-          (item) => CourseItem.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
+          (item) => CourseItem.fromJson(_courseMap(item)),
         )
         .toList();
     final removedIds = rawRemovedIds.map((value) {
@@ -87,6 +86,13 @@ class ElearningRepository {
       );
     }
     return courses;
+  }
+
+  Map<String, dynamic> _courseMap(dynamic item) {
+    if (item is! Map || item.keys.any((key) => key is! String)) {
+      throw const FormatException('Data kursus dari server tidak valid');
+    }
+    return Map<String, dynamic>.from(item);
   }
 
   Future<CourseDetail> getCourseDetail(String token, int courseId,

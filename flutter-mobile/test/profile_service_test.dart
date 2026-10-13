@@ -7,6 +7,41 @@ import 'package:flutter_application_1/features/profile/services/profile_service.
 import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 void main() {
+  test('fetches profile through the injected HTTP client', () async {
+    var requestCount = 0;
+    String encodeSegment(Object value) =>
+        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+    final token = [
+      encodeSegment({'alg': 'HS256', 'typ': 'JWT'}),
+      encodeSegment({'school_id': 123}),
+      base64Url.encode(utf8.encode('signature')).replaceAll('=', ''),
+    ].join('.');
+    final service = ProfileService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '123'),
+      client: MockClient((request) async {
+        requestCount++;
+        expect(request.url.path, '/api/v1/profile/me');
+        expect(request.headers['X-School-ID'], '123');
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {
+              'profile': {'id': 42, 'nama_lengkap': 'Siswa'},
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final profile = await service.getMyProfile(token);
+
+    expect(requestCount, 1);
+    expect(profile, {'id': 42, 'nama_lengkap': 'Siswa'});
+  });
+
   test('fetches a profile image once for concurrent and later calls', () async {
     var requestCount = 0;
     String encodeSegment(Object value) =>

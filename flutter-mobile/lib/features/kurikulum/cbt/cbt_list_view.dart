@@ -42,10 +42,10 @@ class _CbtListViewState extends State<CbtListView> {
   @override
   Widget build(BuildContext context) {
     final cbtVm = Provider.of<CbtViewModel>(context);
-    final rawExams = cbtVm.exams;
+    final exams = cbtVm.exams;
 
-    final filteredExams = rawExams.where((exam) {
-      final st = (exam['status'] ?? '').toString().trim().toLowerCase();
+    final filteredExams = exams.where((exam) {
+      final st = exam.status.trim().toLowerCase();
       if (_selectedTab == 'Semua') return true;
       if (_selectedTab == 'Aktif') {
         return st == 'aktif' ||
@@ -59,8 +59,8 @@ class _CbtListViewState extends State<CbtListView> {
       return true;
     }).toList();
 
-    final activeCount = rawExams.where((e) {
-      final st = (e['status'] ?? '').toString().trim().toLowerCase();
+    final activeCount = exams.where((exam) {
+      final st = exam.status.trim().toLowerCase();
       return st == 'aktif' ||
           st == 'active' ||
           st == 'published' ||
@@ -137,12 +137,8 @@ class _CbtListViewState extends State<CbtListView> {
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final exam = filteredExams[index];
-                    final examTitle = (exam['judul_ujian'] ?? exam['name'] ?? '').toString();
-                    final examType = exam['jenis_ujian'] ?? '';
-                    final rentang = exam['rentang_waktu'] ?? '';
-                    final duration = exam['durasi_menit'] ?? 0;
-                    final questionCount = exam['jumlah_soal'] ?? 0;
-                    final status = (exam['status'] ?? '').toString();
+                    final examTitle = exam.title;
+                    final status = exam.status;
 
                     final statusLower = status.trim().toLowerCase();
                     final isActive = statusLower == 'aktif' ||
@@ -152,13 +148,12 @@ class _CbtListViewState extends State<CbtListView> {
 
                     return CbtExamCard(
                       subject: examTitle,
-                      examType: examType.toString(),
-                      date: rentang.toString(),
+                      examType: exam.examType,
+                      date: exam.dateRange,
                       time: '',
-                      duration: int.tryParse(duration.toString()) ?? 0,
-                      questionCount:
-                          int.tryParse(questionCount.toString()) ?? 0,
-                      status: status.toString(),
+                      duration: exam.durationMinutes,
+                      questionCount: exam.questionCount,
+                      status: status,
                       onActionTap: isActive ? () {
                         final token = Provider.of<AuthViewModel>(
                           context,
@@ -168,7 +163,7 @@ class _CbtListViewState extends State<CbtListView> {
                           MaterialPageRoute(
                             builder: (_) => VerifikasiTokenView(
                               subject: examTitle,
-                              jadwalId: exam['id'] as int? ?? 0,
+                              jadwalId: exam.id,
                               authToken: token,
                             ),
                           ),
@@ -183,25 +178,4 @@ class _CbtListViewState extends State<CbtListView> {
       ),
     );
   }
-}
-
-// Model Data Ujian
-class ExamItem {
-  final int id;
-  final String title;
-  final String subject;
-  final String dateTime;
-  final String duration;
-  final String status;
-  final String tokenHint;
-
-  ExamItem({
-    required this.id,
-    required this.title,
-    required this.subject,
-    required this.dateTime,
-    required this.duration,
-    required this.status,
-    required this.tokenHint,
-  });
 }

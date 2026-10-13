@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../auth/view/login_view.dart';
+import '../auth/repositories/auth_repository.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
-import '../../services/tenant_api_config.dart';
 
 class ChangePasswordView extends StatefulWidget {
   const ChangePasswordView({super.key});
@@ -54,22 +53,30 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     setState(() => _isLoading = true);
     try {
       final authViewModel = context.read<AuthViewModel>();
-      await authViewModel.repository.changePassword(
-        token: authViewModel.token,
+      final status = await authViewModel.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
 
       if (!mounted) return;
-      await authViewModel.logout();
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => LoginView(
-            initialSchoolId: context.read<TenantApiConfig>().schoolId,
-          ),
-        ),
-        (route) => false,
+      if (status == PasswordChangeStatus.queued) {
+        setState(() {
+          _isLoading = false;
+          _currentController.clear();
+          _newController.clear();
+          _confirmationController.clear();
+        });
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _currentController.clear();
+        _newController.clear();
+        _confirmationController.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password berhasil diperbarui.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -82,6 +89,8 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
 
   @override
   Widget build(BuildContext context) {
+    final authViewModel = context.watch<AuthViewModel>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -113,6 +122,63 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
               ),
             ),
             const SizedBox(height: 24),
+            if (authViewModel.passwordChangeSyncMessage != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: authViewModel.passwordChangePending
+                      ? const Color(0xFFFFF7ED)
+                      : const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (authViewModel.isSyncingPasswordChange)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        authViewModel.passwordChangePending
+                            ? Icons.cloud_upload_outlined
+                            : Icons.cloud_done_outlined,
+                        size: 18,
+                        color: authViewModel.passwordChangePending
+                            ? const Color(0xFFB45309)
+                            : const Color(0xFF047857),
+                      ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            authViewModel.passwordChangeSyncMessage!,
+                            style: TextStyle(
+                              color: authViewModel.passwordChangePending
+                                  ? const Color(0xFF9A3412)
+                                  : const Color(0xFF065F46),
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (authViewModel.passwordChangePending &&
+                              !authViewModel.isSyncingPasswordChange)
+                            TextButton(
+                              onPressed:
+                                  authViewModel.cancelPendingPasswordChange,
+                              child: const Text('Batalkan permintaan tertunda'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _passwordField(
               controller: _currentController,
               label: 'Password lama',

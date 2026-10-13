@@ -21,8 +21,19 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   static const Color darkSlate = Color(0xFF0F172A);
   static const Color bgSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
-  static const Color textMuted = Color(0xFF94A3B8);
   static const Color borderColor = Color(0xFFE2E8F0);
+
+  Future<void> _onRefresh() async {
+    final vm = context.read<WeeklyPlanViewModel>();
+    await vm.fetchList(widget.authToken, forceRefresh: true);
+    if (mounted && vm.lastSyncError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui daftar: ${vm.lastSyncError}'),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -30,7 +41,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final vm = context.read<WeeklyPlanViewModel>();
-      vm.fetchList(widget.authToken, forceRefresh: true);
+      vm.fetchList(widget.authToken);
     });
   }
 
@@ -60,7 +71,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
           }
           return AppRefreshIndicator(
             color: primaryTeal,
-            onRefresh: () => vm.fetchList(widget.authToken, forceRefresh: true),
+            onRefresh: _onRefresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: vm.errorMessage != null

@@ -74,4 +74,61 @@ void main() {
     expect(await localStorage.loadAuth(), isNull);
     expect(await localStorage.loadPassword(), isEmpty);
   });
+
+  test('clears session while retaining credentials for offline login', () async {
+    await localStorage.saveAuth(
+      {'access_token': 'token'},
+      username: 'student@example.com',
+      password: 'strong-password',
+    );
+
+    await localStorage.clearSession();
+
+    expect(await localStorage.loadAuth(), isNull);
+    expect(await localStorage.loadOfflineAuth(), {'access_token': 'token'});
+    expect(await localStorage.loadUsername(), 'student@example.com');
+    expect(await localStorage.loadPassword(), 'strong-password');
+  });
+
+  test('removes offline login snapshot when credentials are cleared', () async {
+    await localStorage.saveAuth(
+      {'access_token': 'token'},
+      username: 'student@example.com',
+      password: 'strong-password',
+    );
+
+    await localStorage.clearAuth();
+
+    expect(await localStorage.loadOfflineAuth(), isNull);
+  });
+
+  test(
+    'stores a pending password change and completes it after sync',
+    () async {
+      await localStorage.queuePasswordChange(
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+      );
+
+      final pending = await localStorage.loadPendingPasswordChange();
+      expect(pending?.currentPassword, 'old-password');
+      expect(pending?.newPassword, 'new-password');
+
+      await localStorage.completePasswordChange('new-password');
+
+      expect(await localStorage.loadPendingPasswordChange(), isNull);
+      expect(await localStorage.loadPassword(), 'new-password');
+    },
+  );
+
+  test('preserves pending password change when clearing a session', () async {
+    await localStorage.queuePasswordChange(
+      currentPassword: 'old-password',
+      newPassword: 'new-password',
+    );
+
+    await localStorage.clearAuth();
+
+    expect(await localStorage.loadPendingPasswordChange(), isNotNull);
+  });
 }

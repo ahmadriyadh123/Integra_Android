@@ -20,10 +20,9 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getMyProfile(String token) async {
     try {
-      final response = await http
-          .get(
+      final response = await _get(
             Uri.parse('$baseUrl/profile/me'),
-            headers: tenantApiConfig.headers(token: token),
+            tenantApiConfig.headers(token: token),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -61,10 +60,9 @@ class ProfileService {
           token: token,
           includeContentType: false,
         );
-        final request =
-            _client?.get(uri, headers: headers) ??
-            http.get(uri, headers: headers);
-        final response = await request.timeout(const Duration(seconds: 15));
+        final response = await _get(uri, headers).timeout(
+          const Duration(seconds: 15),
+        );
 
         if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
           _profileImageCache[cacheKey] = response.bodyBytes;
@@ -75,5 +73,12 @@ class ProfileService {
         _pendingProfileImages.remove(cacheKey);
       }
     });
+  }
+
+  Future<http.Response> _get(Uri uri, Map<String, String> headers) {
+    final client = _client;
+    return client == null
+        ? http.get(uri, headers: headers)
+        : client.get(uri, headers: headers);
   }
 }

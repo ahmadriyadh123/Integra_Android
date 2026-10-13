@@ -1,9 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/tenant_api_config.dart';
 import '../models/school_model.dart';
+
+class AuthNetworkException implements Exception {
+  const AuthNetworkException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class AuthService {
   static const _schoolsCacheKeyPrefix = 'school_options_cache_';
@@ -151,9 +161,13 @@ class AuthService {
         throw Exception(message);
       }
     } on TimeoutException {
-      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+      throw const AuthNetworkException(
+        'Koneksi ke server terlalu lama. Coba lagi.',
+      );
     } on http.ClientException catch (e) {
-      throw Exception('Gagal terhubung ke server: ${e.message}');
+      throw AuthNetworkException('Gagal terhubung ke server: ${e.message}');
+    } on SocketException catch (e) {
+      throw AuthNetworkException('Gagal terhubung ke server: ${e.message}');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat login');
@@ -220,12 +234,17 @@ class AuthService {
         );
       }
     } on TimeoutException {
-      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+      throw const AuthNetworkException(
+        'Koneksi ke server terlalu lama. Perubahan menunggu sinkronisasi.',
+      );
     } on http.ClientException catch (e) {
-      throw Exception('Gagal terhubung ke server: ${e.message}');
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Terjadi kesalahan saat mengganti password');
+      throw AuthNetworkException(
+        'Gagal terhubung ke server: ${e.message}',
+      );
+    } on SocketException catch (e) {
+      throw AuthNetworkException(
+        'Gagal terhubung ke server: ${e.message}',
+      );
     }
   }
 }

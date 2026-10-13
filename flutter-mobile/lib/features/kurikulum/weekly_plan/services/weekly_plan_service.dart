@@ -1,17 +1,67 @@
-import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+
 import 'package:flutter_application_1/services/tenant_api_config.dart';
+import 'package:http/http.dart' as http;
 
 class WeeklyPlanService {
   final String baseUrl;
   final TenantApiConfig tenantApiConfig;
+  final http.Client? httpClient;
 
-  WeeklyPlanService({required this.baseUrl, required this.tenantApiConfig});
+  WeeklyPlanService({
+    required this.baseUrl,
+    required this.tenantApiConfig,
+    this.httpClient,
+  });
 
   Map<String, String> _headers(String token) =>
       tenantApiConfig.headers(token: token);
+
+  Future<http.Response> _get(Uri uri, String token) async {
+    try {
+      final client = httpClient;
+      return await (client == null
+              ? http.get(uri, headers: _headers(token))
+              : client.get(uri, headers: _headers(token)))
+          .timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+    } on http.ClientException catch (error) {
+      throw Exception('Gagal terhubung ke server: ${error.message}');
+    }
+  }
+
+  Map<String, dynamic> _decodeObject(String body, String errorMessage) {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map || decoded.keys.any((key) => key is! String)) {
+      throw FormatException(errorMessage);
+    }
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  Map<String, dynamic> _successfulResponse(
+    http.Response response, {
+    required String fallbackMessage,
+  }) {
+    final decoded = _decodeObject(
+      response.body,
+      'Respons Weekly Plan tidak valid.',
+    );
+    if (response.statusCode == 200 && decoded['success'] == true) {
+      return decoded;
+    }
+    final detail = decoded['detail'];
+    final message = decoded['message'];
+    throw Exception(
+      detail is String && detail.isNotEmpty
+          ? detail
+          : message is String && message.isNotEmpty
+          ? message
+          : '$fallbackMessage (Status: ${response.statusCode})',
+    );
+  }
 
   Future<Map<String, dynamic>> syncWeeklyPlanList(
     String token, {
@@ -19,93 +69,88 @@ class WeeklyPlanService {
   }) async {
     final query = <String, String>{};
     if (cursor != null) query['cursor'] = cursor;
-    final uri = Uri.parse('$baseUrl/weekly-plan/list/sync')
-        .replace(queryParameters: query);
-    final response = await http
-        .get(uri, headers: _headers(token))
-        .timeout(const Duration(seconds: 15));
-    final decoded = jsonDecode(response.body);
-    if (decoded is! Map ||
-        response.statusCode != 200 ||
-        decoded['success'] != true ||
-        decoded['data'] is! Map) {
-      throw Exception(
-        decoded is Map
-            ? decoded['detail'] ?? 'Gagal menyinkronkan Weekly Plan'
-            : 'Respons sinkronisasi Weekly Plan tidak valid.',
+    final uri = Uri.parse(
+      '$baseUrl/weekly-plan/list/sync',
+    ).replace(queryParameters: query);
+    final response = await _get(uri, token);
+    final decoded = _successfulResponse(
+      response,
+      fallbackMessage: 'Gagal menyinkronkan Weekly Plan',
+    );
+    final data = decoded['data'];
+    if (data is! Map || data.keys.any((key) => key is! String)) {
+      throw const FormatException(
+        'Data sinkronisasi Weekly Plan tidak valid.',
       );
     }
-    return Map<String, dynamic>.from(decoded['data']);
+    return Map<String, dynamic>.from(data);
   }
 
   Future<List<dynamic>> fetchWeeklyPlanList(String token) async {
-    final url = Uri.parse('$baseUrl/weekly-plan/list');
-    try {
-      final response = await http
-          .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15));
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map &&
-          response.statusCode == 200 &&
-          decoded['success'] == true) {
-        final data = decoded['data'];
-        if (data is Map && data['weekly_plans'] is List) {
-          return data['weekly_plans'];
-        }
-        return [];
-      }
-      throw Exception(
-        decoded['detail'] ??
-            decoded['message'] ??
-            'Gagal mengambil Weekly Plan',
+    final response = await _get(
+      Uri.parse('$baseUrl/weekly-plan/list'),
+      token,
+    );
+    final decoded = _successfulResponse(
+      response,
+      fallbackMessage: 'Gagal mengambil Weekly Plan',
+    );
+    final data = decoded['data'];
+    if (data is! Map ||
+        data.keys.any((key) => key is! String) ||
+        data['weekly_plans'] is! List) {
+      throw const FormatException(
+        'Daftar Weekly Plan pada respons tidak valid.',
       );
-    } catch (e) {
-      throw Exception('Gagal terhubung ke server: $e');
     }
+    return data['weekly_plans'] as List<dynamic>;
   }
 
-  /// Ambil JSON Detail dari Backend
   Future<Map<String, dynamic>> fetchWeeklyPlanDetail(
     int planId,
     String token,
   ) async {
-    final url = Uri.parse('$baseUrl/weekly-plan/detail/$planId');
-    try {
-      final response = await http
-          .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15));
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map &&
-          response.statusCode == 200 &&
-          decoded['success'] == true) {
-        if (decoded['data'] is Map) {
-          return Map<String, dynamic>.from(decoded['data']);
-        }
-      }
-      throw Exception(
-        decoded['detail'] ?? decoded['message'] ?? 'Detail tidak ditemukan',
-      );
-    } catch (e) {
-      throw Exception('Gagal mengambil detail data: $e');
+    final response = await _get(
+      Uri.parse('$baseUrl/weekly-plan/detail/$planId'),
+      token,
+    );
+    final decoded = _successfulResponse(
+      response,
+      fallbackMessage: 'Detail Weekly Plan tidak ditemukan',
+    );
+    final data = decoded['data'];
+    if (data is! Map || data.keys.any((key) => key is! String)) {
+      throw const FormatException('Detail Weekly Plan tidak valid.');
     }
+    return Map<String, dynamic>.from(data);
   }
 
   Future<Uint8List> fetchWeeklyPlanPdfFile(int planId, String token) async {
-    final url = Uri.parse('$baseUrl/weekly-plan/pdf/$planId');
+    final response = await _get(
+      Uri.parse('$baseUrl/weekly-plan/pdf/$planId'),
+      token,
+    );
+    if (response.statusCode == 200) return response.bodyBytes;
+
+    String? message;
     try {
-      final response = await http
-          .get(url, headers: _headers(token))
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
-      }
-
-      throw Exception(
-        'Gagal mengunduh dokumen PDF (Status: ${response.statusCode})',
+      final decoded = _decodeObject(
+        response.body,
+        'Respons error PDF Weekly Plan tidak valid.',
       );
-    } catch (e) {
-      throw Exception('Gagal terhubung ke server untuk mengambil PDF: $e');
+      final detail = decoded['detail'];
+      final responseMessage = decoded['message'];
+      message = detail is String && detail.isNotEmpty
+          ? detail
+          : responseMessage is String && responseMessage.isNotEmpty
+          ? responseMessage
+          : null;
+    } on FormatException {
+      message = null;
     }
+    throw Exception(
+      message ??
+          'Gagal mengunduh dokumen PDF (Status: ${response.statusCode})',
+    );
   }
 }

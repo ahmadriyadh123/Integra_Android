@@ -1,6 +1,6 @@
 import io
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +40,33 @@ async def get_courses(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data kursus: {str(e)}"
         )
+
+@router.get("/courses/sync")
+async def sync_courses(
+    cursor: str | None = Query(None),
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        service = ElearningService(ElearningRepository(db))
+        data = await service.sync_courses_list(
+            partner_id=creds.get("partner_id"),
+            cursor=cursor,
+        )
+        return {
+            "success": True,
+            "message": "Berhasil menyinkronkan daftar kursus E-Learning",
+            "data": data,
+        }
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/sync] Error uid=%s",
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan daftar kursus E-Learning.",
+        ) from e
 
 @router.get("/courses/{course_id}", response_model=APIResponseCourseDetail)
 async def get_course_detail(

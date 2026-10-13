@@ -1,93 +1,303 @@
-import base64
-from typing import List, Dict, Any, Optional
+import asyncio
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from app.core.config import get_attachment_path
+from docxtpl import DocxTemplate
+
 from app.features.e_rapor.repository import ERaporRepository
+
 
 class ERaporService:
     def __init__(self, repo: ERaporRepository):
         self.repo = repo
+        self.template_path = (
+            Path(__file__).resolve().parent / "templates" / "rapor_template.docx"
+        )
 
-    def _str(self, val: Any, fallback: str = '-') -> str:
-        return str(val) if val is not None and val is not False else fallback
+    @staticmethod
+    def _localized(value: Any, fallback: str = "-") -> str:
+        if isinstance(value, dict):
+            value = value.get("en_US") or next(iter(value.values()), None)
+        if value is None or value is False or value == "":
+            return fallback
+        return str(value).strip() or fallback
 
-    async def get_student_reports(self, student_id: int) -> List[Dict[str, Any]]:
-        raw_reports = await self.repo.get_student_reports(student_id=student_id)
+    @staticmethod
+    def _semester_label(value: Any) -> str:
+        normalized = str(value or "").strip().lower()
+        return {
+            "1": "Gasal",
+            "semester 1": "Gasal",
+            "2": "Genap",
+            "semester 2": "Genap",
+        }.get(normalized, ERaporService._localized(value))
+
+    @staticmethod
+    def _report_type_label(value: Any) -> str:
+        normalized = str(value or "").strip().lower()
+        return {
+            "sts": "Sumatif Tengah Semester",
+            "sumatif_tengah_semester": "Sumatif Tengah Semester",
+            "sas": "Sumatif Akhir Semester",
+            "sumatif_akhir_semester": "Sumatif Akhir Semester",
+            "sat": "Sumatif Akhir Tahun",
+            "sumatif_akhir_tahun": "Sumatif Akhir Tahun",
+        }.get(normalized, ERaporService._localized(value))
+
+    @staticmethod
+    def _phase_label(value: Any) -> str:
+        normalized = str(value or "").strip().upper()
+        if normalized in {"A", "B", "C", "D", "E", "F"}:
+            return f"Fase {normalized}"
+        return ERaporService._localized(value, "")
+
+    async def get_student_reports(
+        self, student_id: int, jenjang: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        raw_reports = await self.repo.get_student_reports(
+            student_id=student_id, jenjang=jenjang
+        )
+        return self._map_report_rows(raw_reports, student_id)
+
+    def _map_report_rows(
+        self, raw_reports: List[Dict[str, Any]], student_id: int
+    ) -> List[Dict[str, Any]]:
         reports = []
-        for r in raw_reports:
-            file_pdf = r.get("file_url")
-            if not file_pdf and r.get("attachment_id"):
-                file_pdf = f"/web/content/{r.get('attachment_id')}?download=true"
-            reports.append({
-                "id": r.get("id"),
-                "student_id": r.get("student_id"),
-                "student_name": self._str(r.get("student_name")),
-                "kelas": self._str(r.get("kelas_name")),
-                "semester": self._str(r.get("semester")),
-                "tahun_ajaran": self._str(r.get("tahun_ajaran_name")),
-                "rata_rata_nilai": float(r.get("nilai_rata_rata") or 0.0),
-                "catatan_wali_kelas": self._str(r.get("catatan_wali_kelas")),
-                "file_rapor_pdf": file_pdf,
-                "file_name": self._str(r.get("file_name")),
-            })
+        for report in raw_reports:
+            report_id = int(report["id"])
+            reports.append(
+                {
+                    "id": report_id,
+                    "student_id": int(report.get("student_id") or student_id),
+                    "student_name": self._localized(report.get("student_name")),
+                    "jenis_rapor": self._report_type_label(
+                        report.get("jenis_rapor")
+                    ),
+                    "kelas": self._localized(report.get("kelas")),
+                    "semester": self._semester_label(report.get("semester")),
+                    "tahun_ajaran": self._localized(report.get("tahun_ajaran")),
+                    "rata_rata_nilai": self._number(
+                        report.get("rata_rata_nilai")
+                    ),
+                    "catatan_wali_kelas": self._localized(
+                        report.get("catatan_wali_kelas"), ""
+                    ),
+                    "status_keputusan": self._localized(
+                        report.get("status_keputusan"), ""
+                    ),
+                    "file_rapor_pdf": f"/e-rapor/pdf/{report_id}",
+                    "file_name": self._file_name(report, report_id),
+                }
+            )
         return reports
 
-    async def get_report_detail(self, rapor_id: int, student_id: int) -> Optional[Dict[str, Any]]:
-        raw_detail = await self.repo.get_report_card_details(rapor_id=rapor_id, student_id=student_id)
-        if not raw_detail:
+    async def sync_student_reports(
+        self, student_id: int, jenjang: Optional[str], cursor: Optional[str]
+    ) -> Dict[str, Any]:
+        sync = await self.repo.get_student_reports_sync(
+            student_id=student_id,
+            jenjang=jenjang,
+            cursor=cursor,
+        )
+        sync["items"] = self._map_report_rows(sync["items"], student_id)
+        return sync
+
+    @staticmethod
+    def _number(value: Any) -> float:
+        try:
+            return float(value or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @classmethod
+    def _file_name(cls, report: Dict[str, Any], report_id: int) -> str:
+        name = cls._localized(report.get("file_name"), "")
+        if name:
+            return name
+        return f"Rapor_{report_id}.pdf"
+
+    async def get_report_detail(
+        self,
+        rapor_id: int,
+        student_id: int,
+        jenjang: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        report = await self.repo.get_report_card_details(
+            rapor_id=rapor_id,
+            student_id=student_id,
+            jenjang=jenjang,
+        )
+        if not report:
             return None
 
-        file_pdf = raw_detail.get("file_url")
-        if not file_pdf and raw_detail.get("attachment_id"):
-            file_pdf = f"/web/content/{raw_detail.get('attachment_id')}?download=true"
-
+        identity = await self.repo.get_student_identity(student_id)
+        subjects = [
+            self._map_subject(subject, index)
+            for index, subject in enumerate(report.get("subjects") or [], start=1)
+        ]
+        local_subjects = [
+            self._map_subject(subject, index)
+            for index, subject in enumerate(
+                report.get("muatan_lokal") or [], start=1
+            )
+        ]
+        attachment_id = report.get("attachment_id")
+        report_id = int(report.get("id") or rapor_id)
         return {
-            "id": raw_detail.get("id"),
-            "student_id": raw_detail.get("student_id"),
-            "student_name": self._str(raw_detail.get("student_name")),
-            "kelas": self._str(raw_detail.get("kelas_name")),
-            "rata_rata_nilai": float(raw_detail.get("nilai_rata_rata") or 0.0),
-            "catatan_wali_kelas": self._str(raw_detail.get("catatan_wali_kelas")),
-            "file_rapor_pdf": file_pdf,
-            "file_name": self._str(raw_detail.get("file_name")),
-            "subjects": raw_detail.get("subjects", [])
+            "id": report_id,
+            "student_id": int(report.get("student_id") or student_id),
+            "student_name": self._localized(
+                report.get("student_name") or identity.get("student_name")
+            ),
+            "jenis_rapor": self._report_type_label(report.get("jenis_rapor")),
+            "kelas": self._localized(
+                report.get("kelas") or identity.get("kelas")
+            ),
+            "semester": self._semester_label(report.get("semester")),
+            "tahun_ajaran": self._localized(report.get("tahun_ajaran")),
+            "fase": self._phase_label(report.get("fase")),
+            "rata_rata_nilai": self._number(report.get("rata_rata_nilai")),
+            "catatan_wali_kelas": self._localized(
+                report.get("catatan_wali_kelas"), ""
+            ),
+            "status_keputusan": self._localized(
+                report.get("status_keputusan"), ""
+            ),
+            "file_rapor_pdf": f"/e-rapor/pdf/{report_id}",
+            "file_name": self._file_name(report, report_id),
+            "subjects": subjects,
+            "muatan_lokal": local_subjects,
+            "nis": self._localized(identity.get("nis"), ""),
+            "nisn": self._localized(identity.get("nisn"), ""),
+            "nama_sekolah": self._localized(report.get("nama_sekolah"), ""),
+            "alamat_sekolah": self._localized(
+                report.get("alamat_sekolah"), ""
+            ),
+            "tanggal_pengesahan": self._localized(
+                report.get("tanggal_pengesahan"), ""
+            ),
+            "wali_kelas": self._localized(report.get("wali_kelas"), ""),
+            "has_pdf_attachment": bool(attachment_id),
+        }
+
+    @classmethod
+    def _map_subject(cls, line: Dict[str, Any], index: int) -> Dict[str, Any]:
+        subject_id = line.get("subject_id")
+        if isinstance(subject_id, (list, tuple)):
+            subject_id = subject_id[0] if subject_id else None
+        score = line.get("nilai_akhir")
+        if score is None:
+            score = line.get("sts")
+        if score is None:
+            score = line.get("total_nilai")
+        return {
+            "id": int(line.get("id") or index),
+            "subject_id": int(subject_id) if subject_id is not None else None,
+            "subject_name": cls._localized(line.get("subject_name")),
+            "nilai_pengetahuan": cls._number(
+                line.get("nilai_pengetahuan")
+                if line.get("nilai_pengetahuan") is not None
+                else score
+            ),
+            "nilai_keterampilan": cls._number(
+                line.get("nilai_keterampilan")
+            ),
+            "nilai_akhir": cls._number(score),
+            "predikat": cls._localized(line.get("predikat")),
+            "catatan": cls._localized(line.get("catatan"), ""),
         }
 
     async def get_rapor_pdf_bytes(
-        self, rapor_id: int, student_id: int
-    ):
-        attachment = await self.repo.get_rapor_attachment(
-            rapor_id=rapor_id, student_id=student_id
+        self, rapor_id: int, student_id: int, jenjang: Optional[str] = None
+    ) -> Optional[Tuple[bytes, str]]:
+        attachment = await self.repo.attachment_bytes(
+            rapor_id=rapor_id,
+            student_id=student_id,
+            jenjang=jenjang,
         )
-        if not attachment:
+        if attachment:
+            return attachment
+
+        detail = await self.get_report_detail(
+            rapor_id=rapor_id,
+            student_id=student_id,
+            jenjang=jenjang,
+        )
+        if not detail:
             return None
+        pdf_bytes = await asyncio.to_thread(self._generate_pdf_from_template, detail)
+        student_name = str(detail.get("student_name") or "").strip()
+        student_name = student_name.replace(" ", "_").replace("/", "-").replace("\\", "-")
+        filename = f"E-Rapor_{student_name or f'Siswa_{student_id}'}_ID{rapor_id}.pdf"
+        return pdf_bytes, filename
 
-        filename = self._str(attachment.get("file_name"), f"Rapor_{rapor_id}.pdf")
-        if not filename.lower().endswith('.pdf'):
-            filename += '.pdf'
+    @staticmethod
+    def _get_libreoffice_cmd() -> str:
+        if sys.platform.startswith("win"):
+            for candidate in (
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ):
+                if os.path.exists(candidate):
+                    return candidate
+        command = shutil.which("soffice") or shutil.which("libreoffice")
+        if command:
+            return command
+        raise FileNotFoundError(
+            "LibreOffice tidak ditemukan. Pasang LibreOffice untuk membuat PDF E-Rapor."
+        )
 
-        # 1. Coba decode dari db_datas (base64) jika tersimpan di DB
-        db_datas = attachment.get("db_datas")
-        if db_datas:
-            try:
-                if isinstance(db_datas, memoryview):
-                    db_datas = bytes(db_datas)
-                if isinstance(db_datas, bytes):
-                    pdf_bytes = base64.b64decode(db_datas)
-                else:
-                    pdf_bytes = base64.b64decode(str(db_datas))
-                return pdf_bytes, filename
-            except Exception:
-                pass
-
-        # 2. Fallback: baca dari filestore Odoo
-        store_fname = attachment.get("store_fname")
-        if store_fname:
-            file_path = get_attachment_path(
-                store_fname,
-                self.repo.db.info.get("tenant_database"),
+    def _generate_pdf_from_template(self, detail: Dict[str, Any]) -> bytes:
+        if not self.template_path.is_file():
+            raise FileNotFoundError(
+                f"Template Word tidak ditemukan di: {self.template_path}"
             )
-            if file_path and file_path.is_file():
-                return file_path.read_bytes(), filename
 
-        return None
+        nis_nisn = [
+            value for value in (detail.get("nis"), detail.get("nisn")) if value
+        ]
+        template_context = {
+            **detail,
+            "nis_nisn": " / ".join(nis_nisn),
+            "subjects": [
+                {**subject, "no": index}
+                for index, subject in enumerate(detail.get("subjects") or [], start=1)
+            ],
+            "muatan_lokal": [
+                {**subject, "no": index}
+                for index, subject in enumerate(
+                    detail.get("muatan_lokal") or [], start=1
+                )
+            ],
+        }
+        document = DocxTemplate(str(self.template_path))
+        document.render(template_context)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            docx_path = output_dir / "rapor_output.docx"
+            document.save(str(docx_path))
+            profile_path = output_dir / "libreoffice-profile"
+            command = [
+                self._get_libreoffice_cmd(),
+                "--headless",
+                f"-env:UserInstallation={profile_path.as_uri()}",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                str(output_dir),
+                str(docx_path),
+            ]
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            pdf_path = output_dir / "rapor_output.pdf"
+            return pdf_path.read_bytes()

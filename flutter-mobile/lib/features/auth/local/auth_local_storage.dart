@@ -1,5 +1,36 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:convert';
+
+class PendingPasswordChange {
+  const PendingPasswordChange({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  final String currentPassword;
+  final String newPassword;
+
+  Map<String, dynamic> toJson() => {
+    'current_password': currentPassword,
+    'new_password': newPassword,
+  };
+
+  factory PendingPasswordChange.fromJson(Map<String, dynamic> json) {
+    final currentPassword = json['current_password'];
+    final newPassword = json['new_password'];
+    if (currentPassword is! String ||
+        currentPassword.isEmpty ||
+        newPassword is! String ||
+        newPassword.isEmpty) {
+      throw const FormatException('Antrean perubahan password tidak valid.');
+    }
+    return PendingPasswordChange(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+}
 
 abstract interface class AuthSecretStorage {
   Future<String?> read(String key);
@@ -27,8 +58,10 @@ class FlutterAuthSecretStorage implements AuthSecretStorage {
 class AuthLocalStorage {
   static const String _boxName = 'auth_session';
   static const String _keyAuth = 'auth_result';
+  static const String _keyOfflineAuth = 'offline_auth_result';
   static const String _keyUsername = 'saved_username';
   static const String _keyPassword = 'saved_password';
+  static const String _keyPendingPasswordChange = 'pending_password_change';
 
   AuthLocalStorage({AuthSecretStorage? secretStorage})
     : _secretStorage = secretStorage ?? FlutterAuthSecretStorage();
@@ -51,6 +84,7 @@ class AuthLocalStorage {
     final box = await _box();
     await _secretStorage.write(_keyPassword, password);
     await box.put(_keyAuth, authData);
+    await box.put(_keyOfflineAuth, authData);
     await box.put(_keyUsername, username);
     await box.delete(_keyPassword);
   }
@@ -59,6 +93,13 @@ class AuthLocalStorage {
   Future<Map<String, dynamic>?> loadAuth() async {
     final box = await _box();
     final raw = box.get(_keyAuth);
+    if (raw is! Map) return null;
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<Map<String, dynamic>?> loadOfflineAuth() async {
+    final box = await _box();
+    final raw = box.get(_keyOfflineAuth) ?? box.get(_keyAuth);
     if (raw is! Map) return null;
     return Map<String, dynamic>.from(raw);
   }
@@ -86,7 +127,43 @@ class AuthLocalStorage {
     return legacyPassword;
   }
 
+  Future<void> queuePasswordChange({
+    required String currentPassword,
+    required String newPassword,
+  }) => _secretStorage.write(
+    _keyPendingPasswordChange,
+    json.encode(
+      PendingPasswordChange(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ).toJson(),
+    ),
+  );
+
+  Future<PendingPasswordChange?> loadPendingPasswordChange() async {
+    final raw = await _secretStorage.read(_keyPendingPasswordChange);
+    if (raw == null) return null;
+    final decoded = json.decode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('Antrean perubahan password tidak valid.');
+    }
+    return PendingPasswordChange.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  Future<void> completePasswordChange(String newPassword) async {
+    await _secretStorage.write(_keyPassword, newPassword);
+    await _secretStorage.delete(_keyPendingPasswordChange);
+  }
+
+  Future<void> cancelPendingPasswordChange() =>
+      _secretStorage.delete(_keyPendingPasswordChange);
+
   static const String _keyLastTabIndex = 'last_tab_index';
+
+  Future<void> clearSession() async {
+    final box = await _box();
+    await Future.wait([box.delete(_keyAuth), box.delete(_keyLastTabIndex)]);
+  }
 
   Future<void> saveLastTabIndex(int index) async {
     final box = await _box();
@@ -103,6 +180,7 @@ class AuthLocalStorage {
     final box = await _box();
     await Future.wait([
       box.delete(_keyAuth),
+      box.delete(_keyOfflineAuth),
       box.delete(_keyUsername),
       box.delete(_keyPassword),
       box.delete(_keyLastTabIndex),

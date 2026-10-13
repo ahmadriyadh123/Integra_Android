@@ -1,5 +1,6 @@
 import logging
 import base64
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -20,7 +21,9 @@ class WeeklyPlanRepository:
         self.db = db_session
 
     def _get_table_name(self, jenjang: str, suffix: str = '') -> str:
-        j = jenjang.lower()
+        j = (jenjang or "sd").strip().lower()
+        if j not in {"sd", "smp", "tk"}:
+            raise ValueError("Jenjang Weekly Plan harus berupa sd, smp, atau tk.")
         base = f"weekly_plan_{j}" if j in ['sd', 'smp'] else "weekly_plan"
         return f"{base}_{suffix}" if suffix else base
 
@@ -31,9 +34,13 @@ class WeeklyPlanRepository:
         return "weekly_plan_id"
 
     async def get_weekly_plans(
-        self, jenjang: str = 'sd', course_id: Optional[int] = None
+        self,
+        jenjang: str = 'sd',
+        course_id: Optional[int] = None,
+        cursor: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         table_name = self._get_table_name(jenjang)
+        params: Dict[str, Any] = {}
         query_str = f"""
             SELECT 
                 wp.id,
@@ -53,14 +60,28 @@ class WeeklyPlanRepository:
             LEFT JOIN op_academic_year ay ON ay.id = wp.tahun_ajaran_id
             WHERE wp.active = TRUE
         """
-        params = {}
         if course_id is not None:
             query_str += " AND wp.course_id = :course_id"
             params["course_id"] = course_id
+        if cursor is not None:
+            query_str += " AND wp.write_date >= :since"
+            params["since"] = cursor.astimezone(timezone.utc).replace(
+                tzinfo=None
+            ) - timedelta(minutes=2)
         query_str += " ORDER BY wp.id DESC;"
         
         result = await self.db.execute(text(query_str), params)
         return [dict(row) for row in result.mappings().all()]
+
+    @staticmethod
+    def parse_sync_cursor(cursor: str) -> datetime:
+        try:
+            parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("Cursor Weekly Plan tidak valid.") from exc
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     async def get_weekly_plan_by_id(
         self, plan_id: int, jenjang: str = 'sd'

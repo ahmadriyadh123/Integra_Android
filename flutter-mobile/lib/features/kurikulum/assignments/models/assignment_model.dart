@@ -90,6 +90,80 @@ class StudentSubmission {
   };
 }
 
+class AssignmentSubmissionResult {
+  final int? submissionId;
+  final int? attachmentId;
+  final String? fileName;
+  final List<AttachmentItem> attachments;
+  final String state;
+  final DateTime? submittedAt;
+
+  const AssignmentSubmissionResult({
+    required this.submissionId,
+    required this.attachmentId,
+    required this.fileName,
+    this.attachments = const [],
+    required this.state,
+    required this.submittedAt,
+  });
+
+  factory AssignmentSubmissionResult.fromJson(Map<String, dynamic> json) {
+    int? parseId(dynamic value) {
+      if (value is int && value > 0) return value;
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null && parsed > 0) return parsed;
+      }
+      return null;
+    }
+
+    final rawSubmittedAt = json['submitted_at'];
+    final rawAttachments = json['attachments'];
+    final attachments = rawAttachments is List
+        ? rawAttachments
+              .whereType<Map>()
+              .map((attachment) {
+                final data = Map<String, dynamic>.from(attachment);
+                return AttachmentItem.fromJson({
+                  ...data,
+                  'id': data['id'] ?? data['attachment_id'],
+                  'file_url': data['file_url'] ?? '',
+                  'uploaded_by_role': data['uploaded_by_role'] ?? 'student',
+                });
+              })
+              .where((attachment) => attachment.id > 0)
+              .toList()
+        : <AttachmentItem>[];
+    if (attachments.isEmpty) {
+      final legacyAttachmentId = parseId(json['attachment_id']);
+      if (legacyAttachmentId != null) {
+        attachments.add(
+          AttachmentItem(
+            id: legacyAttachmentId,
+            fileName: json['file_name'] is String
+                ? json['file_name'] as String
+                : 'File',
+            fileUrl: '',
+            uploadedByRole: 'student',
+          ),
+        );
+      }
+    }
+    return AssignmentSubmissionResult(
+      submissionId: parseId(json['submission_id']),
+      attachmentId: parseId(json['attachment_id']),
+      fileName: json['file_name'] is String
+          ? json['file_name'] as String
+          : null,
+      attachments: attachments,
+      state: json['state'] is String ? json['state'] as String : 'submitted',
+      submittedAt: rawSubmittedAt is String
+          ? DateTime.tryParse(rawSubmittedAt)
+          : null,
+    );
+  }
+}
+
 class AssignmentItem {
   final int id;
   final int masterAssignmentId;
@@ -137,6 +211,12 @@ class AssignmentItem {
       (!isSubmitted || needsSubmissionFile) &&
       !isPastSubmissionDeadline &&
       (state == 'publish' || state == 'published');
+  bool get canEditSubmission =>
+      studentSubmission != null &&
+      !isGraded &&
+      !isPastSubmissionDeadline &&
+      (state == 'publish' || state == 'published');
+  bool get canManageSubmission => canSubmit || canEditSubmission;
 
   bool get isPastSubmissionDeadline =>
       submissionDeadline != null && DateTime.now().isAfter(submissionDeadline!);

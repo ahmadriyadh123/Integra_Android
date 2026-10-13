@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_1/features/kurikulum/assignments/local/assignment_local_storage.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/local/b
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
 import 'package:flutter_application_1/features/kurikulum/cbt/local/cbt_local_storage.dart';
+import 'package:flutter_application_1/features/kurikulum/cbt/models/cbt_model.dart';
 import 'package:flutter_application_1/features/kurikulum/cbt/repositories/cbt_repository.dart';
 import 'package:flutter_application_1/features/kurikulum/cbt/services/cbt_service.dart';
 import 'package:flutter_application_1/features/tagihan/local/tagihan_local_storage.dart';
@@ -107,23 +109,24 @@ class _CbtService extends CbtService {
   final cursors = <String?>[];
 
   @override
-  Future<Map<String, dynamic>> syncCbtSchedules(
+  Future<CbtScheduleSyncResult> syncCbtSchedules(
     String token, {
     String? cursor,
   }) async {
     cursors.add(cursor);
     if (fail) throw Exception('offline');
-    return {
+    return CbtScheduleSyncResult.fromJson({
       'is_full_sync': isFullSync,
       'exams': isFullSync ? schedules : deltaSchedules,
       'removed_ids': removedIds,
       'cursor': cursor == null ? 'cbt-1' : 'cbt-2',
-    };
+    });
   }
 }
 
 class _TagihanStorage extends TagihanLocalStorage {
   final Map<String, Map<String, dynamic>> snapshots = {};
+  final Set<String> freshSnapshots = {};
 
   String _key(String? state, String scope) => '$scope:${state ?? 'all'}';
 
@@ -139,8 +142,16 @@ class _TagihanStorage extends TagihanLocalStorage {
     Map<String, dynamic> data, {
     required String scope,
   }) async {
-    snapshots[_key(paymentState, scope)] = Map.from(data);
+    final key = _key(paymentState, scope);
+    snapshots[key] = Map.from(data);
+    freshSnapshots.add(key);
   }
+
+  @override
+  Future<bool> isTagihanSummaryFresh(
+    String? paymentState, {
+    required String scope,
+  }) async => freshSnapshots.contains(_key(paymentState, scope));
 }
 
 class _TagihanService extends TagihanService {
@@ -149,12 +160,14 @@ class _TagihanService extends TagihanService {
 
   Map<String, dynamic> summary = {};
   bool fail = false;
+  int fetchCount = 0;
 
   @override
   Future<Map<String, dynamic>> fetchTagihan(
     String token, {
     String? paymentState,
   }) async {
+    fetchCount++;
     if (fail) throw Exception('offline');
     return summary;
   }
@@ -163,6 +176,7 @@ class _TagihanService extends TagihanService {
 class _RaporStorage extends RaporLocalStorage {
   Map<String, dynamic>? snapshot;
   final Map<int, Map<String, dynamic>> details = {};
+  final Map<int, Uint8List> pdfs = {};
   String? listScope;
   String? detailScope;
 
@@ -207,6 +221,19 @@ class _RaporStorage extends RaporLocalStorage {
     detailScope = scope;
     details[raporId] = Map.from(detail);
   }
+
+  @override
+  Future<Uint8List?> loadRaporPdf(int raporId, {required String scope}) async =>
+      pdfs[raporId];
+
+  @override
+  Future<void> saveRaporPdf(
+    int raporId,
+    Uint8List pdfBytes, {
+    required String scope,
+  }) async {
+    pdfs[raporId] = pdfBytes;
+  }
 }
 
 class _RaporService extends RaporService {
@@ -216,6 +243,9 @@ class _RaporService extends RaporService {
   List<dynamic> reports = [];
   Map<String, dynamic> detail = {};
   bool fail = false;
+  int detailFetchCount = 0;
+  int pdfFetchCount = 0;
+  Uint8List pdfBytes = Uint8List.fromList([1, 2, 3]);
   final cursorRequests = <String?>[];
 
   @override
@@ -234,14 +264,23 @@ class _RaporService extends RaporService {
     String token,
     int raporId,
   ) async {
+    detailFetchCount++;
     if (fail) throw Exception('offline');
     return detail;
+  }
+
+  @override
+  Future<Uint8List> fetchReportPdf(String token, int raporId) async {
+    pdfFetchCount++;
+    if (fail) throw Exception('offline');
+    return pdfBytes;
   }
 }
 
 class _BukuStorage extends BukuKomunikasiLocalStorage {
   Map<String, dynamic>? snapshot;
   String? scope;
+  bool fresh = false;
 
   @override
   Future<Map<String, dynamic>?> loadBukuKomunikasi({
@@ -250,6 +289,9 @@ class _BukuStorage extends BukuKomunikasiLocalStorage {
     this.scope = scope;
     return snapshot;
   }
+
+  @override
+  Future<bool> isBukuKomunikasiFresh({required String scope}) async => fresh;
 
   @override
   Future<void> saveBukuKomunikasi(
@@ -267,9 +309,11 @@ class _BukuService extends BukuKomunikasiService {
 
   Map<String, dynamic>? detail = {};
   bool fail = false;
+  int fetchCount = 0;
 
   @override
   Future<Map<String, dynamic>?> fetchBukuKomunikasi(String token) async {
+    fetchCount++;
     if (fail) throw Exception('offline');
     return detail;
   }
@@ -346,14 +390,11 @@ void main() {
         localStorage: storage,
       );
 
-      expect(
-        (await repository.getCbtSchedules(_studentToken())).single['id'],
-        1,
-      );
+      expect((await repository.getCbtSchedules(_studentToken())).single.id, 1);
       service
         ..isFullSync = false
         ..deltaSchedules = [
-          {'id': 1, 'title': 'Updated'},
+          {'id': 1, 'judul_ujian': 'Updated'},
           {'id': 2},
         ]
         ..removedIds = [3];
@@ -362,25 +403,16 @@ void main() {
         {'id': 3},
       ];
       final delta = await repository.getCbtSchedules(_studentToken());
-      expect(delta.map((record) => record['id']).toSet(), {1, 2});
-      expect(
-        delta.firstWhere((record) => record['id'] == 1)['title'],
-        'Updated',
-      );
+      expect(delta.map((record) => record.id).toSet(), {1, 2});
+      expect(delta.firstWhere((record) => record.id == 1).title, 'Updated');
       service.schedules = [
         {'id': 4},
       ];
       storage.snapshots['school_1_user_2_student_2']!['full_sync_at'] = 0;
       service.isFullSync = true;
-      expect(
-        (await repository.getCbtSchedules(_studentToken())).single['id'],
-        4,
-      );
+      expect((await repository.getCbtSchedules(_studentToken())).single.id, 4);
       service.fail = true;
-      expect(
-        (await repository.getCbtSchedules(_studentToken())).single['id'],
-        4,
-      );
+      expect((await repository.getCbtSchedules(_studentToken())).single.id, 4);
       expect(storage.snapshots.keys.single, 'school_1_user_2_student_2');
       expect(service.cursors, [null, 'cbt-1', null, 'cbt-1']);
     },
@@ -399,9 +431,65 @@ void main() {
 
       expect((await repository.getTagihan(_token)).totalInvoices, 1);
       service.summary = {'total_invoices': 3, 'invoices': []};
-      expect((await repository.getTagihan(_token)).totalInvoices, 3);
+      expect(
+        (await repository.getTagihan(_token, forceRefresh: true)).totalInvoices,
+        3,
+      );
       service.fail = true;
-      expect((await repository.getTagihan(_token)).totalInvoices, 3);
+      expect(
+        (await repository.getTagihan(_token, forceRefresh: true)).totalInvoices,
+        3,
+      );
+      expect(service.fetchCount, 3);
+    },
+  );
+
+  test(
+    'tagihan force refresh bypasses a fresh cache and replaces its snapshot',
+    () async {
+      final storage = _TagihanStorage();
+      final service = _TagihanService()
+        ..summary = {'total_invoices': 1, 'invoices': []};
+      final repository = TagihanRepository(
+        apiService: service,
+        localStorage: storage,
+      );
+
+      expect((await repository.getTagihan(_token)).totalInvoices, 1);
+      expect(service.fetchCount, 1);
+
+      service.summary = {'total_invoices': 4, 'invoices': []};
+      expect(
+        (await repository.getTagihan(_token, forceRefresh: true)).totalInvoices,
+        4,
+      );
+      expect(service.fetchCount, 2);
+
+      expect((await repository.getTagihan(_token)).totalInvoices, 4);
+      expect(service.fetchCount, 2);
+    },
+  );
+
+  test(
+    'tagihan expired cache refreshes automatically and remains offline fallback',
+    () async {
+      final storage = _TagihanStorage();
+      final service = _TagihanService()
+        ..summary = {'total_invoices': 2, 'invoices': []};
+      final repository = TagihanRepository(
+        apiService: service,
+        localStorage: storage,
+      );
+
+      expect((await repository.getTagihan(_token)).totalInvoices, 2);
+      storage.freshSnapshots.clear();
+      service
+        ..summary = {'total_invoices': 5, 'invoices': []}
+        ..fail = true;
+
+      expect((await repository.getTagihan(_token)).totalInvoices, 2);
+      expect(service.fetchCount, 2);
+      expect(repository.lastSyncError, contains('offline'));
     },
   );
 
@@ -428,9 +516,17 @@ void main() {
         'next_cursor': 'rapor-2',
         'full_sync': false,
       };
-      expect((await repository.getReportList(_token)).single.id, 2);
+      expect((await repository.getReportList(_token)).single.id, 1);
+      expect(service.cursorRequests, [null]);
+      expect(
+        (await repository.getReportList(_token, forceRefresh: true)).single.id,
+        2,
+      );
       service.fail = true;
-      expect((await repository.getReportList(_token)).single.id, 2);
+      expect(
+        (await repository.getReportList(_token, forceRefresh: true)).single.id,
+        2,
+      );
       expect(storage.listScope, 'school_1_user_2');
       storage.snapshot!['full_sync_at'] = 0;
       service.fail = false;
@@ -440,7 +536,10 @@ void main() {
         'next_cursor': 'rapor-3',
         'full_sync': true,
       };
-      expect((await repository.getReportList(_token)).single.id, 3);
+      expect(
+        (await repository.getReportList(_token, forceRefresh: true)).single.id,
+        3,
+      );
       expect(service.cursorRequests, [null, 'rapor-1', 'rapor-2', null]);
 
       service.detail = {'id': 20, 'student_id': 2, 'student_name': 'Awal'};
@@ -448,17 +547,41 @@ void main() {
         (await repository.getReportDetail(_token, 20)).studentName,
         'Awal',
       );
-      service.detail = {'id': 20, 'student_id': 2, 'student_name': 'Terkini'};
       expect(
         (await repository.getReportDetail(_token, 20)).studentName,
+        'Awal',
+      );
+      expect(service.detailFetchCount, 1);
+      service.detail = {'id': 20, 'student_id': 2, 'student_name': 'Terkini'};
+      expect(
+        (await repository.getReportDetail(
+          _token,
+          20,
+          forceRefresh: true,
+        )).studentName,
         'Terkini',
       );
       service.fail = true;
       expect(
-        (await repository.getReportDetail(_token, 20)).studentName,
+        (await repository.getReportDetail(
+          _token,
+          20,
+          forceRefresh: true,
+        )).studentName,
         'Terkini',
       );
       expect(storage.detailScope, 'school_1_user_2');
+
+      service.fail = false;
+      expect(await repository.getReportPdf(_token, 20), [1, 2, 3]);
+      service.pdfBytes = Uint8List.fromList([4, 5]);
+      expect(await repository.getReportPdf(_token, 20), [1, 2, 3]);
+      expect(service.pdfFetchCount, 1);
+      expect(await repository.getReportPdf(_token, 20, forceRefresh: true), [
+        4,
+        5,
+      ]);
+      expect(service.pdfFetchCount, 2);
     },
   );
 
@@ -478,15 +601,27 @@ void main() {
         'Siswa Baru',
       );
       service.detail = {'id': 5, 'student_name': 'Siswa Terkini', 'lines': []};
+      storage.fresh = true;
       expect(
         (await repository.getBukuKomunikasi(_token))?.studentName,
+        'Siswa Baru',
+      );
+      expect(
+        (await repository.getBukuKomunikasi(
+          _token,
+          forceRefresh: true,
+        ))?.studentName,
         'Siswa Terkini',
       );
       service.fail = true;
       expect(
-        (await repository.getBukuKomunikasi(_token))?.studentName,
+        (await repository.getBukuKomunikasi(
+          _token,
+          forceRefresh: true,
+        ))?.studentName,
         'Siswa Terkini',
       );
+      expect(service.fetchCount, 3);
       expect(storage.scope, 'school_1_user_2');
     },
   );

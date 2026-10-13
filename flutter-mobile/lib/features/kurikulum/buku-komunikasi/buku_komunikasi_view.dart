@@ -96,7 +96,7 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         ? int.tryParse(week.replaceAll('Pekan ', ''))
         : 1;
 
-    final success = await context
+    final status = await context
         .read<BukuKomunikasiViewModel>()
         .submitDailyNote(
           token: token,
@@ -108,11 +108,20 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         );
 
     if (mounted) {
-      if (success) {
+      if (status == BukuKomunikasiSubmitStatus.submitted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Catatan harian berhasil dikirim!'),
             backgroundColor: primaryTeal,
+          ),
+        );
+      } else if (status == BukuKomunikasiSubmitStatus.queued) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tersimpan di perangkat, akan dikirim saat online.',
+            ),
+            backgroundColor: Colors.orange,
           ),
         );
       } else {

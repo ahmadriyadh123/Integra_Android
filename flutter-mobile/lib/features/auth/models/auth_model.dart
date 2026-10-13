@@ -32,25 +32,25 @@ class UserProfile {
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
-    final String parsedName = json['name'] as String? ??
+    final String parsedName =
+        json['name'] as String? ??
         json['nama_lengkap'] as String? ??
         json['full_name'] as String? ??
         '';
 
-    final String parsedNis = json['nis'] as String? ??
-        json['gr_no'] as String? ??
-        '';
+    final String parsedNis =
+        json['nis'] as String? ?? json['gr_no'] as String? ?? '';
 
     final String parsedNisn = json['nisn'] as String? ?? '';
 
-    final String parsedClassName = json['class_name'] as String? ??
+    final String parsedClassName =
+        json['class_name'] as String? ??
         json['kelas'] as String? ??
         json['kelas_name'] as String? ??
         '';
 
-    final String parsedRombel = json['rombel'] as String? ??
-        json['rombel_name'] as String? ??
-        '';
+    final String parsedRombel =
+        json['rombel'] as String? ?? json['rombel_name'] as String? ?? '';
 
     String parsedTtl = json['tempat_tanggal_lahir'] as String? ?? '';
     if (parsedTtl.isEmpty) {
@@ -65,7 +65,8 @@ class UserProfile {
       }
     }
 
-    final String parsedUsia = json['usia'] as String? ??
+    final String parsedUsia =
+        json['usia'] as String? ??
         (json['age'] != null ? json['age'].toString() : '');
 
     return UserProfile(
@@ -118,10 +119,15 @@ class AuthResult {
   });
 
   factory AuthResult.fromJson(Map<String, dynamic> json) {
+    final rawUser = json['user'];
+    if (rawUser is! Map || rawUser.keys.any((key) => key is! String)) {
+      throw const FormatException('Data pengguna login tidak valid.');
+    }
+
     return AuthResult(
       accessToken: json['access_token'] as String,
       tokenType: json['token_type'] as String? ?? 'bearer',
-      user: UserProfile.fromJson(json['user'] as Map<String, dynamic>),
+      user: UserProfile.fromJson(Map<String, dynamic>.from(rawUser)),
     );
   }
 }

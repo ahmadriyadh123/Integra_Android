@@ -2,15 +2,41 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/services/tenant_api_config.dart';
+import '../models/cbt_model.dart';
 
 class CbtService {
   final String baseUrl;
   final TenantApiConfig tenantApiConfig;
+  final http.Client? httpClient;
 
-  CbtService({required this.baseUrl, required this.tenantApiConfig});
+  CbtService({
+    required this.baseUrl,
+    required this.tenantApiConfig,
+    this.httpClient,
+  });
+
+  Future<http.Response> _get(Uri url, String token) {
+    final headers = tenantApiConfig.headers(token: token);
+    final client = httpClient;
+    return client == null
+        ? http.get(url, headers: headers)
+        : client.get(url, headers: headers);
+  }
+
+  Future<http.Response> _post(
+    Uri url,
+    String token, {
+    required String body,
+  }) {
+    final headers = tenantApiConfig.headers(token: token);
+    final client = httpClient;
+    return client == null
+        ? http.post(url, headers: headers, body: body)
+        : client.post(url, headers: headers, body: body);
+  }
 
   /// Ambil daftar jadwal ujian CBT dari middleware
-  Future<Map<String, dynamic>> fetchCbtSchedules(String token) async {
+  Future<List<CbtExamSchedule>> fetchCbtSchedules(String token) async {
     if (token.trim().isEmpty) {
       throw Exception(
         'Token login kosong. Jalankan login dan kirim AUTH_TOKEN yang valid.',
@@ -20,8 +46,7 @@ class CbtService {
     final url = Uri.parse('$baseUrl/cbt/schedules');
 
     try {
-      final response = await http
-          .get(url, headers: tenantApiConfig.headers(token: token))
+      final response = await _get(url, token)
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -29,17 +54,25 @@ class CbtService {
             },
           );
 
-      final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && jsonResponse['success'] == true) {
-        return jsonResponse['data'] as Map<String, dynamic>;
-      } else {
-        final message =
-            jsonResponse['detail'] ??
-            jsonResponse['message'] ??
-            'Gagal mengambil data CBT';
-        throw Exception(message);
+      final jsonResponse = _successfulResponse(
+        response,
+        fallbackMessage: 'Gagal mengambil data CBT',
+      );
+      final data = _asObject(
+        jsonResponse['data'],
+        'Daftar jadwal CBT tidak valid.',
+      );
+      final rawData = data['exams'];
+      if (rawData is! List) {
+        throw const FormatException('Daftar jadwal CBT tidak valid.');
       }
+      return rawData
+          .map(
+            (item) => CbtExamSchedule.fromJson(
+              _asObject(item, 'Record jadwal CBT tidak valid.'),
+            ),
+          )
+          .toList();
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -50,7 +83,7 @@ class CbtService {
     }
   }
 
-  Future<Map<String, dynamic>> syncCbtSchedules(
+  Future<CbtScheduleSyncResult> syncCbtSchedules(
     String token, {
     String? cursor,
   }) async {
@@ -60,18 +93,15 @@ class CbtService {
     final url = Uri.parse(
       '$baseUrl/cbt/schedules/sync',
     ).replace(queryParameters: cursor == null ? null : {'cursor': cursor});
-    final response = await http
-        .get(url, headers: tenantApiConfig.headers(token: token))
+    final response = await _get(url, token)
         .timeout(const Duration(seconds: 15));
-    final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return jsonResponse['data'] as Map<String, dynamic>;
-    }
-    final message =
-        jsonResponse['detail'] ??
-        jsonResponse['message'] ??
-        'Gagal menyinkronkan jadwal CBT';
-    throw Exception(message);
+    final jsonResponse = _successfulResponse(
+      response,
+      fallbackMessage: 'Gagal menyinkronkan jadwal CBT',
+    );
+    return CbtScheduleSyncResult.fromJson(
+      _asObject(jsonResponse['data'], 'Data sinkronisasi CBT tidak valid.'),
+    );
   }
 
   /// Verifikasi token ujian ke middleware/Odoo
@@ -82,10 +112,9 @@ class CbtService {
   ) async {
     final url = Uri.parse('$baseUrl/cbt/verify-token');
     try {
-      final response = await http
-          .post(
+      final response = await _post(
             url,
-            headers: tenantApiConfig.headers(token: token),
+            token,
             body: json.encode({
               'jadwal_ujian_id': jadwalId,
               'token_input': tokenInput.trim(),
@@ -98,20 +127,28 @@ class CbtService {
             },
           );
 
-      final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
+      final jsonResponse = _decodeObject(response.body);
       if (response.statusCode == 200) {
         if (jsonResponse['success'] == true && jsonResponse['data'] == true) {
           return true;
+        }
+        if (jsonResponse['success'] == true &&
+            jsonResponse['data'] != false &&
+            jsonResponse['data'] != null) {
+          throw const FormatException('Respons verifikasi token CBT tidak valid.');
         }
         final message =
             jsonResponse['message'] ??
             'Token ujian tidak valid. Periksa kembali token dari pengawas.';
         throw Exception(message);
       } else {
-        final message =
-            jsonResponse['detail'] ??
-            jsonResponse['message'] ??
-            'Verifikasi token gagal';
+        final detail = jsonResponse['detail'];
+        final responseMessage = jsonResponse['message'];
+        final message = detail is String
+            ? detail
+            : responseMessage is String
+            ? responseMessage
+            : 'Verifikasi token gagal';
         throw Exception(message);
       }
     } on TimeoutException {
@@ -125,14 +162,13 @@ class CbtService {
   }
 
   /// Ambil daftar soal ujian berdasarkan jadwal_id
-  Future<Map<String, dynamic>> fetchExamQuestions(
+  Future<CbtExamData> fetchExamQuestions(
     String token,
     int jadwalId,
   ) async {
     final url = Uri.parse('$baseUrl/cbt/questions/$jadwalId');
     try {
-      final response = await http
-          .get(url, headers: tenantApiConfig.headers(token: token))
+      final response = await _get(url, token)
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -140,17 +176,13 @@ class CbtService {
             },
           );
 
-      final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && jsonResponse['success'] == true) {
-        return jsonResponse['data'] as Map<String, dynamic>;
-      } else {
-        final message =
-            jsonResponse['detail'] ??
-            jsonResponse['message'] ??
-            'Gagal mengambil soal ujian';
-        throw Exception(message);
-      }
+      final jsonResponse = _successfulResponse(
+        response,
+        fallbackMessage: 'Gagal mengambil soal ujian',
+      );
+      return CbtExamData.fromJson(
+        _asObject(jsonResponse['data'], 'Data ujian CBT tidak valid.'),
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -162,21 +194,20 @@ class CbtService {
   }
 
   /// Submit jawaban ujian
-  Future<Map<String, dynamic>> submitExam(
+  Future<CbtSubmitResult> submitExam(
     String token,
     int jadwalId,
-    List<Map<String, dynamic>> answers,
+    List<CbtAnswer> answers,
     String? waktuMulai,
   ) async {
     final url = Uri.parse('$baseUrl/cbt/submit');
     try {
-      final response = await http
-          .post(
+      final response = await _post(
             url,
-            headers: tenantApiConfig.headers(token: token),
+            token,
             body: json.encode({
               'jadwal_ujian_id': jadwalId,
-              'answers': answers,
+              'answers': answers.map((answer) => answer.toJson()).toList(),
               'waktu_mulai': ?waktuMulai,
             }),
           )
@@ -187,17 +218,13 @@ class CbtService {
             },
           );
 
-      final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && jsonResponse['success'] == true) {
-        return jsonResponse['data'] as Map<String, dynamic>;
-      } else {
-        final message =
-            jsonResponse['detail'] ??
-            jsonResponse['message'] ??
-            'Gagal menyimpan jawaban ujian';
-        throw Exception(message);
-      }
+      final jsonResponse = _successfulResponse(
+        response,
+        fallbackMessage: 'Gagal menyimpan jawaban ujian',
+      );
+      return CbtSubmitResult.fromJson(
+        _asObject(jsonResponse['data'], 'Respons pengumpulan CBT tidak valid.'),
+      );
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
     } on http.ClientException catch (e) {
@@ -206,5 +233,36 @@ class CbtService {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat mengirim jawaban ujian');
     }
+  }
+
+  Map<String, dynamic> _decodeObject(String body) {
+    final decoded = json.decode(body);
+    return _asObject(decoded, 'Respons CBT bukan objek JSON yang valid.');
+  }
+
+  Map<String, dynamic> _asObject(dynamic value, String message) {
+    if (value is! Map || value.keys.any((key) => key is! String)) {
+      throw FormatException(message);
+    }
+    return Map<String, dynamic>.from(value);
+  }
+
+  Map<String, dynamic> _successfulResponse(
+    http.Response response, {
+    required String fallbackMessage,
+  }) {
+    final jsonResponse = _decodeObject(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse;
+    }
+    final detail = jsonResponse['detail'];
+    final message = jsonResponse['message'];
+    throw Exception(
+      detail is String && detail.isNotEmpty
+          ? detail
+          : message is String && message.isNotEmpty
+          ? message
+          : fallbackMessage,
+    );
   }
 }

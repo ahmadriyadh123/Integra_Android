@@ -19,6 +19,19 @@ Progres E-Learning dibaca dan disimpan per peserta pada tabel
 `slide_slide_partner`, lalu dikaitkan ke materi dan course tenant yang sama.
 Dokumen/video ditandai selesai ketika dibuka; SCORM hanya saat player melaporkan
 `completed` atau `passed`. Persentase course memakai jumlah materi terbit.
+E-Rapor dibaca langsung dari database tenant melalui SQLAlchemy, termasuk
+varian tabel STS lama dan ledger SD/SMP/TK. Endpoint mendukung daftar, delta
+sync berbasis `write_date`, detail nilai, serta unduh PDF dari attachment
+database/filestore atau dari template Word E-Rapor saat lampiran tidak ada.
+Pembuatan PDF dari template memerlukan `docxtpl` dan executable LibreOffice
+(`soffice` atau `libreoffice`) pada lingkungan server.
+Pengumpulan tugas menerima satu atau beberapa lampiran dalam satu submit;
+setiap file dibatasi maksimal 20 MiB dan seluruh lampiran ditautkan ke satu
+submission siswa.
+Buku Komunikasi membaca dan memperbarui tabel tenant `bukpeng_<jenjang>` /
+`bukpeng_<jenjang>_line` secara langsung. Catatan dan feedback dibatasi ke buku
+milik siswa pada token aktif; catatan pekan baru dapat dibuat dengan `line_id`
+0 beserta bulan dan pekan.
 
 Saat startup, tabel `school_tenants` dibuat di database registry jika belum ada,
 dengan kolom yang sama seperti daftar tenant yang digunakan admin: `id`,
@@ -32,14 +45,16 @@ INSERT INTO school_tenants
     (id, school_code, school_name, odoo_url, odoo_db, is_active)
 VALUES
     (1, 'TEST APK', 'test', 'https://kp-sekolah.asetkoptii.com',
-     'kp-sekolah.asetkoptii.com', TRUE),
+     '<nama_database_postgresql_odoo_test>', TRUE),
     (2, 'SEKOLAH-001', 'Sekolah Alam Bogor',
      'https://sekolahalambogor.sch.id',
-     'sekolahalambogor.sch.id', TRUE);
+     '<nama_database_postgresql_odoo_sekolah_alam_bogor>', TRUE);
 ```
 
 Kolom `odoo_db` harus persis sama dengan nama database sekolah yang sudah ada.
-Database registry tidak boleh dipakai sebagai database tenant.
+Jangan mengisi `odoo_db` dengan URL/domain sekolah kecuali memang itulah nama
+database PostgreSQL-nya. Database registry tidak boleh dipakai sebagai
+database tenant.
 
 ## Pemilihan tenant
 

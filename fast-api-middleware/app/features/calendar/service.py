@@ -35,7 +35,7 @@ class CalendarService:
         for item in raw_records:
             calendars.append({
                 "id": item.get("id"),
-                "kelas": self._parse_many2one(item.get("course_id"), "-"),
+                "kelas": self._parse_many2one(item.get("kelas_id"), "-"),
                 "semester": self._parse_many2one(item.get("semester_id"), "-"),
                 "tahun_ajaran": self._parse_many2one(item.get("tahun_id"), "-"),
                 "link_dokumen": str(item.get("link_dokumen") or ""),

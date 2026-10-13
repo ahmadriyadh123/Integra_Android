@@ -60,28 +60,35 @@ void main() {
       httpClient = MockClient((request) async {
         requests.add(request.url);
         requestCount++;
-        final response = requestCount == 1
-            ? {
-                'success': true,
-                'data': {
-                  'items': [_course(1, 'Matematika'), _course(2, 'Bahasa')],
-                  'removed_ids': <int>[],
-                  'next_cursor': '2026-10-01T00:00:00Z',
-                  'full_sync': true,
-                },
-              }
-            : {
-                'success': true,
-                'data': {
-                  'items': [
-                    _course(1, 'Matematika Lanjutan'),
-                    _course(3, 'IPA'),
-                  ],
-                  'removed_ids': [2],
-                  'next_cursor': '2026-10-01T00:05:00Z',
-                  'full_sync': false,
-                },
-              };
+        final response = switch (requestCount) {
+          1 => {
+            'success': true,
+            'data': {
+              'items': [_course(1, 'Matematika'), _course(2, 'Bahasa')],
+              'removed_ids': <int>[],
+              'next_cursor': '2026-10-01T00:00:00Z',
+              'full_sync': true,
+            },
+          },
+          2 => {
+            'success': true,
+            'data': {
+              'items': [_course(1, 'Matematika Lanjutan'), _course(3, 'IPA')],
+              'removed_ids': [2],
+              'next_cursor': '2026-10-01T00:05:00Z',
+              'full_sync': false,
+            },
+          },
+          _ => {
+            'success': true,
+            'data': {
+              'items': [_course(1, 'Matematika Terbaru')],
+              'removed_ids': <int>[],
+              'next_cursor': '2026-10-01T00:10:00Z',
+              'full_sync': true,
+            },
+          },
+        };
         return http.Response(
           jsonEncode(response),
           200,
@@ -103,14 +110,23 @@ void main() {
         2,
         1,
       ]);
-      final updated = await repository.getCourses(token, forceRefresh: true);
+      final deltaUpdated = await repository.getCourses(token);
 
-      expect(updated.map((course) => (course.id, course.title)), [
+      expect(deltaUpdated.map((course) => (course.id, course.title)), [
         (3, 'IPA'),
         (1, 'Matematika Lanjutan'),
       ]);
+      final forceRefreshed = await repository.getCourses(
+        token,
+        forceRefresh: true,
+      );
+
+      expect(forceRefreshed.map((course) => (course.id, course.title)), [
+        (1, 'Matematika Terbaru'),
+      ]);
       expect(requests[0].queryParameters, isEmpty);
       expect(requests[1].queryParameters['cursor'], '2026-10-01T00:00:00Z');
+      expect(requests[2].queryParameters, isEmpty);
       expect(
         await repository.loadCachedCourses(_token(schoolId: 4, userId: 11)),
         isNull,
@@ -195,8 +211,13 @@ void main() {
       await box.put('elearning_school_4_user_10_course_detail_ts_5', 0);
       await viewModel.fetchCourseDetail(token, 5);
       expect(viewModel.courseDetail?.title, 'Kursus Terbaru');
-      expect(viewModel.detailError, contains('menampilkan cache lokal'));
+      expect(viewModel.detailError, isNull);
       expect(requestCount, 2);
+
+      await viewModel.fetchCourseDetail(token, 5, forceRefresh: true);
+      expect(viewModel.courseDetail?.title, 'Kursus Terbaru');
+      expect(viewModel.detailError, contains('offline'));
+      expect(viewModel.isRefreshingDetail, isFalse);
     },
   );
 }

@@ -89,7 +89,7 @@ class ProfileHeaderCard extends StatelessWidget {
 
   Widget _buildProfileImage(Color color) {
     return Container(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       child: Icon(Icons.person_rounded, size: 48, color: color),
     );
   }

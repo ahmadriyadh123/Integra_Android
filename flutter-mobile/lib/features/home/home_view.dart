@@ -59,7 +59,15 @@ class HomeView extends StatelessWidget {
                 HomeHeader(
                   studentName: studentName,
                   className: className,
-                  onNotificationTap: () {},
+                  onNotificationTap: () {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        const SnackBar(
+                          content: Text('Notifikasi belum tersedia.'),
+                        ),
+                      );
+                  },
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20.0),

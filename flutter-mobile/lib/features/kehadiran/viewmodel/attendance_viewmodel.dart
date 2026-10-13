@@ -24,6 +24,12 @@ class AttendanceViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isRefreshing = false;
+  bool get isRefreshing => _isRefreshing;
+
+  bool _hasLoadedData = false;
+  bool get hasLoadedData => _hasLoadedData;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -31,6 +37,7 @@ class AttendanceViewModel extends ChangeNotifier {
 
   String? _activeMonthLabel;
   String? get activeMonthLabel => _activeMonthLabel;
+  bool _hasUserSelectedMonth = false;
 
   List<String> get availableMonths {
     final year = _allRecords.isEmpty
@@ -44,6 +51,7 @@ class AttendanceViewModel extends ChangeNotifier {
   void setActiveMonth(String? newMonth) {
     if (newMonth != null && newMonth != _activeMonthLabel) {
       _activeMonthLabel = newMonth;
+      _hasUserSelectedMonth = true;
       notifyListeners();
     }
   }
@@ -52,8 +60,21 @@ class AttendanceViewModel extends ChangeNotifier {
     String token, {
     bool forceRefresh = false,
   }) async {
-    _isLoading = true;
     _errorMessage = null;
+
+    try {
+      final cached = await repository.loadCachedAttendanceHistory(token);
+      _allRecords = cached ?? [];
+      _hasLoadedData = cached != null;
+      _syncActiveMonth();
+    } catch (error) {
+      _allRecords = [];
+      _hasLoadedData = false;
+      _errorMessage = error.toString().replaceAll('Exception: ', '');
+    }
+
+    _isLoading = !_hasLoadedData;
+    _isRefreshing = _hasLoadedData;
     notifyListeners();
 
     try {
@@ -61,16 +82,16 @@ class AttendanceViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
-      final syncError = repository.lastSyncError;
-      if (syncError != null) {
-        _errorMessage =
-            'Gagal memperbarui presensi; menampilkan cache lokal. $syncError';
-      }
+      _errorMessage = null;
+      _hasLoadedData = true;
       _syncActiveMonth();
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = _hasLoadedData
+          ? null
+          : e.toString().replaceAll('Exception: ', '');
     } finally {
       _isLoading = false;
+      _isRefreshing = false;
       notifyListeners();
     }
   }
@@ -81,17 +102,22 @@ class AttendanceViewModel extends ChangeNotifier {
       _activeMonthLabel = null;
       return;
     }
-    if (_activeMonthLabel == null || !months.contains(_activeMonthLabel)) {
-      if (_allRecords.isNotEmpty) {
-        final latestRecord = _allRecords.reduce(
-          (current, record) =>
-              record.date.isAfter(current.date) ? record : current,
-        );
-        _activeMonthLabel = monthLabelFor(latestRecord.date);
-      } else {
-        _activeMonthLabel = months.first;
-      }
+    if (_allRecords.isEmpty) {
+      _activeMonthLabel ??= monthLabelFor(DateTime.now());
+      _hasUserSelectedMonth = false;
+      return;
     }
+    if (_hasUserSelectedMonth &&
+        _activeMonthLabel != null &&
+        months.contains(_activeMonthLabel)) {
+      return;
+    }
+
+    final latestRecord = _allRecords.reduce(
+      (current, record) => record.date.isAfter(current.date) ? record : current,
+    );
+    _activeMonthLabel = monthLabelFor(latestRecord.date);
+    _hasUserSelectedMonth = false;
   }
 
   String monthLabelFor(DateTime date) => '${getMonthName(date)} ${date.year}';

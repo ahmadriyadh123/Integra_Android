@@ -1,18 +1,44 @@
-from typing import Dict, Any, Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+_ALLOWED_LEVELS = {"sd", "smp", "tk"}
+_ALLOWED_DAYS = {"senin", "selasa", "rabu", "kamis", "jumat"}
+
 
 class BukuKomunikasiRepository:
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
 
-    async def get_buku_catatan_header(self, student_id: int, jenjang: str = 'sd') -> Optional[Dict[str, Any]]:
-        """
-        Mengambil header buku penghubung siswa berdasarkan jenjang dan student_id.
-        """
-        table_name = f"bukpeng_{jenjang.lower()}"
+    @staticmethod
+    def _table_names(jenjang: str) -> tuple[str, str, str]:
+        level = jenjang.strip().lower()
+        if level not in _ALLOWED_LEVELS:
+            raise ValueError("Jenjang harus berupa sd, smp, atau tk.")
+        return (
+            f"bukpeng_{level}",
+            f"bukpeng_{level}_line",
+            f"bukpeng_{level}_id",
+        )
+
+    @staticmethod
+    def _day_field(day: str, *, feedback: bool = False) -> str:
+        normalized = day.strip().lower()
+        if normalized not in _ALLOWED_DAYS:
+            raise ValueError(
+                "Hari tidak valid. Pilih salah satu dari: "
+                "senin, selasa, rabu, kamis, jumat."
+            )
+        return f"feedback_{normalized}" if feedback else normalized
+
+    async def get_buku_catatan_header(
+        self, student_id: int, jenjang: str = "sd"
+    ) -> Optional[Dict[str, Any]]:
+        table_name, _, _ = self._table_names(jenjang)
         query = text(f"""
-            SELECT 
+            SELECT
                 b.id,
                 b.student_id,
                 p.name AS student_name,
@@ -27,22 +53,21 @@ class BukuKomunikasiRepository:
             LEFT JOIN op_course k ON k.id = b.kelas_id
             LEFT JOIN op_academic_year t ON t.id = b.tahun_id
             WHERE b.student_id = :student_id
+            ORDER BY b.id DESC
             LIMIT 1;
         """)
-        
+
         result = await self.db.execute(query, {"student_id": student_id})
         row = result.mappings().first()
         return dict(row) if row else None
 
-    async def get_buku_catatan_lines(self, bukpeng_id: int, jenjang: str = 'sd') -> List[Dict[str, Any]]:
-        """
-        Mengambil baris catatan harian siswa beserta feedback dari guru.
-        """
-        table_name = f"bukpeng_{jenjang.lower()}_line"
-        fk_field = f"bukpeng_{jenjang.lower()}_id"
-                
+    async def get_buku_catatan_lines(
+        self, bukpeng_id: int, jenjang: str = "sd"
+    ) -> List[Dict[str, Any]]:
+        _, table_name, fk_field = self._table_names(jenjang)
+
         query = text(f"""
-            SELECT                  
+            SELECT
                 id,
                 pekan_ke,
                 bulan,
@@ -58,25 +83,116 @@ class BukuKomunikasiRepository:
                 feedback_jumat
             FROM {table_name}
             WHERE {fk_field} = :bukpeng_id
-            ORDER BY pekan_ke ASC;
+            ORDER BY pekan_ke ASC, id ASC;
         """)
-                
+
         result = await self.db.execute(query, {"bukpeng_id": bukpeng_id})
         return [dict(row) for row in result.mappings().all()]
 
-    async def update_daily_note(self, line_id: int, day: str, note_text: str, jenjang: str = 'sd') -> bool:
-        """
-        Memperbarui catatan harian siswa pada hari tertentu.
-        """
-        table_name = f"bukpeng_{jenjang.lower()}_line"
-        field_name = day.lower()  # Kolom catatan siswa ('senin', 'selasa', dll.)
-        
+    async def update_daily_note(
+        self,
+        student_id: int,
+        line_id: int,
+        day: str,
+        note_text: str,
+        jenjang: str = "sd",
+    ) -> bool:
+        parent_table, line_table, fk_field = self._table_names(jenjang)
+        field_name = self._day_field(day)
         query = text(f"""
-            UPDATE {table_name}
+            UPDATE {line_table} AS line
             SET {field_name} = :note_text
-            WHERE id = :line_id;
+            WHERE line.id = :line_id
+              AND EXISTS (
+                  SELECT 1
+                  FROM {parent_table} AS header
+                  WHERE header.id = line.{fk_field}
+                    AND header.student_id = :student_id
+              );
         """)
-                
-        result = await self.db.execute(query, {"note_text": note_text, "line_id": line_id})
+
+        result = await self.db.execute(
+            query,
+            {
+                "note_text": note_text,
+                "line_id": line_id,
+                "student_id": student_id,
+            },
+        )
+        if result.rowcount <= 0:
+            await self.db.rollback()
+            return False
         await self.db.commit()
         return result.rowcount > 0
+
+    async def update_parent_feedback(
+        self,
+        student_id: int,
+        line_id: int,
+        day: str,
+        feedback_text: str,
+        jenjang: str = "sd",
+    ) -> bool:
+        parent_table, line_table, fk_field = self._table_names(jenjang)
+        field_name = self._day_field(day, feedback=True)
+        query = text(f"""
+            UPDATE {line_table} AS line
+            SET {field_name} = :feedback_text
+            WHERE line.id = :line_id
+              AND EXISTS (
+                  SELECT 1
+                  FROM {parent_table} AS header
+                  WHERE header.id = line.{fk_field}
+                    AND header.student_id = :student_id
+              );
+        """)
+        result = await self.db.execute(
+            query,
+            {
+                "feedback_text": feedback_text,
+                "line_id": line_id,
+                "student_id": student_id,
+            },
+        )
+        if result.rowcount <= 0:
+            await self.db.rollback()
+            return False
+        await self.db.commit()
+        return True
+
+    async def create_daily_note_line(
+        self,
+        student_id: int,
+        pekan_ke: int,
+        bulan: str,
+        day: str,
+        note_text: str,
+        jenjang: str = "sd",
+    ) -> bool:
+        parent_table, line_table, fk_field = self._table_names(jenjang)
+        field_name = self._day_field(day)
+        query = text(f"""
+            INSERT INTO {line_table}
+                ({fk_field}, pekan_ke, bulan, {field_name})
+            SELECT header.id, :pekan_ke, :bulan, :note_text
+            FROM {parent_table} AS header
+            WHERE header.student_id = :student_id
+            ORDER BY header.id DESC
+            LIMIT 1
+            RETURNING id;
+        """)
+        result = await self.db.execute(
+            query,
+            {
+                "student_id": student_id,
+                "pekan_ke": pekan_ke,
+                "bulan": bulan,
+                "note_text": note_text,
+            },
+        )
+        created = result.scalar_one_or_none()
+        if created is None:
+            await self.db.rollback()
+            return False
+        await self.db.commit()
+        return True

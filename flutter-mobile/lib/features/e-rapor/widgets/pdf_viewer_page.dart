@@ -1,112 +1,120 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/tenant_api_config.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+
 import '../../widgets/custom_pdf_viewer.dart';
 import '../../widgets/shared_header.dart';
-import 'package:flutter_application_1/services/tenant_api_config.dart';
+import '../viewmodel/rapor_viewmodel.dart';
 
 class PdfViewerPage extends StatefulWidget {
-  final String pdfUrl;
+  final int? raporId;
+  final String? pdfUrl;
   final String title;
   final String authToken;
 
   const PdfViewerPage({
     super.key,
-    required this.pdfUrl,
+    this.raporId,
+    this.pdfUrl,
     required this.title,
     required this.authToken,
-  });
+  }) : assert((raporId == null) != (pdfUrl == null));
 
   @override
   State<PdfViewerPage> createState() => _PdfViewerPageState();
 }
 
 class _PdfViewerPageState extends State<PdfViewerPage> {
-  String? localFilePath;
-  bool isLoading = true;
-  String? errorMessage;
+  Uint8List? _pdfBytes;
+  bool _isLoading = true;
+  bool _isRefreshing = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _downloadAndSavePdf();
+    _loadPdf();
   }
 
-  Future<void> _downloadAndSavePdf() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+  Future<void> _loadPdf({bool forceRefresh = false}) async {
+    if (forceRefresh) {
+      setState(() {
+        _isRefreshing = true;
+        _errorMessage = null;
+      });
+    } else if (_pdfBytes == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final uri = Uri.parse(widget.pdfUrl);
-      final isOdooWebDirect =
-          uri.path.contains('/web/content/') || uri.port == 8069;
-      final tenantHeaders = context.read<TenantApiConfig>().headers(
-        token: widget.authToken,
-        includeContentType: false,
-      );
-
-      List<Map<String, String>> headerAttempts = [];
-      if (isOdooWebDirect) {
-        headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
-        if (widget.authToken.isNotEmpty) {
-          headerAttempts.add({'Authorization': 'Bearer ${widget.authToken}'});
+      late final Uint8List pdfBytes;
+      final pdfUrl = widget.pdfUrl;
+      if (pdfUrl != null) {
+        final tenantConfig = context.read<TenantApiConfig>();
+        final response = await http
+            .get(
+              Uri.parse(pdfUrl),
+              headers: tenantConfig.headers(
+                token: widget.authToken,
+                includeContentType: false,
+              ),
+            )
+            .timeout(const Duration(seconds: 30));
+        if (response.statusCode != 200) {
+          throw Exception(
+            'Gagal mengunduh file PDF (Status: ${response.statusCode})',
+          );
         }
+        pdfBytes = response.bodyBytes;
       } else {
-        headerAttempts.add(tenantHeaders);
-        headerAttempts.add({'User-Agent': 'FlutterApp/1.0'});
-      }
-
-      debugPrint('PDF download start: ${widget.pdfUrl}');
-
-      http.Response? response;
-      Object? lastError;
-
-      for (final headers in headerAttempts) {
-        try {
-          response = await http
-              .get(uri, headers: headers)
-              .timeout(const Duration(seconds: 30));
-          if (response.statusCode == 200) {
-            break;
+        final viewModel = context.read<RaporViewModel>();
+        if (!forceRefresh) {
+          final cached = await viewModel.loadCachedReportPdf(
+            widget.authToken,
+            widget.raporId!,
+          );
+          if (cached != null && mounted) {
+            setState(() {
+              _pdfBytes = cached;
+              _isLoading = false;
+            });
+            return;
           }
-        } catch (e) {
-          lastError = e;
         }
-      }
-
-      if (response != null && response.statusCode == 200) {
-        final dir = await getTemporaryDirectory();
-        final file = File(
-          '${dir.path}/rapor_temp_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        pdfBytes = await viewModel.getReportPdf(
+          widget.authToken,
+          widget.raporId!,
+          forceRefresh: forceRefresh,
         );
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (mounted) {
-          setState(() {
-            localFilePath = file.path;
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = response != null
-                ? 'Gagal mengunduh file PDF (Status: ${response.statusCode})'
-                : 'Terjadi kesalahan saat mengunduh PDF: ${lastError ?? 'Koneksi terputus'}';
-            isLoading = false;
-          });
-        }
       }
-    } catch (e, stack) {
-      debugPrint('PDF download exception: $e\n$stack');
       if (mounted) {
         setState(() {
-          errorMessage = 'Terjadi kesalahan saat memuat PDF: $e';
-          isLoading = false;
+          _pdfBytes = pdfBytes;
+          _errorMessage = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = error.toString().replaceFirst('Exception: ', '');
+        });
+        if (_pdfBytes != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memperbarui PDF: $_errorMessage')),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
         });
       }
     }
@@ -121,19 +129,48 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
         foregroundColor: const Color(0xFF0F172A),
         elevation: 1,
         showBackButton: true,
+        actions: [
+          IconButton(
+            tooltip: 'Muat ulang PDF',
+            onPressed: _isRefreshing
+                ? null
+                : () => _loadPdf(forceRefresh: true),
+            icon: _isRefreshing
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage != null
-          ? Center(
-              child: Text(
-                errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            )
-          : CustomPdfViewer(
-              filePath: localFilePath!,
+      body: _pdfBytes != null
+          ? CustomPdfViewer(
+              pdfBytes: _pdfBytes!,
               fileName: '${widget.title}.pdf',
+            )
+          : _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _errorMessage ?? 'Dokumen PDF tidak ditemukan.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _loadPdf(forceRefresh: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Coba lagi'),
+                    ),
+                  ],
+                ),
+              ),
             ),
     );
   }

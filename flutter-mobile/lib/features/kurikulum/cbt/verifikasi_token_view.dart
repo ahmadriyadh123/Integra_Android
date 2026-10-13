@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'viewmodel/cbt_viewmodel.dart';
 import 'widgets/token/token_info_banner.dart';
 import 'widgets/token/token_input_boxes.dart';
-import 'widgets/token/token_status_info.dart';
 import 'cbt_exam_view.dart';
 import '../../widgets/shared_header.dart';
 

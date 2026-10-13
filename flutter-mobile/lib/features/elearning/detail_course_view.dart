@@ -9,6 +9,7 @@ import 'widgets/detail/course_header_banner.dart';
 import 'widgets/detail/teacher_info_card.dart';
 import 'widgets/detail/curriculum_timeline_item.dart';
 import '../widgets/shared_header.dart';
+import '../widgets/app_refresh_indicator.dart';
 import 'views/scorm_player_view.dart';
 import 'views/course_discussion_view.dart';
 
@@ -67,6 +68,18 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       _vm.clearDetail();
     } catch (_) {}
     super.dispose();
+  }
+
+  Future<void> _refreshCourseDetail() async {
+    await _vm.fetchCourseDetail(
+      widget.authToken,
+      widget.courseId,
+      forceRefresh: true,
+    );
+    if (!mounted || _vm.detailError == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_vm.detailError!)),
+    );
   }
 
   Future<void> _openUrl(
@@ -269,19 +282,22 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgSlate,
-      body: Consumer<ElearningViewModel>(
-        builder: (context, vm, _) {
-          if (vm.isLoadingDetail) {
-            return _buildLoading();
-          }
-          if (vm.detailError != null) {
-            return _buildError(vm);
-          }
-          if (vm.courseDetail == null) {
-            return _buildLoading();
-          }
-          return _buildContent(vm.courseDetail!);
-        },
+      body: AppRefreshIndicator(
+        onRefresh: _refreshCourseDetail,
+        child: Consumer<ElearningViewModel>(
+          builder: (context, vm, _) {
+            if (vm.isLoadingDetail) {
+              return _buildLoading();
+            }
+            if (vm.detailError != null && vm.courseDetail == null) {
+              return _buildError(vm);
+            }
+            if (vm.courseDetail == null) {
+              return _buildLoading();
+            }
+            return _buildContent(vm.courseDetail!);
+          },
+        ),
       ),
     );
   }
@@ -313,6 +329,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         onBack: () => Navigator.pop(context),
       ),
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
             constraints: BoxConstraints(
               minHeight: MediaQuery.of(context).size.height * 0.7,
@@ -370,6 +387,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       builder: (context, vm, _) => Stack(
         children: [
           SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

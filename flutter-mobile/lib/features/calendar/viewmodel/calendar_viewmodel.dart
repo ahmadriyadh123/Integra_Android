@@ -25,11 +25,7 @@ class CalendarViewModel extends ChangeNotifier {
 
     try {
       _calendars = await repository.getCalendars(token, forceRefresh: forceRefresh);
-      final syncError = repository.lastSyncError;
-      if (syncError != null) {
-        _errorMessage =
-            'Gagal memperbarui kalender; menampilkan cache lokal. $syncError';
-      }
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

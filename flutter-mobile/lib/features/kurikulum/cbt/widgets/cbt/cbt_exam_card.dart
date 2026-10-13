@@ -26,18 +26,20 @@ class CbtExamCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF059669);
     const Color successColor = Color(0xFF10B981);
-    
-    final statusLower = status.trim().toLowerCase();
-    final isActive = statusLower == 'aktif' || statusLower == 'active' || statusLower == 'published' || statusLower == 'ongoing';
-    final isDone = statusLower == 'selesai' || statusLower == 'done' || statusLower == 'completed';
-    final accentColor = isActive ? primaryColor : (isDone ? successColor : Colors.grey);
 
-    String buttonText = 'Belum Dimulai';
-    if (isActive) {
-      buttonText = 'Mulai Ujian';
-    } else if (isDone) {
-      buttonText = 'Ujian Selesai';
-    }
+    final statusLower = status.trim().toLowerCase();
+    final isActive =
+        statusLower == 'aktif' ||
+        statusLower == 'active' ||
+        statusLower == 'published' ||
+        statusLower == 'ongoing';
+    final isDone =
+        statusLower == 'selesai' ||
+        statusLower == 'done' ||
+        statusLower == 'completed';
+    final accentColor = isActive
+        ? primaryColor
+        : (isDone ? successColor : Colors.grey);
 
     return Container(
       decoration: BoxDecoration(
@@ -64,14 +66,21 @@ class CbtExamCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     examType,
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                 ),
                 Row(
@@ -79,12 +88,19 @@ class CbtExamCard extends StatelessWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       status,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accentColor),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
                     ),
                   ],
                 ),
@@ -99,7 +115,11 @@ class CbtExamCard extends StatelessWidget {
               children: [
                 Text(
                   subject,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -114,7 +134,10 @@ class CbtExamCard extends StatelessWidget {
                   children: [
                     _buildIconText(Icons.timer_outlined, '$duration Menit'),
                     const SizedBox(width: 16),
-                    _buildIconText(Icons.format_list_numbered_rounded, '$questionCount Soal'),
+                    _buildIconText(
+                      Icons.format_list_numbered_rounded,
+                      '$questionCount Soal',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -123,17 +146,24 @@ class CbtExamCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: isActive || isDone ? onActionTap : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isActive || isDone ? primaryColor : const Color(0xFFCBD5E1),
+                      backgroundColor: isActive || isDone
+                          ? primaryColor
+                          : const Color(0xFFCBD5E1),
                       disabledBackgroundColor: const Color(0xFFE2E8F0),
                       disabledForegroundColor: const Color(0xFF94A3B8),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: Text(
                       isActive || isDone ? 'Mulai Ujian' : 'Belum Dimulai',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -150,7 +180,10 @@ class CbtExamCard extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+        ),
       ],
     );
   }

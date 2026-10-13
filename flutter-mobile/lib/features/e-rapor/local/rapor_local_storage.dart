@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// Service untuk menyimpan dan membaca cache data E-Rapor menggunakan Hive.
@@ -21,6 +23,9 @@ class RaporLocalStorage {
   /// Mendapatkan key dinamis untuk detail rapor berdasarkan ID
   String _getDetailKey(int raporId, String scope) =>
       'rapor_detail_${scope}_$raporId';
+
+  String _getPdfKey(int raporId, String scope) =>
+      'rapor_pdf_${scope}_$raporId';
 
   /// Simpan daftar rapor ke Hive.
   String _listKey(String scope) => '${keyList}_$scope';
@@ -87,6 +92,24 @@ class RaporLocalStorage {
     if (detail is Map) {
       return Map<String, dynamic>.from(detail);
     }
+    return null;
+  }
+
+  Future<void> saveRaporPdf(
+    int raporId,
+    Uint8List pdfBytes, {
+    required String scope,
+  }) async {
+    await (await _getBox()).put(_getPdfKey(raporId, scope), pdfBytes);
+  }
+
+  Future<Uint8List?> loadRaporPdf(
+    int raporId, {
+    required String scope,
+  }) async {
+    final value = (await _getBox()).get(_getPdfKey(raporId, scope));
+    if (value is Uint8List) return value;
+    if (value is List<int>) return Uint8List.fromList(value);
     return null;
   }
 

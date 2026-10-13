@@ -1,3 +1,5 @@
+enum BukuKomunikasiSubmitStatus { submitted, queued, failed }
+
 class DailyNoteLine {
   final int id;
   final int pekanKe;

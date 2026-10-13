@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
+
 import '../local/buku_komunikasi_local_storage.dart';
 import '../models/buku_komunikasi_model.dart';
 import '../services/buku_komunikasi_service.dart';
@@ -19,6 +21,12 @@ class BukuKomunikasiRepository {
       {bool forceRefresh = false}) async {
     final scope = tokenCacheScope(token);
     final cached = await localStorage.loadBukuKomunikasi(scope: scope);
+    if (!forceRefresh &&
+        cached != null &&
+        await localStorage.isBukuKomunikasiFresh(scope: scope)) {
+      lastSyncError = null;
+      return BukuKomunikasiDetail.fromJson(cached);
+    }
     try {
       final data = await apiService.fetchBukuKomunikasi(token);
       await localStorage.saveBukuKomunikasi(data, scope: scope);
@@ -31,7 +39,7 @@ class BukuKomunikasiRepository {
     }
   }
 
-  Future<bool> submitDailyNote({
+  Future<BukuKomunikasiSubmitStatus> submitDailyNote({
     required String token,
     required int lineId,
     required String day,
@@ -54,8 +62,10 @@ class BukuKomunikasiRepository {
           scope: tokenCacheScope(token),
         );
       }
-      return result;
-    } on SocketException catch (_) {
+      return result
+          ? BukuKomunikasiSubmitStatus.submitted
+          : BukuKomunikasiSubmitStatus.failed;
+    } on SocketException {
       await localStorage.savePendingNote(
         lineId: lineId,
         day: day,
@@ -64,8 +74,8 @@ class BukuKomunikasiRepository {
         week: week,
         scope: tokenCacheScope(token),
       );
-      return true;
-    } on HttpException catch (_) {
+      return BukuKomunikasiSubmitStatus.queued;
+    } on HttpException {
       await localStorage.savePendingNote(
         lineId: lineId,
         day: day,
@@ -74,7 +84,17 @@ class BukuKomunikasiRepository {
         week: week,
         scope: tokenCacheScope(token),
       );
-      return true;
+      return BukuKomunikasiSubmitStatus.queued;
+    } on http.ClientException {
+      await localStorage.savePendingNote(
+        lineId: lineId,
+        day: day,
+        noteText: noteText,
+        month: month,
+        week: week,
+        scope: tokenCacheScope(token),
+      );
+      return BukuKomunikasiSubmitStatus.queued;
     } catch (_) {
       rethrow;
     }

@@ -35,10 +35,19 @@ class RaporRepository {
     final snapshot = await localStorage.loadRaporListSnapshot(scope: scope);
     final rawCached = snapshot?['items'];
     final cached = rawCached is List ? rawCached : null;
+    if (cached != null && !forceRefresh) {
+      lastSyncError = null;
+      return cached
+          .map(
+            (value) => ReportCardHeader.fromJson(
+              Map<String, dynamic>.from(value as Map),
+            ),
+          )
+          .toList();
+    }
     final cursor = snapshot?['cursor'];
     final fullSyncAt = snapshot?['full_sync_at'];
     final fullSync =
-        forceRefresh ||
         cached == null ||
         cursor is! String ||
         cursor.isEmpty ||
@@ -137,6 +146,10 @@ class RaporRepository {
       {bool forceRefresh = false}) async {
     final scope = tokenCacheScope(token);
     final cached = await localStorage.loadRaporDetail(raporId, scope: scope);
+    if (cached != null && !forceRefresh) {
+      lastSyncError = null;
+      return ReportCardDetail.fromJson(Map<String, dynamic>.from(cached));
+    }
     try {
       final data = await apiService.fetchReportDetail(token, raporId);
       final detail = ReportCardDetail.fromJson(data);
@@ -150,5 +163,38 @@ class RaporRepository {
       }
       rethrow;
     }
+  }
+
+  Future<Uint8List?> loadCachedReportPdf(String token, int raporId) {
+    return localStorage.loadRaporPdf(
+      raporId,
+      scope: tokenCacheScope(token),
+    );
+  }
+
+  Future<Uint8List> getReportPdf(
+    String token,
+    int raporId, {
+    bool forceRefresh = false,
+  }) async {
+    final scope = tokenCacheScope(token);
+    final cached = await localStorage.loadRaporPdf(raporId, scope: scope);
+    if (cached != null && !forceRefresh) return cached;
+
+    final pdfBytes = await apiService.fetchReportPdf(token, raporId);
+    await localStorage.saveRaporPdf(raporId, pdfBytes, scope: scope);
+    return pdfBytes;
+  }
+
+  Future<void> saveReportPdf(
+    String token,
+    int raporId,
+    Uint8List pdfBytes,
+  ) {
+    return localStorage.saveRaporPdf(
+      raporId,
+      pdfBytes,
+      scope: tokenCacheScope(token),
+    );
   }
 }

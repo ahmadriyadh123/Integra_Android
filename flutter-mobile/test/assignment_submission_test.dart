@@ -20,6 +20,24 @@ AssignmentItem _assignment({
 );
 
 void main() {
+  test('submission response parses multiple uploaded attachments', () {
+    final result = AssignmentSubmissionResult.fromJson({
+      'submission_id': 18,
+      'state': 'submitted',
+      'attachments': [
+        {'attachment_id': 42, 'file_name': 'jawaban.pdf'},
+        {'attachment_id': 43, 'file_name': 'lampiran.docx'},
+      ],
+    });
+
+    expect(result.attachments, hasLength(2));
+    expect(result.attachments.map((item) => item.id), [42, 43]);
+    expect(result.attachments.map((item) => item.fileName), [
+      'jawaban.pdf',
+      'lampiran.docx',
+    ]);
+  });
+
   test('allows upload for published assignment before deadline', () {
     final assignment = _assignment(
       deadline: DateTime.now().add(const Duration(days: 1)),
@@ -55,6 +73,51 @@ void main() {
     );
 
     expect(assignment.canSubmit, isFalse);
+  });
+
+  test('allows editing submitted attachments before the deadline', () {
+    final assignment = _assignment(
+      deadline: DateTime.now().add(const Duration(days: 1)),
+      submission: StudentSubmission(
+        id: 8,
+        state: 'submitted',
+        marks: 0,
+        attachments: [
+          AttachmentItem(
+            id: 42,
+            fileName: 'jawaban.pdf',
+            fileUrl: '/assignments/3/attachments/42',
+            uploadedByRole: 'student',
+          ),
+        ],
+      ),
+    );
+
+    expect(assignment.canSubmit, isFalse);
+    expect(assignment.canEditSubmission, isTrue);
+    expect(assignment.canManageSubmission, isTrue);
+  });
+
+  test('does not allow editing graded or overdue submissions', () {
+    final graded = _assignment(
+      deadline: DateTime.now().add(const Duration(days: 1)),
+      submission: StudentSubmission(
+        id: 8,
+        state: 'graded',
+        marks: 90,
+      ),
+    );
+    final overdue = _assignment(
+      deadline: DateTime.now().subtract(const Duration(seconds: 1)),
+      submission: StudentSubmission(
+        id: 9,
+        state: 'submitted',
+        marks: 0,
+      ),
+    );
+
+    expect(graded.canEditSubmission, isFalse);
+    expect(overdue.canEditSubmission, isFalse);
   });
 
   test('allows completing submitted state without a file before deadline', () {

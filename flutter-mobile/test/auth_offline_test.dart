@@ -8,16 +8,19 @@ import 'package:flutter_application_1/features/auth/services/auth_service.dart';
 import 'package:flutter_application_1/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter_application_1/features/profile/viewmodel/profile_viewmodel.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/local/buku_komunikasi_local_storage.dart';
+import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/models/buku_komunikasi_model.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/repositories/buku_komunikasi_repository.dart';
 import 'package:flutter_application_1/features/kurikulum/buku-komunikasi/services/buku_komunikasi_service.dart';
 import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class FakeAuthService extends AuthService {
-  FakeAuthService()
+  FakeAuthService({this.offline = true})
     : super(
         baseUrl: 'https://example.com',
         tenantApiConfig: TenantApiConfig(schoolId: '1'),
       );
+
+  bool offline;
 
   @override
   Future<void> changePassword({
@@ -25,19 +28,71 @@ class FakeAuthService extends AuthService {
     required String currentPassword,
     required String newPassword,
   }) async {
-    throw const FormatException('offline');
+    if (offline) throw const AuthNetworkException('offline');
   }
 }
 
 class FakeLocalStorage extends AuthLocalStorage {
   String? savedPassword;
+  String savedUsername = '';
+  Map<String, dynamic>? savedAuthData;
+  PendingPasswordChange? pendingPasswordChange;
 
   @override
   Future<String> loadPassword() async => savedPassword ?? '';
+
+  @override
+  Future<String> loadUsername() async => savedUsername;
+
+  @override
+  Future<Map<String, dynamic>?> loadAuth() async => savedAuthData;
+
+  @override
+  Future<Map<String, dynamic>?> loadOfflineAuth() async => savedAuthData;
+
+  @override
+  Future<PendingPasswordChange?> loadPendingPasswordChange() async =>
+      pendingPasswordChange;
+
+  @override
+  Future<void> queuePasswordChange({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    pendingPasswordChange = PendingPasswordChange(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  @override
+  Future<void> completePasswordChange(String newPassword) async {
+    savedPassword = newPassword;
+    pendingPasswordChange = null;
+  }
+
+  @override
+  Future<void> saveAuth(
+    Map<String, dynamic> authData, {
+    required String username,
+    required String password,
+  }) async {
+    savedAuthData = authData;
+    savedUsername = username;
+    savedPassword = password;
+  }
+
+  @override
+  Future<void> cancelPendingPasswordChange() async {
+    pendingPasswordChange = null;
+  }
 }
 
 class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
   final List<Map<String, dynamic>> pendingNotes = [];
+
+  @override
+  Future<void> clearCache({required String scope}) async {}
 
   @override
   Future<void> savePendingNote({
@@ -60,8 +115,7 @@ class FakeBukuKomunikasiStorage extends BukuKomunikasiLocalStorage {
   @override
   Future<List<Map<String, dynamic>>> loadPendingNotes({
     required String scope,
-  }) async =>
-      List.from(pendingNotes);
+  }) async => List.from(pendingNotes);
 }
 
 class FakeBukuKomunikasiService extends BukuKomunikasiService {
@@ -70,6 +124,8 @@ class FakeBukuKomunikasiService extends BukuKomunikasiService {
         baseUrl: 'https://example.com',
         tenantApiConfig: TenantApiConfig(schoolId: '1'),
       );
+
+  bool offline = true;
 
   @override
   Future<bool> submitDailyNote({
@@ -80,7 +136,8 @@ class FakeBukuKomunikasiService extends BukuKomunikasiService {
     String? month,
     int? week,
   }) async {
-    throw const SocketException('offline');
+    if (offline) throw const SocketException('offline');
+    return true;
   }
 }
 
@@ -108,6 +165,19 @@ class FakeAuthRepository implements AuthRepository {
     throw Exception('Login error');
   }
 
+  AuthResult? mockOfflineLoginResult;
+  String savedUsername = '';
+  String savedPassword = '';
+  bool resolvePendingPasswordChangeCalled = false;
+
+  @override
+  Future<AuthResult?> loginOffline(String username, String password) async {
+    if (username == savedUsername && password == savedPassword) {
+      return mockOfflineLoginResult;
+    }
+    return null;
+  }
+
   @override
   Future<void> saveAuth(
     Map<String, dynamic> data, {
@@ -124,8 +194,16 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> loadOfflineAuth() async => mockAuthData;
+
+  @override
   Future<void> clearAuth() async {
     clearAuthCalled = true;
+    mockAuthData = null;
+  }
+
+  @override
+  Future<void> clearSession() async {
     mockAuthData = null;
   }
 
@@ -136,11 +214,28 @@ class FakeAuthRepository implements AuthRepository {
   bool isTokenForSelectedSchool(String token) => tokenMatchesSelectedSchool;
 
   @override
-  Future<void> changePassword({
+  Future<PasswordChangeStatus> changePassword({
     required String token,
     required String currentPassword,
     required String newPassword,
-  }) async {}
+  }) async => PasswordChangeStatus.completed;
+
+  @override
+  Future<bool> syncPendingPasswordChange(String token) async => false;
+
+  @override
+  Future<bool> hasPendingPasswordChange() async => false;
+
+  @override
+  Future<bool> resolvePendingPasswordChangeAfterLogin(
+    String authenticatedPassword,
+  ) async {
+    resolvePendingPasswordChangeCalled = true;
+    return false;
+  }
+
+  @override
+  Future<void> cancelPendingPasswordChange() async {}
 
   @override
   Future<int> getLastTabIndex() async => 0;
@@ -152,7 +247,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<String> loadUsername() async => 'testuser';
 
   @override
-  Future<String> loadPassword() async => 'password123';
+  Future<String> loadPassword() async =>
+      savedPassword.isEmpty ? 'password123' : savedPassword;
 }
 
 void main() {
@@ -191,6 +287,22 @@ void main() {
         expect(viewModel.user?.username, 'testuser');
       },
     );
+
+    test('parses auth when cached user map has dynamic key types', () {
+      final result = AuthResult.fromJson({
+        'access_token': 'cached-token',
+        'token_type': 'bearer',
+        'user': <dynamic, dynamic>{
+          'user_id': 1,
+          'name': 'Cached User',
+          'username': 'cached-user',
+          'email': 'cached@example.com',
+        },
+      });
+
+      expect(result.user.name, 'Cached User');
+      expect(result.user.username, 'cached-user');
+    });
 
     test(
       'restoreSessionFromHive returns false if no saved auth in Hive',
@@ -258,6 +370,85 @@ void main() {
       );
     });
 
+    test(
+      'repository uses only the saved credentials for offline login',
+      () async {
+        final token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';
+        final storage = FakeLocalStorage()
+          ..savedUsername = 'saved-user'
+          ..savedPassword = 'saved-password'
+          ..savedAuthData = {
+            'access_token': token,
+            'token_type': 'bearer',
+            'user': {
+              'user_id': 7,
+              'name': 'Saved User',
+              'username': 'saved-user',
+              'email': 'saved@example.com',
+            },
+          };
+        final repository = AuthRepository(
+          apiService: FakeAuthService(),
+          localStorageService: storage,
+        );
+
+        final offlineResult = await repository.loginOffline(
+          'saved-user',
+          'saved-password',
+        );
+        final wrongPasswordResult = await repository.loginOffline(
+          'saved-user',
+          'incorrect',
+        );
+
+        expect(offlineResult?.user.username, 'saved-user');
+        expect(wrongPasswordResult, isNull);
+      },
+    );
+
+    test(
+      'login falls back to saved credentials when the server is offline',
+      () async {
+        final offlineUser = UserProfile(
+          userId: 7,
+          name: 'Saved User',
+          username: 'saved-user',
+          email: 'saved@example.com',
+        );
+        fakeRepository.mockLoginException = const AuthNetworkException(
+          'offline',
+        );
+        fakeRepository.savedUsername = 'saved-user';
+        fakeRepository.savedPassword = 'saved-password';
+        fakeRepository.mockOfflineLoginResult = AuthResult(
+          accessToken: 'cached-token',
+          tokenType: 'bearer',
+          user: offlineUser,
+        );
+
+        final result = await viewModel.login('saved-user', 'saved-password');
+
+        expect(result, isTrue);
+        expect(viewModel.isLoggedIn, isTrue);
+        expect(viewModel.token, 'cached-token');
+        expect(viewModel.user?.username, 'saved-user');
+        expect(fakeRepository.saveAuthCalled, isTrue);
+        expect(fakeRepository.resolvePendingPasswordChangeCalled, isFalse);
+      },
+    );
+
+    test('offline login rejects credentials not previously saved', () async {
+      fakeRepository.mockLoginException = const AuthNetworkException('offline');
+      fakeRepository.savedUsername = 'saved-user';
+      fakeRepository.savedPassword = 'saved-password';
+
+      final result = await viewModel.login('saved-user', 'wrong-password');
+
+      expect(result, isFalse);
+      expect(viewModel.isLoggedIn, isFalse);
+      expect(viewModel.errorMessage, contains('Login offline'));
+    });
+
     test('profile is built from the locally available user data', () {
       final profileViewModel = ProfileViewModel();
       final user = UserProfile(
@@ -284,7 +475,7 @@ void main() {
     });
 
     test(
-      'changePassword does not report success or change local password offline',
+      'changePassword queues securely when offline without changing saved password',
       () async {
         final fakeService = FakeAuthService();
         final fakeStorage = FakeLocalStorage();
@@ -295,16 +486,41 @@ void main() {
           localStorageService: fakeStorage,
         );
 
-        await expectLater(
-          repository.changePassword(
-            token: 'token',
-            currentPassword: 'old-password',
-            newPassword: 'new-password-123',
-          ),
-          throwsA(isA<FormatException>()),
+        final result = await repository.changePassword(
+          token: 'token',
+          currentPassword: 'old-password',
+          newPassword: 'new-password-123',
         );
 
+        expect(result, PasswordChangeStatus.queued);
         expect(fakeStorage.savedPassword, 'old-password');
+        expect(
+          fakeStorage.pendingPasswordChange?.newPassword,
+          'new-password-123',
+        );
+      },
+    );
+
+    test(
+      'syncPendingPasswordChange completes queue after server confirmation',
+      () async {
+        final fakeService = FakeAuthService();
+        final fakeStorage = FakeLocalStorage()..savedPassword = 'old-password';
+        final repository = AuthRepository(
+          apiService: fakeService,
+          localStorageService: fakeStorage,
+        );
+
+        await repository.changePassword(
+          token: 'token',
+          currentPassword: 'old-password',
+          newPassword: 'new-password-123',
+        );
+        fakeService.offline = false;
+
+        expect(await repository.syncPendingPasswordChange('token'), isTrue);
+        expect(fakeStorage.savedPassword, 'new-password-123');
+        expect(fakeStorage.pendingPasswordChange, isNull);
       },
     );
 
@@ -325,9 +541,28 @@ void main() {
         week: 1,
       );
 
-      expect(result, true);
+      expect(result, BukuKomunikasiSubmitStatus.queued);
       expect(storage.pendingNotes.length, 1);
       expect(storage.pendingNotes.first['note_text'], 'Saya hadir tepat waktu');
+    });
+
+    test('buku komunikasi reports server-confirmed note separately', () async {
+      final storage = FakeBukuKomunikasiStorage();
+      final service = FakeBukuKomunikasiService()..offline = false;
+      final repository = BukuKomunikasiRepository(
+        apiService: service,
+        localStorage: storage,
+      );
+
+      final result = await repository.submitDailyNote(
+        token: 'header.eyJzY2hvb2xfaWQiOjEsInVpZCI6Mn0.signature',
+        lineId: 12,
+        day: 'senin',
+        noteText: 'Catatan tersimpan',
+      );
+
+      expect(result, BukuKomunikasiSubmitStatus.submitted);
+      expect(storage.pendingNotes, isEmpty);
     });
   });
 }

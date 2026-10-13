@@ -142,34 +142,45 @@ class AssignmentRepository {
     return null;
   }
 
-  Future<Map<String, dynamic>> submitAssignment({
+  Future<AssignmentSubmissionResult> submitAssignment({
     required String token,
     required int assignmentId,
-    required Stream<List<int>> fileStream,
-    required int fileSize,
-    required String fileName,
+    required List<AssignmentFileUpload> files,
   }) {
     return apiService.submitAssignment(
       token: token,
       assignmentId: assignmentId,
-      fileStream: fileStream,
-      fileSize: fileSize,
-      fileName: fileName,
+      files: files,
     );
   }
 
-  Future<List<Map<String, dynamic>>?> loadCachedAssignments(String token) {
-    return localStorage.loadAssignments(
+  Future<AssignmentSubmissionResult> updateSubmissionAttachments({
+    required String token,
+    required int assignmentId,
+    required List<AssignmentFileUpload> files,
+    required List<int> removeAttachmentIds,
+  }) {
+    return apiService.updateSubmissionAttachments(
+      token: token,
+      assignmentId: assignmentId,
+      files: files,
+      removeAttachmentIds: removeAttachmentIds,
+    );
+  }
+
+  Future<List<AssignmentItem>?> loadCachedAssignments(String token) async {
+    final cached = await localStorage.loadAssignments(
       cacheScope: cacheScopeForToken(token),
     );
+    return cached?.map(AssignmentItem.fromJson).toList();
   }
 
   Future<void> saveCachedAssignments(
-    List<Map<String, dynamic>> data, {
+    List<AssignmentItem> data, {
     required String token,
   }) {
     return localStorage.saveAssignments(
-      data,
+      data.map((item) => item.toJson()).toList(),
       cacheScope: cacheScopeForToken(token),
     );
   }

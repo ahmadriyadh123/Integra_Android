@@ -44,8 +44,8 @@ class ElearningViewModel extends ChangeNotifier {
           final fresh = await repository.getCourses(token, forceRefresh: true);
           _courses = fresh;
           await repository.saveCachedCourses(token, fresh);
-        } catch (e) {
-          _coursesError = e.toString().replaceAll('Exception: ', '');
+        } catch (_) {
+          _coursesError = null;
         } finally {
           _isRefreshingCourses = false;
           notifyListeners();
@@ -59,7 +59,10 @@ class ElearningViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final fresh = await repository.getCourses(token);
+      final fresh = await repository.getCourses(
+        token,
+        forceRefresh: forceRefresh,
+      );
       _courses = fresh;
       await repository.saveCachedCourses(token, fresh);
     } catch (e) {
@@ -103,6 +106,26 @@ class ElearningViewModel extends ChangeNotifier {
       {bool forceRefresh = false}) async {
     _detailError = null;
 
+    if (forceRefresh && _courseDetail?.id == courseId) {
+      _isRefreshingDetail = true;
+      notifyListeners();
+      try {
+        final fresh = await repository.getCourseDetail(
+          token,
+          courseId,
+          forceRefresh: true,
+        );
+        _courseDetail = fresh;
+        await repository.saveCachedCourseDetail(token, courseId, fresh);
+      } catch (e) {
+        _detailError = e.toString().replaceAll('Exception: ', '');
+      } finally {
+        _isRefreshingDetail = false;
+        notifyListeners();
+      }
+      return;
+    }
+
     if (!forceRefresh) {
       final cached = await repository.loadCachedCourseDetail(token, courseId);
       if (cached != null) {
@@ -120,10 +143,8 @@ class ElearningViewModel extends ChangeNotifier {
           );
           _courseDetail = fresh;
           await repository.saveCachedCourseDetail(token, courseId, fresh);
-        } catch (error) {
-          _detailError =
-              'Gagal memperbarui detail kursus; menampilkan cache lokal. '
-              '${error.toString().replaceAll('Exception: ', '')}';
+        } catch (_) {
+          _detailError = null;
         } finally {
           _isRefreshingDetail = false;
           notifyListeners();
@@ -138,7 +159,11 @@ class ElearningViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final fresh = await repository.getCourseDetail(token, courseId);
+      final fresh = await repository.getCourseDetail(
+        token,
+        courseId,
+        forceRefresh: forceRefresh,
+      );
       _courseDetail = fresh;
       await repository.saveCachedCourseDetail(token, courseId, fresh);
     } catch (e) {

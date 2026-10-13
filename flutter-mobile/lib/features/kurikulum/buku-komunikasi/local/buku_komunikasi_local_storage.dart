@@ -51,6 +51,17 @@ class BukuKomunikasiLocalStorage {
     return null;
   }
 
+  Future<bool> isBukuKomunikasiFresh({required String scope}) async {
+    final box = await _getBox();
+    final snapshot = box.get(_key(keyData, scope));
+    if (snapshot is! Map || snapshot['saved_at'] is! int) return false;
+    final savedAt = snapshot['saved_at'] as int;
+    return DateTime.now().difference(
+          DateTime.fromMillisecondsSinceEpoch(savedAt),
+        ) <
+        cacheTtl;
+  }
+
   Future<void> savePendingNote({
     required int lineId,
     required String day,

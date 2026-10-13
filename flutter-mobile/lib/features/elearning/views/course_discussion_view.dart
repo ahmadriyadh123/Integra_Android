@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/app_refresh_indicator.dart';
 import '../models/elearning_model.dart';
 import '../repositories/elearning_repository.dart';
 
@@ -35,6 +36,7 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
   bool _isFetching = false;
   bool _hasLoaded = false;
   String? _loadError;
+  Completer<void>? _activeFetch;
 
   @override
   void initState() {
@@ -55,8 +57,16 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
   }
 
   Future<void> _loadMessages({bool silent = false}) async {
-    if (_isFetching || (silent && !_hasLoaded)) return;
+    if (_isFetching) {
+      if (silent) return;
+      await _activeFetch?.future;
+      if (!mounted) return;
+      return _loadMessages();
+    }
+    if (silent && !_hasLoaded) return;
     _isFetching = true;
+    final fetchCompleter = Completer<void>();
+    _activeFetch = fetchCompleter;
     final wasNearBottom =
         !_scrollController.hasClients ||
         _scrollController.position.maxScrollExtent -
@@ -92,6 +102,8 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
       });
     } finally {
       _isFetching = false;
+      fetchCompleter.complete();
+      if (identical(_activeFetch, fetchCompleter)) _activeFetch = null;
     }
   }
 
@@ -164,7 +176,12 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
       ),
       body: Column(
         children: [
-          Expanded(child: _buildMessages()),
+          Expanded(
+            child: AppRefreshIndicator(
+              onRefresh: () => _loadMessages(),
+              child: _buildMessages(),
+            ),
+          ),
           _buildComposer(),
         ],
       ),
@@ -173,23 +190,42 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
 
   Widget _buildMessages() {
     if (_isLoading && !_hasLoaded) {
-      return const Center(
-        child: CircularProgressIndicator(color: _discussionGreen),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.6,
+            child: const Center(
+              child: CircularProgressIndicator(color: _discussionGreen),
+            ),
+          ),
+        ],
       );
     }
     if (_loadError != null && !_hasLoaded) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_rounded, color: Color(0xFF94A3B8)),
-              const SizedBox(height: 10),
-              Text(_loadError!, textAlign: TextAlign.center),
-            ],
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.6,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(_loadError!, textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 

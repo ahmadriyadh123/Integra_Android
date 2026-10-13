@@ -36,13 +36,13 @@ class _AttendanceViewState extends State<AttendanceView> {
       body: SafeArea(
         child: Consumer<AttendanceViewModel>(
           builder: (context, viewModel, _) {
-            if (viewModel.isLoading) {
+            if (viewModel.isLoading && !viewModel.hasLoadedData) {
               return const Center(
                 child: CircularProgressIndicator(color: Color(0xFF0284C7)),
               );
             }
 
-            if (viewModel.errorMessage != null) {
+            if (viewModel.errorMessage != null && !viewModel.hasLoadedData) {
               return AppRefreshIndicator(
                 color: const Color(0xFF0284C7),
                 onRefresh: () => viewModel.fetchAttendance(
@@ -101,6 +101,10 @@ class _AttendanceViewState extends State<AttendanceView> {
                       availableMonths: viewModel.availableMonths,
                       onMonthChanged: viewModel.setActiveMonth,
                     ),
+                    if (viewModel.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      _buildSyncStatus(viewModel),
+                    ],
                     const SizedBox(height: 16),
                     AttendanceSummarySection(
                       totalPresent: viewModel.totalPresent,
@@ -200,6 +204,44 @@ class _AttendanceViewState extends State<AttendanceView> {
               color: Color(0xFF64748B),
               fontSize: 13,
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSyncStatus(AttendanceViewModel viewModel) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (viewModel.isRefreshing)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 18,
+              color: Color(0xFFB45309),
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              viewModel.errorMessage!,
+              style: const TextStyle(
+                color: Color(0xFF9A3412),
+                fontSize: 12,
+              ),
             ),
           ),
         ],

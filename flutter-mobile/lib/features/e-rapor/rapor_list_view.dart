@@ -36,14 +36,11 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
   }
 
   void _openPdf(BuildContext context, ReportCardHeader report) {
-    final vm = context.read<RaporViewModel>();
-    final pdfUrl = vm.getPdfUrl(report.id);
-
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PdfViewerPage(
-          pdfUrl: pdfUrl,
+          raporId: report.id,
           title: 'E-Rapor ${report.semester}',
           authToken: widget.authToken,
         ),
@@ -52,10 +49,16 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
   }
 
   Future<void> _onRefresh() async {
-    await context.read<RaporViewModel>().fetchReportList(
+    final vm = context.read<RaporViewModel>();
+    await vm.fetchReportList(
       widget.authToken,
       forceRefresh: true,
     );
+    if (mounted && vm.lastSyncError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui daftar: ${vm.lastSyncError}')),
+      );
+    }
   }
 
   @override

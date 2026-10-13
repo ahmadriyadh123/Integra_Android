@@ -31,7 +31,6 @@ class _LoginViewState extends State<LoginView> {
   bool _isLoadingSchools = true;
   bool _isLoginRequestPending = false;
   String? _schoolLoadError;
-  String? _schoolRefreshError;
   bool _isPasswordVisible = false;
 
   @override
@@ -78,7 +77,6 @@ class _LoginViewState extends State<LoginView> {
     setState(() {
       _isLoadingSchools = _schools.isEmpty;
       _schoolLoadError = null;
-      _schoolRefreshError = null;
     });
 
     try {
@@ -101,8 +99,6 @@ class _LoginViewState extends State<LoginView> {
         final message = error.toString().replaceFirst('Exception: ', '');
         if (_schools.isEmpty) {
           _schoolLoadError = message;
-        } else {
-          _schoolRefreshError = message;
         }
       });
     }
@@ -296,15 +292,6 @@ class _LoginViewState extends State<LoginView> {
           ],
         ),
         const SizedBox(height: 4),
-        if (_schoolRefreshError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Gagal memperbarui daftar. Menampilkan data tersimpan: '
-              '$_schoolRefreshError',
-              style: const TextStyle(color: Color(0xFFB45309), fontSize: 12),
-            ),
-          ),
         const SizedBox(height: 4),
         FormField<String>(
           key: ValueKey(selectedSchoolId),

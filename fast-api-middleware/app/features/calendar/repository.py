@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 
 
 class CalendarRepository:
+    _supported_levels = {"sd", "smp", "tk"}
+
     def __init__(self, odoo_client: OdooRPCClient):
         self.odoo = odoo_client
 
@@ -20,6 +22,9 @@ class CalendarRepository:
         """
         if type(course_id) is not int or course_id <= 0:
             raise ValueError("Akun Odoo belum terhubung ke kelas siswa.")
+        normalized_jenjang = jenjang.lower()
+        if normalized_jenjang not in self._supported_levels:
+            raise ValueError(f"Jenjang kalender tidak didukung: {jenjang}.")
 
         fields = [
             'id',
@@ -29,7 +34,7 @@ class CalendarRepository:
             'status',
         ]
 
-        model_name = f"kaldik.{jenjang}"
+        model_name = f"kaldik.{normalized_jenjang}"
 
         available_fields = self.odoo.execute_kw(
             uid=uid,
@@ -45,13 +50,10 @@ class CalendarRepository:
         available = set(available_fields)
         if 'id' not in available:
             raise RuntimeError(f"Model {model_name} tidak memiliki field id.")
-        class_field = next(
-            (field for field in ('course_id', 'kelas_id') if field in available),
-            None,
-        )
-        if class_field is None:
+        class_field = 'kelas_id'
+        if class_field not in available:
             raise RuntimeError(
-                f"Model {model_name} tidak memiliki field course_id atau kelas_id; "
+                f"Model {model_name} tidak memiliki field kelas_id; "
                 "kalender tidak dapat difilter berdasarkan kelas."
             )
 
@@ -91,7 +93,4 @@ class CalendarRepository:
             fields=requested_fields,
             order=', '.join(order_fields) or None,
         )
-        if class_field != 'course_id':
-            for record in records:
-                record['course_id'] = record.pop(class_field, None)
         return records

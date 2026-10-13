@@ -34,7 +34,7 @@ class TagihanLocalStorage {
   }
 
   /// Membaca data ringkasan tagihan dari cache lokal Hive.
-  /// Mengembalikan null jika data kedaluwarsa atau tidak ditemukan.
+  /// Mengembalikan null jika data tidak ditemukan atau format cache tidak valid.
   Future<Map<String, dynamic>?> loadTagihanSummary(
     String? paymentState, {
     required String scope,
@@ -46,6 +46,22 @@ class TagihanLocalStorage {
       return Map<String, dynamic>.from(rawData);
     }
     return null;
+  }
+
+  /// Mengembalikan true jika cache masih berada dalam TTL satu jam.
+  Future<bool> isTagihanSummaryFresh(
+    String? paymentState, {
+    required String scope,
+  }) async {
+    final box = await _getBox();
+    final snapshot = box.get(_getCacheKey(paymentState, scope));
+    final savedAt = snapshot is Map ? snapshot['saved_at'] : null;
+    if (savedAt is! int) return false;
+
+    final age = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(savedAt),
+    );
+    return age >= Duration.zero && age < cacheTtl;
   }
 
   /// Menghapus cache berdasarkan status pembayaran tertentu.

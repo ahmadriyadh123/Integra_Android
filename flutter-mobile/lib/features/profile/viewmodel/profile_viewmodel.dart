@@ -16,6 +16,7 @@ class ProfileViewModel extends ChangeNotifier {
 
   final Map<String, Future<void>> _profileLoads = {};
   final Set<String> _profileLoadAttempts = {};
+  int _profileRequestVersion = 0;
 
   Future<void> loadProfileOnce({
     required String token,
@@ -48,6 +49,7 @@ class ProfileViewModel extends ChangeNotifier {
     final profileRepository = repository;
     if (profileRepository == null) return;
 
+    final requestVersion = ++_profileRequestVersion;
     _profileLoadAttempts.add(cacheKey);
     _errorMessage = null;
     _profile = StudentProfile.fromUserProfile(user);
@@ -55,21 +57,22 @@ class ProfileViewModel extends ChangeNotifier {
     StudentProfile? cached;
     try {
       cached = await profileRepository.loadCachedProfile(cacheKey);
+      if (requestVersion != _profileRequestVersion) return;
       if (cached != null) {
         _profile = cached;
         notifyListeners();
       }
 
       final fresh = await profileRepository.getMyProfile(token);
+      if (requestVersion != _profileRequestVersion) return;
       await profileRepository.saveCachedProfile(cacheKey, fresh);
+      if (requestVersion != _profileRequestVersion) return;
       _profile = fresh;
     } catch (error) {
-      _errorMessage = error.toString().replaceAll('Exception: ', '');
-      if (cached != null) {
-        _profile = cached;
-        _errorMessage =
-            'Gagal memperbarui profil; menampilkan cache lokal. $_errorMessage';
-      }
+      if (requestVersion != _profileRequestVersion) return;
+      _errorMessage = cached == null
+          ? error.toString().replaceAll('Exception: ', '')
+          : null;
     }
     notifyListeners();
   }
@@ -78,25 +81,30 @@ class ProfileViewModel extends ChangeNotifier {
     final profileRepository = repository;
     if (profileRepository == null) return;
 
+    final requestVersion = ++_profileRequestVersion;
     _errorMessage = null;
+    notifyListeners();
     try {
       final fresh = await profileRepository.getMyProfile(token);
+      if (requestVersion != _profileRequestVersion) return;
       final cacheKey = _activeCacheKey;
       if (cacheKey != null) {
         await profileRepository.saveCachedProfile(cacheKey, fresh);
       }
+      if (requestVersion != _profileRequestVersion) return;
       _profile = fresh;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      if (requestVersion != _profileRequestVersion) return;
       final cacheKey = _activeCacheKey;
+      StudentProfile? cached;
       if (cacheKey != null) {
-        final cached = await profileRepository.loadCachedProfile(cacheKey);
-        if (cached != null) {
-          _profile = cached;
-          _errorMessage =
-              'Gagal memperbarui profil; menampilkan cache lokal. $_errorMessage';
-        }
+        cached = await profileRepository.loadCachedProfile(cacheKey);
       }
+      if (requestVersion != _profileRequestVersion) return;
+      if (cached != null) _profile = cached;
+      _errorMessage = cached == null
+          ? e.toString().replaceAll('Exception: ', '')
+          : null;
     }
     notifyListeners();
   }

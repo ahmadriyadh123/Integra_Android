@@ -1,80 +1,164 @@
+import logging
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_current_user_credentials
-from app.features.buku_komunikasi.service import BukuKomunikasiService
+from app.core.dependencies import get_current_user_credentials, get_db
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
-from app.features.buku_komunikasi.schemas import APIResponseBukuKomunikasi, UpdateNoteRequest
+from app.features.buku_komunikasi.schemas import (
+    APIResponseBukuKomunikasi,
+    UpdateFeedbackRequest,
+    UpdateNoteRequest,
+)
+from app.features.buku_komunikasi.service import BukuKomunikasiService
 
 router = APIRouter(
     prefix="/buku-komunikasi",
-    tags=["Menu Buku Komunikasi"]
+    tags=["Menu Buku Komunikasi"],
 )
+logger = logging.getLogger(__name__)
+
+
+def _student_id(credentials: Dict[str, Any]) -> int:
+    student_id = credentials.get("student_id")
+    if type(student_id) is not int or student_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Data siswa tidak ditemukan dalam sesi Anda.",
+        )
+    return student_id
+
+
+def _service(db: AsyncSession) -> BukuKomunikasiService:
+    return BukuKomunikasiService(BukuKomunikasiRepository(db))
+
 
 @router.get("", response_model=APIResponseBukuKomunikasi)
 async def get_buku_komunikasi(
-    creds: dict = Depends(get_current_user_credentials),
-    db: AsyncSession = Depends(get_db)
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
 ):
+    student_id = _student_id(creds)
     try:
-        repo = BukuKomunikasiRepository(db)
-        service = BukuKomunikasiService(repo)
-
-        data = await service.get_buku_komunikasi(
-            student_id=creds.get('student_id'),
-            jenjang=creds.get('jenjang', 'sd')
+        data = await _service(db).get_buku_komunikasi(
+            student_id=student_id,
+            jenjang=creds.get("jenjang", "sd"),
         )
-
         if not data:
             return APIResponseBukuKomunikasi(
                 success=True,
                 message="Data buku komunikasi tidak ditemukan untuk siswa ini",
-                data=None
+                data=None,
             )
-
         return APIResponseBukuKomunikasi(
             success=True,
             message="Berhasil mengambil data buku komunikasi",
-            data=data
+            data=data,
         )
-
-    except Exception as e:
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception(
+            "[buku-komunikasi] Gagal mengambil data uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil buku komunikasi: {str(e)}"
-        )
+            detail="Gagal mengambil buku komunikasi.",
+        ) from exc
+
 
 @router.post("/note")
 async def submit_daily_note(
-    payload: UpdateNoteRequest, 
-    creds: dict = Depends(get_current_user_credentials),
-    db: AsyncSession = Depends(get_db)
+    payload: UpdateNoteRequest,
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
 ):
+    student_id = _student_id(creds)
     try:
-        repo = BukuKomunikasiRepository(db)
-        service = BukuKomunikasiService(repo)
-        
-        success = await service.save_daily_note(
-            line_id=payload.line_id, 
-            day=payload.day, 
+        success = await _service(db).save_daily_note(
+            student_id=student_id,
+            line_id=payload.line_id,
+            day=payload.day,
             note_text=payload.note_text,
-            jenjang=creds.get('jenjang', 'sd')
+            month=payload.month,
+            week=payload.week,
+            jenjang=creds.get("jenjang", "sd"),
         )
-        
         if success:
-            return {"success": True, "message": "Catatan harian berhasil disimpan"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Gagal menyimpan catatan. Periksa kembali data yang dikirim."
-            )
-    except ValueError as ve:
+            return {
+                "success": True,
+                "message": "Catatan harian berhasil disimpan",
+            }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Gagal menyimpan catatan. Periksa kembali data yang dikirim.",
+        )
+    except ValueError as exc:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(ve)
+            detail=str(exc),
+        ) from exc
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        logger.exception(
+            "[buku-komunikasi/note] Gagal menyimpan catatan uid=%s",
+            creds.get("uid"),
         )
-    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan catatan: {str(e)}"
+            detail="Gagal menyimpan catatan.",
+        ) from exc
+
+
+@router.post("/feedback")
+async def submit_parent_feedback(
+    payload: UpdateFeedbackRequest,
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    student_id = _student_id(creds)
+    try:
+        success = await _service(db).save_parent_feedback(
+            student_id=student_id,
+            line_id=payload.line_id,
+            day=payload.day,
+            feedback_text=payload.feedback_text,
+            jenjang=creds.get("jenjang", "sd"),
         )
+        if success:
+            return {
+                "success": True,
+                "message": "Feedback orang tua berhasil disimpan",
+            }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Gagal menyimpan feedback. Periksa kembali data yang dikirim.",
+        )
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        logger.exception(
+            "[buku-komunikasi/feedback] Gagal menyimpan feedback uid=%s",
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyimpan feedback.",
+        ) from exc

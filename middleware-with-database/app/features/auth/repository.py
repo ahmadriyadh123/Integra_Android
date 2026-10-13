@@ -31,10 +31,13 @@ class AuthRepository:
                 p.name AS full_name,
                 p.email,
                 s.id AS student_id,
-                s.nis AS nis
+                s.nis AS nis,
+                s.grade AS course_id,
+                c.name AS course_name
             FROM res_users u
             JOIN res_partner p ON p.id = u.partner_id
             LEFT JOIN op_student s ON s.user_id = u.id
+            LEFT JOIN op_course c ON c.id = s.grade
             WHERE u.login = :login AND u.active = TRUE
             LIMIT 1;
         """)
@@ -61,6 +64,22 @@ class AuthRepository:
 
         # Ambil daftar Group ID
         groups = await self.get_user_groups(user["user_id"])
+        course_name = user.get("course_name")
+        if isinstance(course_name, dict):
+            course_name = " ".join(
+                str(value) for value in course_name.values() if value
+            )
+        normalized_course_name = str(course_name or "").upper()
+        if " SMP" in normalized_course_name or normalized_course_name.startswith(
+            "SMP"
+        ):
+            jenjang = "smp"
+        elif any(
+            level in normalized_course_name for level in ("TK", "PAUD", "KB")
+        ):
+            jenjang = "tk"
+        else:
+            jenjang = "sd"
 
         return {
             "user_id": user["user_id"],
@@ -69,6 +88,8 @@ class AuthRepository:
             "name": user["full_name"],
             "email": user["email"],
             "student_id": user["student_id"],
+            "course_id": user["course_id"],
+            "jenjang": jenjang,
             "nis": user["nis"],
             "groups": groups,
             "is_portal": 10 in groups  # Contoh: ID 10 adalah grup portal

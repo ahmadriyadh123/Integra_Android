@@ -28,9 +28,21 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
   static const int _maxFileSize = 20 * 1024 * 1024;
   late AssignmentItem _assignment;
   bool _isUploading = false;
+  final List<PlatformFile> _pendingFiles = [];
+  final Set<int> _removedAttachmentIds = {};
   final Set<int> _openingAttachmentIds = {};
 
   AssignmentItem get assignment => _assignment;
+  bool get _hasValidPendingChanges {
+    final currentAttachmentCount =
+        assignment.studentSubmission?.attachments.length ?? 0;
+    final remainingCount =
+        currentAttachmentCount -
+        _removedAttachmentIds.length +
+        _pendingFiles.length;
+    return (_pendingFiles.isNotEmpty || _removedAttachmentIds.isNotEmpty) &&
+        remainingCount > 0;
+  }
 
   @override
   void initState() {
@@ -72,7 +84,7 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
             _buildSubmissionStatusCard(),
             const SizedBox(height: 20),
 
-            if (assignment.canSubmit) ...[
+            if (assignment.canManageSubmission) ...[
               _buildUploadCard(),
               const SizedBox(height: 20),
             ],
@@ -141,7 +153,10 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
               ),
               const SizedBox(height: 8),
               ...assignment.studentSubmission!.attachments.map(
-                (att) => _buildAttachmentTile(att),
+                (att) => _buildAttachmentTile(
+                  att,
+                  removable: assignment.canEditSubmission,
+                ),
               ),
               const SizedBox(height: 24),
             ],
@@ -163,9 +178,11 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'PENGUMPULAN TUGAS',
-            style: TextStyle(
+          Text(
+            assignment.canEditSubmission
+                ? 'KELOLA BERKAS PENGUMPULAN'
+                : 'PENGUMPULAN TUGAS',
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
               color: textMuted,
@@ -174,86 +191,152 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _isUploading ? null : _pickAndSubmitFile,
-              icon: _isUploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.upload_file_rounded),
-              label: Text(_isUploading ? 'Mengunggah...' : 'Pilih berkas'),
-              style: FilledButton.styleFrom(
-                backgroundColor: primaryEmerald,
-                foregroundColor: Colors.white,
-              ),
+            child: OutlinedButton.icon(
+              onPressed: _isUploading ? null : _pickFiles,
+              icon: const Icon(Icons.attach_file_rounded),
+              label: const Text('Tambah berkas'),
             ),
           ),
+          if (_pendingFiles.isNotEmpty || _removedAttachmentIds.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ..._pendingFiles.asMap().entries.map(
+              (entry) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.insert_drive_file_outlined,
+                  color: primaryEmerald,
+                ),
+                title: Text(
+                  entry.value.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(_formatFileSize(entry.value.size)),
+                trailing: IconButton(
+                  tooltip: 'Hapus berkas',
+                  onPressed: _isUploading
+                      ? null
+                      : () => setState(() => _pendingFiles.removeAt(entry.key)),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isUploading || !_hasValidPendingChanges
+                    ? null
+                    : _submitFiles,
+                icon: _isUploading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(
+                  _isUploading
+                      ? 'Menyimpan perubahan...'
+                      : assignment.canEditSubmission
+                      ? 'Simpan perubahan'
+                      : 'Submit berkas',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primaryEmerald,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
-          const Text(
-            'Maksimum 20 MiB per berkas.',
-            style: TextStyle(fontSize: 11, color: textMuted),
+          Text(
+            assignment.canEditSubmission
+                ? 'Tambahkan berkas atau tandai lampiran yang akan dihapus, lalu simpan perubahan. Minimal satu berkas harus tersisa. Maksimum 20 MiB per berkas.'
+                : 'Pilih satu atau beberapa berkas terlebih dahulu, lalu tekan Submit. Maksimum 20 MiB per berkas.',
+            style: const TextStyle(fontSize: 11, color: textMuted),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _pickAndSubmitFile() async {
-    // Simpan referensi Provider di awal
-    final viewModel = context.read<AssignmentViewModel>();
-
+  Future<void> _pickFiles() async {
     try {
-      final file = await FilePicker.pickFile(type: FileType.any);
+      final result = await FilePicker.pickFiles(type: FileType.any);
       if (!mounted) return;
-      if (file == null) return;
+      final selectedFiles = result?.files ?? [];
+      if (selectedFiles.isEmpty) return;
 
-      final reportedSize = file.size;
-      if (!mounted) return;
-
-      if (reportedSize > _maxFileSize) {
-        throw Exception('Ukuran berkas melebihi batas 20 MiB.');
+      final oversizedFile = selectedFiles
+          .where((file) => file.size > _maxFileSize)
+          .firstOrNull;
+      if (oversizedFile != null) {
+        throw Exception('${oversizedFile.name} melebihi batas ukuran 20 MiB.');
       }
 
-      late final int fileSize;
-      late final Stream<List<int>> fileStream;
-      if (reportedSize > 0) {
-        fileSize = reportedSize;
-        fileStream = file.readAsByteStream();
-      } else {
-        final chunks = <List<int>>[];
-        var actualSize = 0;
-        await for (final chunk in file.readAsByteStream()) {
-          actualSize += chunk.length;
-          if (actualSize > _maxFileSize) {
-            throw Exception('Ukuran berkas melebihi batas 20 MiB.');
-          }
-          chunks.add(chunk);
-        }
-        if (actualSize == 0) {
-          throw Exception('Berkas tidak dapat dibaca. Pilih berkas lain.');
-        }
-        fileSize = actualSize;
-        fileStream = Stream<List<int>>.fromIterable(chunks);
-      }
+      setState(() {
+        _pendingFiles.addAll(selectedFiles);
+      });
+    } catch (error) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
 
-      setState(() => _isUploading = true);
-
-      final updatedAssignment = await viewModel.submitAssignment(
-        token: widget.authToken,
-        assignment: assignment,
-        fileStream: fileStream,
-        fileSize: fileSize,
+  Future<AssignmentFileUpload> _prepareUpload(PlatformFile file) async {
+    if (file.size > 0) {
+      return AssignmentFileUpload(
+        stream: file.readAsByteStream(),
+        size: file.size,
         fileName: file.name,
       );
+    }
 
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('${file.name} kosong atau tidak dapat dibaca.');
+    }
+    if (bytes.length > _maxFileSize) {
+      throw Exception('${file.name} melebihi batas ukuran 20 MiB.');
+    }
+    return AssignmentFileUpload(
+      stream: Stream<List<int>>.value(bytes),
+      size: bytes.length,
+      fileName: file.name,
+    );
+  }
+
+  Future<void> _submitFiles() async {
+    final viewModel = context.read<AssignmentViewModel>();
+    try {
+      setState(() => _isUploading = true);
+      final files = <AssignmentFileUpload>[];
+      for (final file in _pendingFiles) {
+        files.add(await _prepareUpload(file));
+      }
+      if (!mounted) return;
+
+      final updatedAssignment = assignment.canEditSubmission
+          ? await viewModel.updateSubmissionAttachments(
+              token: widget.authToken,
+              assignment: assignment,
+              files: files,
+              removeAttachmentIds: _removedAttachmentIds.toList(),
+            )
+          : await viewModel.submitAssignment(
+              token: widget.authToken,
+              assignment: assignment,
+              files: files,
+            );
       await viewModel.fetchAssignments(widget.authToken, forceRefresh: true);
-
       if (!mounted) return;
 
       final synchronizedAssignment = viewModel.items
@@ -261,11 +344,18 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
           .firstOrNull;
       setState(() {
         _assignment = synchronizedAssignment ?? updatedAssignment;
+        _pendingFiles.clear();
+        _removedAttachmentIds.clear();
         _isUploading = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tugas berhasil dikumpulkan.')),
+        SnackBar(
+          content: Text(
+            assignment.canEditSubmission
+                ? 'Perubahan berkas pengumpulan berhasil disimpan.'
+                : '${files.length} berkas berhasil dikumpulkan.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -280,6 +370,7 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
 
         setState(() {
           if (refreshed != null) _assignment = refreshed;
+          _pendingFiles.clear();
           _isUploading = false;
         });
 
@@ -298,6 +389,12 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
         ),
       );
     }
+  }
+
+  static String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
   }
 
   Widget _buildHeaderCard() {
@@ -501,14 +598,19 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
     );
   }
 
-  Widget _buildAttachmentTile(AttachmentItem item) {
+  Widget _buildAttachmentTile(AttachmentItem item, {bool removable = false}) {
     final isOpening = _openingAttachmentIds.contains(item.id);
+    final isMarkedForRemoval = _removedAttachmentIds.contains(item.id);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isMarkedForRemoval
+              ? const Color(0xFFFCA5A5)
+              : const Color(0xFFE2E8F0),
+        ),
       ),
       child: ListTile(
         leading: Container(
@@ -525,10 +627,13 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
         ),
         title: Text(
           item.fileName,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: textDark,
+            color: isMarkedForRemoval ? const Color(0xFFDC2626) : textDark,
+            decoration: isMarkedForRemoval
+                ? TextDecoration.lineThrough
+                : TextDecoration.none,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -537,20 +642,51 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
           item.uploadedByRole == 'teacher' ? 'Lampiran Guru' : 'Lampiran Siswa',
           style: const TextStyle(fontSize: 11, color: textMuted),
         ),
-        trailing: IconButton(
-          tooltip: 'Buka lampiran',
-          icon: isOpening
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(
-                  Icons.open_in_new_rounded,
-                  size: 18,
-                  color: primaryEmerald,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Buka lampiran',
+              icon: isOpening
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: primaryEmerald,
+                    ),
+              onPressed: isOpening ? null : () => _openAttachment(item),
+            ),
+            if (removable)
+              IconButton(
+                tooltip: isMarkedForRemoval
+                    ? 'Batalkan penghapusan'
+                    : 'Tandai untuk dihapus',
+                icon: Icon(
+                  isMarkedForRemoval
+                      ? Icons.undo_rounded
+                      : Icons.delete_outline_rounded,
+                  size: 20,
+                  color: isMarkedForRemoval
+                      ? primaryEmerald
+                      : const Color(0xFFDC2626),
                 ),
-          onPressed: isOpening ? null : () => _openAttachment(item),
+                onPressed: _isUploading
+                    ? null
+                    : () {
+                        setState(() {
+                          if (isMarkedForRemoval) {
+                            _removedAttachmentIds.remove(item.id);
+                          } else {
+                            _removedAttachmentIds.add(item.id);
+                          }
+                        });
+                      },
+              ),
+          ],
         ),
       ),
     );

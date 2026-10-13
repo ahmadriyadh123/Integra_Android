@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/cbt_model.dart';
 import '../repositories/cbt_repository.dart';
 
 class CbtViewModel extends ChangeNotifier {
@@ -12,8 +13,8 @@ class CbtViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  List<Map<String, dynamic>> _exams = [];
-  List<Map<String, dynamic>> get exams => _exams;
+  List<CbtExamSchedule> _exams = [];
+  List<CbtExamSchedule> get exams => _exams;
 
   Future<void> fetchCbtSchedules(
     String token, {
@@ -28,11 +29,7 @@ class CbtViewModel extends ChangeNotifier {
         token,
         forceRefresh: forceRefresh,
       );
-      final syncError = repository.lastSyncError;
-      if (syncError != null) {
-        _errorMessage =
-            'Gagal memperbarui jadwal CBT; menampilkan cache lokal. $syncError';
-      }
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -72,27 +69,14 @@ class CbtViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> getExamQuestions(
-    String token,
-    int jadwalId,
-  ) async {
-    try {
-      return await repository.getExamQuestions(token, jadwalId);
-    } catch (e) {
-      rethrow;
-    }
+  Future<CbtExamData> getExamQuestions(String token, int jadwalId) {
+    return repository.getExamQuestions(token, jadwalId);
   }
 
-  Future<Map<String, dynamic>> submitExam(
+  Future<CbtSubmitResult> submitExam(
     String token,
     int jadwalId,
-    List<Map<String, dynamic>> answers,
+    List<CbtAnswer> answers,
     String? waktuMulai,
-  ) async {
-    try {
-      return await repository.submitExam(token, jadwalId, answers, waktuMulai);
-    } catch (e) {
-      rethrow;
-    }
-  }
+  ) => repository.submitExam(token, jadwalId, answers, waktuMulai);
 }

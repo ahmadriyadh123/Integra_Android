@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -19,12 +20,20 @@ async def get_academic_calendars(
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db)
 ):
+    course_id = creds.get("course_id")
+    jenjang = creds.get("jenjang", "sd")
+    if type(course_id) is not int or course_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akun belum terhubung ke kelas siswa.",
+        )
     try:
         repo = CalendarRepository(db)
         service = CalendarService(repo)
-        jenjang = creds.get("jenjang", "sd")
-
-        data = await service.get_calendars_list(jenjang=jenjang)
+        data = await service.get_calendars_list(
+            course_id=course_id,
+            jenjang=jenjang,
+        )
 
         return APIResponseCalendar(
             success=True,
@@ -37,3 +46,38 @@ async def get_academic_calendars(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil data kalender: {str(e)}"
         )
+
+
+@router.get("/sync")
+async def sync_academic_calendars(
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    course_id = creds.get("course_id")
+    jenjang = creds.get("jenjang", "sd")
+    if type(course_id) is not int or course_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akun belum terhubung ke kelas siswa.",
+        )
+
+    try:
+        calendars = await CalendarService(CalendarRepository(db)).get_calendars_list(
+            course_id=course_id,
+            jenjang=jenjang,
+        )
+        return {
+            "success": True,
+            "data": {
+                "items": calendars["calendars"],
+                "removed_ids": [],
+                "next_cursor": datetime.now(timezone.utc).isoformat(),
+                "full_sync": True,
+            },
+        }
+    except Exception as exc:
+        logger.exception("[calendar/sync] Error uid=%s", creds.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan kalender akademik.",
+        ) from exc

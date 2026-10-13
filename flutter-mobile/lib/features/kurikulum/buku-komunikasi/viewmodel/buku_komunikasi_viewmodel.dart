@@ -22,11 +22,7 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _detail = await repository.getBukuKomunikasi(token, forceRefresh: forceRefresh);
-      if (repository.lastSyncError != null) {
-        _errorMessage =
-            'Gagal memperbarui Buku Komunikasi; menampilkan cache lokal. '
-            '${repository.lastSyncError}';
-      }
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -35,7 +31,7 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> submitDailyNote({
+  Future<BukuKomunikasiSubmitStatus> submitDailyNote({
     required String token,
     required int lineId,
     required String day,
@@ -47,7 +43,7 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      final success = await repository.submitDailyNote(
+      final status = await repository.submitDailyNote(
         token: token,
         lineId: lineId,
         day: day,
@@ -55,15 +51,14 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
         month: month,
         week: week,
       );
-      if (success) {
-        await fetchBukuKomunikasi(token, forceRefresh: true); // Paksa fetch ulang langsung ke API
-        return true;
+      if (status == BukuKomunikasiSubmitStatus.submitted) {
+        await fetchBukuKomunikasi(token, forceRefresh: true);
       }
-      return false;
+      return status;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
-      return false;
+      return BukuKomunikasiSubmitStatus.failed;
     } finally {
       _isLoading = false;
     }

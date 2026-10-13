@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -10,8 +9,9 @@ import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 class ScormService {
   final TenantApiConfig tenantApiConfig;
+  final http.Client? httpClient;
 
-  ScormService({required this.tenantApiConfig});
+  ScormService({required this.tenantApiConfig, this.httpClient});
 
   HttpServer? _server;
   Directory? _extractDir;
@@ -23,6 +23,22 @@ class ScormService {
     final h = <String, String>{'User-Agent': 'FlutterApp/1.0'};
     h.addAll(tenantApiConfig.headers(token: token, includeContentType: false));
     return h;
+  }
+
+  Future<http.Response> _send(http.Request request) async {
+    try {
+      final client = httpClient;
+      final streamedResponse =
+          await (client == null ? request.send() : client.send(request))
+              .timeout(const Duration(seconds: 15));
+      return await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw Exception('Koneksi ke server Odoo terlalu lama. Coba lagi.');
+    } on http.ClientException catch (error) {
+      throw Exception('Gagal terhubung ke server Odoo: ${error.message}');
+    }
   }
 
   Future<void> authenticateOdooWebSession({
@@ -38,44 +54,60 @@ class ScormService {
       path: '/web/session/authenticate',
     );
 
-    try {
-      final response = await http
-          .post(
-            sessionUri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'jsonrpc': '2.0',
-              'params': {
-                'db': odooDb,
-                'login': odooUsername,
-                'password': odooPassword,
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+    final request = http.Request('POST', sessionUri)
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({
+        'jsonrpc': '2.0',
+        'params': {
+          'db': odooDb,
+          'login': odooUsername,
+          'password': odooPassword,
+        },
+      });
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final result = body['result'];
-      final sessionId = result is Map<String, dynamic>
-          ? result['session_id'] as String?
-          : null;
-
-      if (response.statusCode == 200 &&
-          sessionId != null &&
-          sessionId.isNotEmpty) {
-        final cookieManager = WebViewCookieManager();
-        await cookieManager.setCookie(
-          WebViewCookie(
-            name: 'session_id',
-            value: sessionId,
-            domain: targetUri.host,
-            path: '/',
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('[SCORM-SERVICE] Web session login error: $e');
+    final response = await _send(request);
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map || decoded.keys.any((key) => key is! String)) {
+      throw const FormatException('Respons autentikasi sesi Odoo tidak valid');
     }
+
+    final body = Map<String, dynamic>.from(decoded);
+    final rpcError = body['error'];
+    if (rpcError is Map) {
+      final data = rpcError['data'];
+      final message = data is Map
+          ? data['message']?.toString()
+          : rpcError['message']?.toString();
+      throw Exception(
+        message?.isNotEmpty == true
+            ? 'Autentikasi sesi Odoo gagal: $message'
+            : 'Autentikasi sesi Odoo gagal. Periksa kredensial akun.',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Autentikasi sesi Odoo gagal (HTTP ${response.statusCode}).',
+      );
+    }
+
+    final result = body['result'];
+    if (result is! Map ||
+        result.keys.any((key) => key is! String) ||
+        result['session_id'] is! String ||
+        (result['session_id'] as String).isEmpty) {
+      throw Exception('Autentikasi sesi Odoo gagal. Periksa kredensial akun.');
+    }
+
+    final sessionId = result['session_id'] as String;
+    final cookieManager = WebViewCookieManager();
+    await cookieManager.setCookie(
+      WebViewCookie(
+        name: 'session_id',
+        value: sessionId,
+        domain: targetUri.host,
+        path: '/',
+      ),
+    );
   }
 
   Future<File> downloadZipFile(Uri uri, String token) async {
@@ -204,8 +236,9 @@ class ScormService {
               ? fileToServe.path.split('.').last.toLowerCase()
               : '';
           final contentType = _contentTypeForExt(ext);
-          if (contentType != null)
+          if (contentType != null) {
             request.response.headers.contentType = contentType;
+          }
           request.response.add(await fileToServe.readAsBytes());
           await request.response.close();
           return;

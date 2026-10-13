@@ -2,6 +2,7 @@ import base64
 import io
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlsplit, urlunsplit
 from zipfile import is_zipfile
@@ -103,6 +104,21 @@ class ElearningService:
                 "description": self._strip_html(c.get("description")),
             })
         return result
+
+    async def sync_courses_list(
+        self,
+        partner_id: Optional[int] = None,
+        cursor: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        # Course changes/deletions are not tracked reliably by the tenant schema,
+        # so return a complete snapshot rather than an incomplete delta.
+        courses = await self.get_courses_list(partner_id=partner_id)
+        return {
+            "items": courses,
+            "removed_ids": [],
+            "next_cursor": datetime.now(timezone.utc).isoformat(),
+            "full_sync": True,
+        }
 
     async def get_course_detail(
         self,

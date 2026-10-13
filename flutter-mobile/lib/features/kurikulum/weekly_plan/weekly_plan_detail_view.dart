@@ -1,8 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'viewmodel/weekly_plan_viewmodel.dart';
 import '../../widgets/custom_pdf_viewer.dart';
 import '../../widgets/shared_header.dart';
@@ -29,9 +27,19 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   static const Color bgSlate = Color(0xFFF8FAFC);
   static const Color borderColor = Color(0xFFE2E8F0);
 
-  Uint8List? _generatedPdfBytes;
-  bool _isGeneratingPdf = false;
-  String? _pdfError;
+  Future<void> _refreshPdf() async {
+    final vm = context.read<WeeklyPlanViewModel>();
+    await vm.fetchPdfFile(
+      widget.planId,
+      widget.authToken,
+      forceRefresh: true,
+    );
+    if (mounted && vm.pdfError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui PDF: ${vm.pdfError}')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -72,6 +80,13 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
+        actions: [
+          IconButton(
+            tooltip: 'Muat ulang PDF',
+            onPressed: _refreshPdf,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: borderColor, height: 1),
@@ -80,7 +95,7 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
       body: Consumer<WeeklyPlanViewModel>(
         builder: (context, vm, _) {
           // 1. Loading State
-          if (vm.isGeneratingPdf) {
+          if (vm.isGeneratingPdf && vm.pdfBytes == null) {
             return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -97,8 +112,8 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
           }
 
           // 2. Error State
-          if (vm.pdfError != null) {
-            return _buildError(vm.pdfError!, vm);
+          if (vm.pdfError != null && vm.pdfBytes == null) {
+            return _buildError(vm.pdfError!);
           }
 
           // 3. Empty State
@@ -116,11 +131,10 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
     );
   }
 
-  // Tipe parameter disesuaikan dari WeeklyPlanViewModel menjadi String errorMessage
-  Widget _buildError(String errorMessage, WeeklyPlanViewModel vm) {
+  Widget _buildError(String errorMessage) {
     return AppRefreshIndicator(
       color: primaryTeal,
-      onRefresh: () => vm.fetchPdfFile(widget.planId, widget.authToken),
+      onRefresh: _refreshPdf,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(

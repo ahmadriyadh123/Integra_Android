@@ -20,6 +20,7 @@ class _FakeAssignmentRepository extends AssignmentRepository {
 
   List<AssignmentItem> assignments = [];
   List<Map<String, dynamic>>? cachedAssignments;
+  List<AttachmentItem> submissionAttachments = [];
   final Map<String, Completer<List<AssignmentItem>>> pendingResponses = {};
 
   @override
@@ -32,26 +33,62 @@ class _FakeAssignmentRepository extends AssignmentRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> submitAssignment({
+  Future<AssignmentSubmissionResult> submitAssignment({
     required String token,
     required int assignmentId,
-    required Stream<List<int>> fileStream,
-    required int fileSize,
-    required String fileName,
-  }) async => {
-    'submission_id': 18,
-    'attachment_id': 42,
-    'file_name': fileName,
-    'state': 'submitted',
-    'submitted_at': '2026-10-05T06:00:00',
-  };
+    required List<AssignmentFileUpload> files,
+  }) async => AssignmentSubmissionResult(
+    submissionId: 18,
+    attachmentId: 42,
+    fileName: files.first.fileName,
+    attachments: [
+      for (var index = 0; index < files.length; index++)
+        AttachmentItem(
+          id: 42 + index,
+          fileName: files[index].fileName,
+          fileUrl: '',
+          uploadedByRole: 'student',
+        ),
+    ],
+    state: 'submitted',
+    submittedAt: DateTime.parse('2026-10-05T06:00:00'),
+  );
+
+  @override
+  Future<AssignmentSubmissionResult> updateSubmissionAttachments({
+    required String token,
+    required int assignmentId,
+    required List<AssignmentFileUpload> files,
+    required List<int> removeAttachmentIds,
+  }) async {
+    submissionAttachments = [
+      ...submissionAttachments.where(
+        (attachment) => !removeAttachmentIds.contains(attachment.id),
+      ),
+      for (var index = 0; index < files.length; index++)
+        AttachmentItem(
+          id: 90 + index,
+          fileName: files[index].fileName,
+          fileUrl: '',
+          uploadedByRole: 'student',
+        ),
+    ];
+    return AssignmentSubmissionResult(
+      submissionId: 18,
+      attachmentId: submissionAttachments.first.id,
+      fileName: submissionAttachments.first.fileName,
+      attachments: submissionAttachments,
+      state: 'submitted',
+      submittedAt: DateTime.parse('2026-10-05T06:00:00'),
+    );
+  }
 
   @override
   Future<void> saveCachedAssignments(
-    List<Map<String, dynamic>> data, {
+    List<AssignmentItem> data, {
     required String token,
   }) async {
-    cachedAssignments = data;
+    cachedAssignments = data.map((item) => item.toJson()).toList();
   }
 }
 
@@ -85,7 +122,7 @@ void main() {
   );
 
   test(
-    'successful upload adds student attachment even when assignment list is empty',
+    'successful submission adds all selected attachments when list is empty',
     () async {
       final repository = _FakeAssignmentRepository();
       final viewModel = AssignmentViewModel(repository: repository);
@@ -104,16 +141,35 @@ void main() {
       final updatedAssignment = await viewModel.submitAssignment(
         token: 'token',
         assignment: assignment,
-        fileStream: Stream<List<int>>.empty(),
-        fileSize: 100 * 1024,
-        fileName: 'jawaban.pdf',
+        files: [
+          AssignmentFileUpload(
+            stream: Stream<List<int>>.empty(),
+            size: 100 * 1024,
+            fileName: 'jawaban.pdf',
+          ),
+          AssignmentFileUpload(
+            stream: Stream<List<int>>.empty(),
+            size: 200 * 1024,
+            fileName: 'lampiran.docx',
+          ),
+        ],
       );
 
       final submission = updatedAssignment.studentSubmission!;
       expect(submission.id, 18);
       expect(submission.state, 'submitted');
-      expect(submission.attachments.single.id, 42);
-      expect(submission.attachments.single.fileName, 'jawaban.pdf');
+      expect(submission.attachments, hasLength(2));
+      expect(
+        submission.attachments.map((attachment) => attachment.fileName),
+        ['jawaban.pdf', 'lampiran.docx'],
+      );
+      expect(
+        submission.attachments.map((attachment) => attachment.fileUrl),
+        [
+          '/assignments/3/attachments/42',
+          '/assignments/3/attachments/43',
+        ],
+      );
       expect(viewModel.items.single.studentSubmission, same(submission));
       expect(
         repository.cachedAssignments!.single['student_submission'],
@@ -121,6 +177,70 @@ void main() {
       );
     },
   );
+
+  test('updating attachments replaces state and saves cache', () async {
+    final repository = _FakeAssignmentRepository()
+      ..submissionAttachments = [
+        AttachmentItem(
+          id: 42,
+          fileName: 'old.pdf',
+          fileUrl: '/assignments/3/attachments/42',
+          uploadedByRole: 'student',
+        ),
+        AttachmentItem(
+          id: 43,
+          fileName: 'keep.docx',
+          fileUrl: '/assignments/3/attachments/43',
+          uploadedByRole: 'student',
+        ),
+      ];
+    final viewModel = AssignmentViewModel(repository: repository);
+    final assignment = AssignmentItem(
+      id: 3,
+      masterAssignmentId: 3,
+      title: 'Tugas',
+      subject: SubjectInfo(name: 'PAI'),
+      facultyId: 1,
+      batchId: 3,
+      description: '',
+      state: 'publish',
+      maxMarks: 100,
+      studentSubmission: StudentSubmission(
+        id: 18,
+        state: 'submitted',
+        marks: 0,
+        attachments: repository.submissionAttachments,
+      ),
+    );
+
+    final updated = await viewModel.updateSubmissionAttachments(
+      token: 'token',
+      assignment: assignment,
+      files: [
+        AssignmentFileUpload(
+          stream: Stream<List<int>>.empty(),
+          size: 100,
+          fileName: 'new.pdf',
+        ),
+      ],
+      removeAttachmentIds: [42],
+    );
+
+    expect(
+      updated.studentSubmission!.attachments.map((attachment) => attachment.id),
+      [43, 90],
+    );
+    expect(
+      updated.studentSubmission!.attachments.map(
+        (attachment) => attachment.fileName,
+      ),
+      ['keep.docx', 'new.pdf'],
+    );
+    expect(
+      repository.cachedAssignments!.single['student_submission']['attachments'],
+      hasLength(2),
+    );
+  });
 }
 
 AssignmentItem _assignment({required String title}) => AssignmentItem(

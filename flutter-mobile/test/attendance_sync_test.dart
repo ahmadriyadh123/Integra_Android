@@ -94,6 +94,18 @@ void main() {
         isNull,
       );
       expect(call, 2);
+
+      final offlineRepository = AttendanceRepository(
+        apiService: _FailingAttendanceService(),
+        localStorage: storage,
+      );
+      final offlineRecords = await offlineRepository.getAttendanceHistory(
+        token,
+        forceRefresh: true,
+      );
+
+      expect(offlineRecords.map((item) => item.id), [1]);
+      expect(offlineRepository.lastSyncError, contains('offline'));
       client.close();
     },
   );
@@ -123,5 +135,22 @@ class _TestAttendanceService extends AttendanceService {
     );
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     return Map<String, dynamic>.from(decoded['data'] as Map);
+  }
+}
+
+class _FailingAttendanceService extends AttendanceService {
+  _FailingAttendanceService()
+    : super(
+        baseUrl: 'https://example.test/api/v1',
+        tenantApiConfig: TenantApiConfig(schoolId: '8'),
+      );
+
+  @override
+  Future<Map<String, dynamic>> syncAttendanceHistory(
+    String token, {
+    String? cursor,
+    int limit = 500,
+  }) async {
+    throw Exception('offline');
   }
 }

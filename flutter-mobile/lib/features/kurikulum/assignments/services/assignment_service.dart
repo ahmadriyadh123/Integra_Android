@@ -1,12 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/services/tenant_api_config.dart';
+import '../models/assignment_model.dart';
 
 class AssignmentAlreadySubmittedException implements Exception {
   const AssignmentAlreadySubmittedException();
 
   @override
   String toString() => 'Tugas ini sudah dikumpulkan sebelumnya.';
+}
+
+class AssignmentFileUpload {
+  final Stream<List<int>> stream;
+  final int size;
+  final String fileName;
+
+  const AssignmentFileUpload({
+    required this.stream,
+    required this.size,
+    required this.fileName,
+  });
 }
 
 class AssignmentService {
@@ -49,7 +62,7 @@ class AssignmentService {
       }
     } catch (e) {
       if (e.toString().contains('SocketException')) {
-        throw Exception('Tidak ada koneksi internet. Memuat data tersimpan.');
+        throw Exception('Tidak ada koneksi internet.');
       }
       rethrow;
     }
@@ -87,20 +100,25 @@ class AssignmentService {
     );
   }
 
-  Future<Map<String, dynamic>> submitAssignment({
+  Future<AssignmentSubmissionResult> submitAssignment({
     required String token,
     required int assignmentId,
-    required Stream<List<int>> fileStream,
-    required int fileSize,
-    required String fileName,
+    required List<AssignmentFileUpload> files,
   }) async {
     final uri = Uri.parse('$baseUrl/assignments/$assignmentId/submit');
     final request = http.MultipartRequest('POST', uri)
       ..headers.addAll(
         tenantApiConfig.headers(token: token, includeContentType: false),
       )
-      ..files.add(
-        http.MultipartFile('file', fileStream, fileSize, filename: fileName),
+      ..files.addAll(
+        files.map(
+          (file) => http.MultipartFile(
+            'files',
+            file.stream,
+            file.size,
+            filename: file.fileName,
+          ),
+        ),
       );
 
     try {
@@ -119,12 +137,77 @@ class AssignmentService {
       }
       if (response.statusCode == 200 && decoded['success'] == true) {
         final data = decoded['data'];
-        if (data is Map<String, dynamic>) return data;
+        if (data is Map && data.keys.every((key) => key is String)) {
+          return AssignmentSubmissionResult.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+        }
         throw const FormatException('Respons pengumpulan tugas tidak valid.');
       }
 
       throw Exception(
         decoded['detail'] ?? decoded['message'] ?? 'Gagal mengunggah tugas',
+      );
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Tidak ada koneksi internet. Coba lagi.');
+      }
+      rethrow;
+    }
+  }
+
+  Future<AssignmentSubmissionResult> updateSubmissionAttachments({
+    required String token,
+    required int assignmentId,
+    required List<AssignmentFileUpload> files,
+    required List<int> removeAttachmentIds,
+  }) async {
+    final uri = Uri.parse('$baseUrl/assignments/$assignmentId/submission');
+    final request = http.MultipartRequest('PATCH', uri)
+      ..headers.addAll(
+        tenantApiConfig.headers(token: token, includeContentType: false),
+      )
+      ..fields['remove_attachment_ids'] = jsonEncode(removeAttachmentIds)
+      ..files.addAll(
+        files.map(
+          (file) => http.MultipartFile(
+            'files',
+            file.stream,
+            file.size,
+            filename: file.fileName,
+          ),
+        ),
+      );
+
+    try {
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 90),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+      Map<String, dynamic> decoded = {};
+      try {
+        final body = json.decode(response.body);
+        if (body is Map && body.keys.every((key) => key is String)) {
+          decoded = Map<String, dynamic>.from(body);
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 200 && decoded['success'] == true) {
+        final data = decoded['data'];
+        if (data is Map && data.keys.every((key) => key is String)) {
+          return AssignmentSubmissionResult.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+        }
+        throw const FormatException(
+          'Respons perubahan lampiran tugas tidak valid.',
+        );
+      }
+
+      throw Exception(
+        decoded['detail'] ??
+            decoded['message'] ??
+            'Gagal memperbarui lampiran tugas',
       );
     } catch (e) {
       if (e.toString().contains('SocketException')) {

@@ -14,17 +14,34 @@ class TagihanRepository {
   });
 
   /// Mengambil data ringkasan tagihan dengan strategi Cache-First dan fallback Offline.
-  Future<TagihanSummary> getTagihan(String token, {String? paymentState, bool forceRefresh = false}) async {
+  Future<TagihanSummary> getTagihan(
+    String token, {
+    String? paymentState,
+    bool forceRefresh = false,
+  }) async {
     final scope = tokenCacheScope(token);
     final cachedData = await localStorage.loadTagihanSummary(
       paymentState,
       scope: scope,
     );
 
-    // Ambil data baru saat cache kosong atau sudah kedaluwarsa.
+    if (!forceRefresh &&
+        cachedData != null &&
+        await localStorage.isTagihanSummaryFresh(
+          paymentState,
+          scope: scope,
+        )) {
+      lastSyncError = null;
+      return TagihanSummary.fromJson(cachedData);
+    }
+
+    // Summary endpoint mengembalikan seluruh snapshot, bukan delta cursor.
     try {
-      final data = await apiService.fetchTagihan(token, paymentState: paymentState);
-      
+      final data = await apiService.fetchTagihan(
+        token,
+        paymentState: paymentState,
+      );
+
       // Simpan response agar halaman tetap tersedia saat offline.
       await localStorage.saveTagihanSummary(
         paymentState,

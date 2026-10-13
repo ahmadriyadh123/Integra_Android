@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/services/tenant_api_config.dart';
 
@@ -15,10 +15,6 @@ class RaporService {
 
   Future<List<dynamic>> fetchReportList(String token) async {
     final url = Uri.parse('$baseUrl/e-rapor/list');
-    // LOGGING UNTUK DEBUGGING
-    debugPrint('========== [API REQUEST] ==========');
-    debugPrint('URL: $url');
-    debugPrint('Token: $token');
     try {
       final response = await http
           .get(url, headers: _headers(token))
@@ -28,10 +24,6 @@ class RaporService {
               throw TimeoutException('Waktu tunggu koneksi habis');
             },
           );
-
-      debugPrint('Response Status: ${response.statusCode}');
-      debugPrint('Response Body: ${response.body}');
-      debugPrint('====================================');
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {
@@ -106,5 +98,34 @@ class RaporService {
       if (e is Exception) rethrow;
       throw Exception('Terjadi kesalahan saat mengambil detail E-Rapor');
     }
+  }
+
+  Future<Uint8List> fetchReportPdf(String token, int raporId) async {
+    final url = Uri.parse('$baseUrl/e-rapor/pdf/$raporId');
+    final response = await http
+        .get(url, headers: _headers(token))
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      String? responseDetail;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map) {
+          final detail = decoded['detail'] ?? decoded['message'];
+          if (detail is String && detail.isNotEmpty) {
+            responseDetail = detail;
+          }
+        }
+      } on FormatException {
+        responseDetail = null;
+      }
+      throw Exception(
+        responseDetail ??
+            'Gagal mengunduh PDF E-Rapor (status ${response.statusCode}).',
+      );
+    }
+    if (response.bodyBytes.isEmpty) {
+      throw const FormatException('Server mengirim PDF E-Rapor kosong.');
+    }
+    return response.bodyBytes;
   }
 }

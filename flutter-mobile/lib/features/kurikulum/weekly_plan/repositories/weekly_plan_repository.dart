@@ -10,20 +10,29 @@ class WeeklyPlanRepository {
   final WeeklyPlanLocalStorage localStorage;
   String? lastSyncError;
 
-  WeeklyPlanRepository({
-    required this.apiService,
-    required this.localStorage,
-  });
+  WeeklyPlanRepository({required this.apiService, required this.localStorage});
 
-  Future<List<WeeklyPlanItem>> getWeeklyPlanList(String token, {bool forceRefresh = false}) async {
+  Future<List<WeeklyPlanItem>> getWeeklyPlanList(
+    String token, {
+    bool forceRefresh = false,
+  }) async {
     final scope = tokenCacheScope(token, includeCourse: true);
     final snapshot = await localStorage.loadWeeklyPlanSnapshot(scope: scope);
     final rawCached = snapshot?['items'];
     final cached = rawCached is List
-        ? rawCached.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        ? rawCached
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
         : null;
+    if (cached != null && cached.isNotEmpty && !forceRefresh) {
+      lastSyncError = null;
+      return cached.map(WeeklyPlanItem.fromJson).toList();
+    }
     final fullSyncAt = snapshot?['full_sync_at'];
-    final fullSync = cached == null ||
+    final fullSync =
+        cached == null ||
+        cached.isEmpty ||
         fullSyncAt is! int ||
         DateTime.now().difference(
               DateTime.fromMillisecondsSinceEpoch(fullSyncAt),
@@ -61,7 +70,9 @@ class WeeklyPlanRepository {
       for (final value in removedIds) {
         final id = _parseId(value);
         if (id == null) {
-          throw const FormatException('ID Weekly Plan yang dihapus tidak valid.');
+          throw const FormatException(
+            'ID Weekly Plan yang dihapus tidak valid.',
+          );
         }
         merged.remove(id);
       }
@@ -89,11 +100,17 @@ class WeeklyPlanRepository {
         fullSyncAt: nextFullSyncAt,
       );
       lastSyncError = null;
-      return data.whereType<Map>().map((e) => WeeklyPlanItem.fromJson(e)).toList();
+      return data
+          .whereType<Map>()
+          .map((e) => WeeklyPlanItem.fromJson(e))
+          .toList();
     } catch (error) {
       lastSyncError = error.toString();
       if (cached != null) {
-        return cached.whereType<Map>().map((e) => WeeklyPlanItem.fromJson(e)).toList();
+        return cached
+            .whereType<Map>()
+            .map((e) => WeeklyPlanItem.fromJson(e))
+            .toList();
       }
       rethrow;
     }
@@ -109,13 +126,26 @@ class WeeklyPlanRepository {
   }
 
   /// Ambil detail dokumen dan mapping ke model
-  Future<WeeklyPlanDetailModel> getWeeklyPlanDetail(int planId, String token) async {
+  Future<WeeklyPlanDetailModel> getWeeklyPlanDetail(
+    int planId,
+    String token,
+  ) async {
     final data = await apiService.fetchWeeklyPlanDetail(planId, token);
     return WeeklyPlanDetailModel.fromJson(data);
   }
 
   /// Mengambil binary bytes PDF via Service
-  Future<Uint8List> getWeeklyPlanPdfFile(int planId, String token) async {
-    return await apiService.fetchWeeklyPlanPdfFile(planId, token);
+  Future<Uint8List> getWeeklyPlanPdfFile(
+    int planId,
+    String token, {
+    bool forceRefresh = false,
+  }) async {
+    final scope = tokenCacheScope(token, includeCourse: true);
+    final cached = await localStorage.loadWeeklyPlanPdf(planId, scope: scope);
+    if (cached != null && !forceRefresh) return cached;
+
+    final pdfBytes = await apiService.fetchWeeklyPlanPdfFile(planId, token);
+    await localStorage.saveWeeklyPlanPdf(planId, pdfBytes, scope: scope);
+    return pdfBytes;
   }
 }

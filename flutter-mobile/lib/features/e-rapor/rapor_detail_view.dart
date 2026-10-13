@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'viewmodel/rapor_viewmodel.dart';
 import 'models/rapor_model.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
@@ -41,16 +40,41 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
     });
   }
 
-  Future<void> _loadDataAndGeneratePdf() async {
+  Future<void> _loadDataAndGeneratePdf({bool forceRefresh = false}) async {
     final vm = context.read<RaporViewModel>();
     final authVm = context.read<AuthViewModel>();
 
-    // 1. Fetch data detail JSON dari ViewModel (force refresh dari API)
+    setState(() {
+      _isGeneratingPdf = _generatedPdfBytes == null;
+      _pdfError = null;
+    });
+    if (!forceRefresh) {
+      final cachedPdf = await vm.loadCachedReportPdf(
+        widget.authToken,
+        widget.raporId,
+      );
+      if (!mounted) return;
+      if (cachedPdf != null && mounted) {
+        setState(() {
+          _generatedPdfBytes = cachedPdf;
+          _isGeneratingPdf = false;
+        });
+        return;
+      }
+    }
+
     await vm.fetchReportDetail(
       widget.authToken,
       widget.raporId,
-      forceRefresh: true,
+      forceRefresh: forceRefresh,
     );
+    if (forceRefresh && mounted && vm.lastSyncError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui detail: ${vm.lastSyncError}'),
+        ),
+      );
+    }
 
     // 2. Jika data berhasil didapatkan, buat bytes PDF secara in-memory
     if (vm.currentDetail != null && mounted) {
@@ -70,6 +94,7 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
           header,
           authVm.user,
         );
+        await vm.saveReportPdf(widget.authToken, widget.raporId, pdfBytes);
 
         if (mounted) {
           setState(() {
@@ -85,6 +110,10 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
           });
         }
       }
+    } else if (mounted) {
+      setState(() {
+        _isGeneratingPdf = false;
+      });
     }
   }
 
@@ -100,6 +129,13 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
         elevation: 0,
         showBackButton: true,
         onBack: () => Navigator.pop(context),
+        actions: [
+          IconButton(
+            tooltip: 'Muat ulang PDF',
+            onPressed: () => _loadDataAndGeneratePdf(forceRefresh: true),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: borderSlate, height: 1),
@@ -107,7 +143,8 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
       ),
       body: Consumer<RaporViewModel>(
         builder: (context, vm, _) {
-          if (vm.isLoading || _isGeneratingPdf) {
+          if ((vm.isLoading || _isGeneratingPdf) &&
+              _generatedPdfBytes == null) {
             return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -123,7 +160,8 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
             );
           }
 
-          if (vm.errorMessage != null || _pdfError != null) {
+          if ((vm.errorMessage != null || _pdfError != null) &&
+              _generatedPdfBytes == null) {
             return _buildError(vm.errorMessage ?? _pdfError!);
           }
 
@@ -144,7 +182,7 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
   Widget _buildError(String errorMessage) {
     return AppRefreshIndicator(
       color: primaryTeal,
-      onRefresh: _loadDataAndGeneratePdf,
+      onRefresh: () => _loadDataAndGeneratePdf(forceRefresh: true),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(

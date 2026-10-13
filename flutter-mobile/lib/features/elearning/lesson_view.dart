@@ -7,6 +7,7 @@ import 'detail_course_view.dart';
 import 'widgets/elearning_header.dart';
 import 'widgets/subject_grid_card.dart';
 import 'widgets/active_course_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 
 // Tetap dipertahankan agar import lama tidak error
 class ElearningApp extends StatelessWidget {
@@ -80,6 +81,15 @@ class _PelajaranViewState extends State<PelajaranView> {
         .toList();
   }
 
+  Future<void> _refreshCourses() async {
+    final viewModel = context.read<ElearningViewModel>();
+    await viewModel.fetchCourses(widget.authToken, forceRefresh: true);
+    if (!mounted || viewModel.coursesError == null) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(viewModel.coursesError!)));
+  }
+
   Future<void> _navigateToDetail(
     BuildContext context,
     CourseItem course,
@@ -128,12 +138,16 @@ class _PelajaranViewState extends State<PelajaranView> {
                     child: CircularProgressIndicator(color: _green),
                   );
                 }
-                return SingleChildScrollView(
-                  child: vm.coursesError != null && !vm.hasCourses
-                      ? _buildError(vm)
-                      : !vm.hasCourses
-                      ? _buildEmpty()
-                      : _buildBodyContent(vm),
+                return AppRefreshIndicator(
+                  onRefresh: _refreshCourses,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: vm.coursesError != null && !vm.hasCourses
+                        ? _buildError(vm)
+                        : !vm.hasCourses
+                        ? _buildEmpty()
+                        : _buildBodyContent(vm),
+                  ),
                 );
               },
             ),
@@ -178,12 +192,8 @@ class _PelajaranViewState extends State<PelajaranView> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Data tersimpan ditampilkan, tetapi sinkronisasi gagal: '
-                '${vm.coursesError}',
-                style: const TextStyle(
-                  color: Color(0xFF9A3412),
-                  fontSize: 12,
-                ),
+                vm.coursesError!,
+                style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12),
               ),
             ),
           ],

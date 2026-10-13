@@ -1,6 +1,7 @@
 import html
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from app.features.weekly_plan.repository import WeeklyPlanRepository
 
@@ -40,9 +41,16 @@ class WeeklyPlanService:
         ]
 
     async def get_weekly_plan_list(
-        self, jenjang: str = 'sd', course_id: Optional[int] = None
+        self,
+        jenjang: str = 'sd',
+        course_id: Optional[int] = None,
+        cursor: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        raw = await self.repo.get_weekly_plans(jenjang=jenjang, course_id=course_id)
+        raw = await self.repo.get_weekly_plans(
+            jenjang=jenjang,
+            course_id=course_id,
+            cursor=cursor,
+        )
 
         weekly_plans = []
         for p in raw:
@@ -60,6 +68,27 @@ class WeeklyPlanService:
         return {
             "total_records": len(weekly_plans),
             "weekly_plans": weekly_plans
+        }
+
+    async def sync_weekly_plan_list(
+        self,
+        jenjang: str,
+        course_id: Optional[int],
+        cursor: Optional[str],
+    ) -> Dict[str, Any]:
+        parsed_cursor = (
+            self.repo.parse_sync_cursor(cursor) if cursor is not None else None
+        )
+        plans = await self.get_weekly_plan_list(
+            jenjang=jenjang,
+            course_id=course_id,
+            cursor=parsed_cursor,
+        )
+        return {
+            "items": plans["weekly_plans"],
+            "removed_ids": [],
+            "next_cursor": datetime.now(timezone.utc).isoformat(),
+            "full_sync": parsed_cursor is None,
         }
 
     async def get_weekly_plan_detail(

@@ -1,6 +1,7 @@
+import asyncio
 import logging
 import io
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +20,38 @@ router = APIRouter(
     prefix="/weekly-plan",
     tags=["Menu Weekly Plan"]
 )
+
+@router.get("/list/sync")
+async def sync_weekly_plans(
+    cursor: str | None = Query(None),
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        service = WeeklyPlanService(WeeklyPlanRepository(db))
+        data = await service.sync_weekly_plan_list(
+            jenjang=creds.get("jenjang", "sd"),
+            course_id=creds.get("course_id"),
+            cursor=cursor,
+        )
+        return {
+            "success": True,
+            "data": data,
+        }
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception(
+            "[weekly-plan/list/sync] Error uid=%s",
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan daftar Weekly Plan.",
+        ) from exc
 
 @router.get("/list", response_model=APIResponseWeeklyPlanList)
 async def get_weekly_plans(
@@ -84,7 +117,7 @@ async def get_weekly_plan_pdf(
     """
     Mengambil PDF Weekly Plan:
     1. Coba ambil dari ir_attachment jika ketersediaan attachment_id valid.
-    2. Jika attachment kosong, otomatis generate PDF via ReportLab secara dinamis.
+    2. Jika attachment kosong, render template Word dan konversi ke PDF.
     """
     try:
         repo = WeeklyPlanRepository(db)
@@ -113,15 +146,22 @@ async def get_weekly_plan_pdf(
 
         # 2. Fallback: Generate PDF dinamis via ReportLab
         if not pdf_bytes:
-            logger.info(f"[weekly-plan/pdf/{plan_id}] Attachment tidak ditemukan/kosong. Generating PDF via ReportLab...")
+            logger.info(
+                "[weekly-plan/pdf/%s] Attachment tidak ditemukan/kosong. "
+                "Generating PDF dari template Word...",
+                plan_id,
+            )
             detail_data = await service.get_weekly_plan_detail(plan_id=plan_id, jenjang=jenjang)
             if not detail_data:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Data detail Weekly Plan tidak dapat dimuat untuk pembuatan PDF."
                 )
-            # Diproses oleh pdf_generator.py
-            pdf_bytes = generate_weekly_plan_pdf(detail_data)
+            detail_data["jenjang"] = jenjang
+            pdf_bytes = await asyncio.to_thread(
+                generate_weekly_plan_pdf,
+                detail_data,
+            )
 
         return StreamingResponse(
             io.BytesIO(pdf_bytes),

@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 class DailyNoteLineResponse(BaseModel):
     id: int
@@ -22,7 +23,7 @@ class BukuKomunikasiDetailResponse(BaseModel):
     kelas: str
     tahun_ajaran: str
     status: str
-    lines: List[DailyNoteLineResponse] = []
+    lines: List[DailyNoteLineResponse] = Field(default_factory=list)
 
 class APIResponseBukuKomunikasi(BaseModel):
     success: bool
@@ -33,3 +34,11 @@ class UpdateNoteRequest(BaseModel):
     line_id: int
     day: str
     note_text: str
+    month: Optional[str] = None
+    week: Optional[int] = None
+
+
+class UpdateFeedbackRequest(BaseModel):
+    line_id: int
+    day: str
+    feedback_text: str

@@ -14,6 +14,24 @@ class AttendanceRepository {
     required this.localStorage,
   });
 
+  Future<List<AttendanceRecord>?> loadCachedAttendanceHistory(
+    String token,
+  ) async {
+    final scope = cacheScopeForToken(token);
+    final snapshot = await localStorage.loadSnapshot(scope: scope);
+    final rawItems = snapshot?['items'];
+    if (rawItems is! List) return null;
+
+    final cachedItems = <Map<String, dynamic>>[];
+    for (final value in rawItems) {
+      if (value is! Map) {
+        throw const FormatException('Cache record presensi tidak valid.');
+      }
+      cachedItems.add(Map<String, dynamic>.from(value));
+    }
+    return cachedItems.map(AttendanceRecord.fromJson).toList();
+  }
+
   Future<List<AttendanceRecord>> getAttendanceHistory(
     String token, {
     bool forceRefresh = false,

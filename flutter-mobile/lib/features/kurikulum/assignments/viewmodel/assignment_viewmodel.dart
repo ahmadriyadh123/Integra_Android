@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/assignment_model.dart';
 import '../repositories/assignment_repository.dart';
+import '../services/assignment_service.dart';
 
 enum AssignmentFilter { all, pending, submitted, graded }
 
@@ -50,7 +51,6 @@ class AssignmentViewModel extends ChangeNotifier {
         case AssignmentFilter.graded:
           return item.isGraded;
         case AssignmentFilter.all:
-        default:
           return true;
       }
     }).toList();
@@ -79,7 +79,7 @@ class AssignmentViewModel extends ChangeNotifier {
     _errorMessage = null;
 
     if (!forceRefresh) {
-      List<Map<String, dynamic>>? cached;
+      List<AssignmentItem>? cached;
       try {
         cached = await repository.loadCachedAssignments(token);
       } catch (e) {
@@ -92,7 +92,7 @@ class AssignmentViewModel extends ChangeNotifier {
       }
       if (requestId != _fetchRequestId) return;
       if (cached != null && cached.isNotEmpty) {
-        _items = cached.map((e) => AssignmentItem.fromJson(e)).toList();
+        _items = cached;
         _isRefreshing = true;
         notifyListeners();
 
@@ -103,10 +103,7 @@ class AssignmentViewModel extends ChangeNotifier {
           );
           if (requestId != _fetchRequestId) return;
           _items = fresh;
-          _errorMessage = repository.lastSyncError == null
-              ? null
-              : 'Gagal memperbarui tugas; menampilkan cache lokal. '
-                    '${repository.lastSyncError}';
+          _errorMessage = null;
         } catch (_) {
           if (requestId != _fetchRequestId) return;
         } finally {
@@ -144,21 +141,16 @@ class AssignmentViewModel extends ChangeNotifier {
   Future<AssignmentItem> submitAssignment({
     required String token,
     required AssignmentItem assignment,
-    required Stream<List<int>> fileStream,
-    required int fileSize,
-    required String fileName,
+    required List<AssignmentFileUpload> files,
   }) async {
     final result = await repository.submitAssignment(
       token: token,
       assignmentId: assignment.id,
-      fileStream: fileStream,
-      fileSize: fileSize,
-      fileName: fileName,
+      files: files,
     );
 
-    final submissionId = _parseResponseId(result['submission_id']);
-    final attachmentId = _parseResponseId(result['attachment_id']);
-    if (submissionId == null || attachmentId == null) {
+    final submissionId = result.submissionId;
+    if (submissionId == null || result.attachments.isEmpty) {
       throw const FormatException(
         'Respons server tidak menyertakan riwayat berkas yang lengkap.',
       );
@@ -168,27 +160,31 @@ class AssignmentViewModel extends ChangeNotifier {
         .where((item) => item.id == assignment.id)
         .firstOrNull;
     final itemToUpdate = existingItem ?? assignment;
-    final submittedAt = DateTime.tryParse(
-      result['submitted_at']?.toString() ?? '',
-    );
-    final uploadedAttachment = AttachmentItem(
-      id: attachmentId,
-      fileName: result['file_name']?.toString() ?? fileName,
-      fileUrl: '/assignments/${assignment.id}/attachments/$attachmentId',
-      uploadedByRole: 'student',
-    );
+    final uploadedAttachments = result.attachments
+        .map(
+          (attachment) => AttachmentItem(
+            id: attachment.id,
+            fileName: attachment.fileName,
+            fileUrl:
+                '/assignments/${assignment.id}/attachments/${attachment.id}',
+            uploadedByRole: 'student',
+          ),
+        )
+        .toList();
     final currentSubmission = itemToUpdate.studentSubmission;
     final attachments = [
       ...?currentSubmission?.attachments.where(
-        (attachment) => attachment.id != attachmentId,
+        (attachment) => !uploadedAttachments.any(
+          (uploaded) => uploaded.id == attachment.id,
+        ),
       ),
-      uploadedAttachment,
+      ...uploadedAttachments,
     ];
     final updatedSubmission = StudentSubmission(
       id: submissionId,
-      state: result['state']?.toString() ?? 'submitted',
+      state: result.state,
       marks: currentSubmission?.marks ?? 0,
-      submittedAt: submittedAt ?? DateTime.now(),
+      submittedAt: result.submittedAt ?? DateTime.now(),
       attachments: attachments,
     );
     final updatedItem = itemToUpdate.copyWith(
@@ -202,7 +198,7 @@ class AssignmentViewModel extends ChangeNotifier {
         if (existingItem == null) updatedItem,
       ];
       await repository.saveCachedAssignments(
-        _items.map((item) => item.toJson()).toList(),
+        _items,
         token: token,
       );
       notifyListeners();
@@ -210,8 +206,62 @@ class AssignmentViewModel extends ChangeNotifier {
     return updatedItem;
   }
 
-  int? _parseResponseId(dynamic value) =>
-      value is int ? value : int.tryParse(value?.toString() ?? '');
+  Future<AssignmentItem> updateSubmissionAttachments({
+    required String token,
+    required AssignmentItem assignment,
+    required List<AssignmentFileUpload> files,
+    required List<int> removeAttachmentIds,
+  }) async {
+    final result = await repository.updateSubmissionAttachments(
+      token: token,
+      assignmentId: assignment.id,
+      files: files,
+      removeAttachmentIds: removeAttachmentIds,
+    );
+    final submissionId = result.submissionId;
+    if (submissionId == null || result.attachments.isEmpty) {
+      throw const FormatException(
+        'Respons server tidak menyertakan daftar berkas yang lengkap.',
+      );
+    }
+
+    final existingItem = _items
+        .where((item) => item.id == assignment.id)
+        .firstOrNull;
+    final itemToUpdate = existingItem ?? assignment;
+    final currentSubmission = itemToUpdate.studentSubmission;
+    final attachments = result.attachments
+        .map(
+          (attachment) => AttachmentItem(
+            id: attachment.id,
+            fileName: attachment.fileName,
+            fileUrl:
+                '/assignments/${assignment.id}/attachments/${attachment.id}',
+            uploadedByRole: 'student',
+          ),
+        )
+        .toList();
+    final updatedItem = itemToUpdate.copyWith(
+      studentSubmission: StudentSubmission(
+        id: submissionId,
+        state: result.state,
+        marks: currentSubmission?.marks ?? 0,
+        submittedAt: result.submittedAt ?? currentSubmission?.submittedAt,
+        attachments: attachments,
+      ),
+    );
+
+    if (_activeToken == null || _activeToken == token) {
+      _items = [
+        for (final item in _items)
+          if (item.id == assignment.id) updatedItem else item,
+        if (existingItem == null) updatedItem,
+      ];
+      await repository.saveCachedAssignments(_items, token: token);
+      notifyListeners();
+    }
+    return updatedItem;
+  }
 
   void setFilter(AssignmentFilter filter) {
     _currentFilter = filter;

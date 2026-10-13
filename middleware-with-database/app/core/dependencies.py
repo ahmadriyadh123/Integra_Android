@@ -6,6 +6,7 @@ from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -16,6 +17,18 @@ from app.core.database import (
 from app.core.models import SchoolTenant
 
 security_scheme = HTTPBearer(auto_error=False)
+
+
+def _is_missing_database_error(error: DBAPIError) -> bool:
+    original: BaseException | None = error.orig
+    while original is not None:
+        sqlstate = getattr(original, "sqlstate", None) or getattr(
+            original, "pgcode", None
+        )
+        if sqlstate == "3D000" or type(original).__name__ == "InvalidCatalogNameError":
+            return True
+        original = original.__cause__
+    return False
 
 
 async def get_current_tenant(
@@ -46,6 +59,19 @@ async def get_db(
         session.info["tenant_id"] = tenant.id
         session.info["tenant_database"] = tenant.odoo_db
         session.info["tenant_odoo_url"] = tenant.odoo_url
+        try:
+            await session.connection()
+        except DBAPIError as exc:
+            if _is_missing_database_error(exc):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=(
+                        "Database untuk tenant ini tidak ditemukan. "
+                        "Periksa nilai odoo_db di registry; nilainya harus "
+                        "sama persis dengan nama database PostgreSQL Odoo."
+                    ),
+                ) from exc
+            raise
         yield session
 
 
