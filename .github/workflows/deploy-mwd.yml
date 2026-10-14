@@ -76,10 +76,12 @@ jobs:
           ssh mwd-public '
             command -v rsync &&
             command -v curl &&
-            { command -v soffice || command -v libreoffice || { echo "LibreOffice is required; ask the server administrator to install libreoffice-writer." >&2; exit 1; }; } &&
             test -x /srv/developer/mwd/.venv/bin/pip &&
             systemctl --user is-active mwd-api
           '
+          if ! ssh mwd-public 'command -v soffice >/dev/null 2>&1 || command -v libreoffice >/dev/null 2>&1'; then
+            echo "::warning::LibreOffice is missing on the server. Ask the server administrator to install libreoffice-writer; PDF generation will fail until then."
+          fi
 
       - name: Package backend source
         run: |

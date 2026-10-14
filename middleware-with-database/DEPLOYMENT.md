@@ -164,8 +164,8 @@ Sebelum mengaktifkannya:
    `/srv/developer/mwd/.venv`.
 3. Pastikan admin server sudah memasang LibreOffice Writer dan
    `command -v soffice` atau `command -v libreoffice` berhasil. Workflow
-   memeriksa prasyarat ini sebelum mengubah source dan akan berhenti dengan
-   pesan yang jelas bila executable tidak ditemukan.
+   memberi peringatan bila executable belum ditemukan; pembuatan PDF akan
+   gagal sampai admin memasangnya.
 4. Pastikan `rsync`, `curl`, dan `tar` tersedia di server serta service
    `mwd-api` sudah aktif. Runner GitHub menyediakan `rsync`, `curl`, dan `tar`.
 5. Uji workflow secara manual dari branch `main` setelah seluruh secrets
