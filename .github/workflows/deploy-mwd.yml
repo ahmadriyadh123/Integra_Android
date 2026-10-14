@@ -39,7 +39,7 @@ jobs:
         working-directory: middleware-with-database
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pytest
+          python -m pip install -r requirements.txt pytest pytest-asyncio
 
       - name: Validate backend and run tests
         working-directory: middleware-with-database
