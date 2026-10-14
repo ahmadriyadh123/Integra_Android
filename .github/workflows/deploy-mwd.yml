@@ -21,10 +21,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      DEPLOY_HOST: ${{ secrets.MWD_DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.MWD_DEPLOY_USER }}
-      DEPLOY_SSH_KEY: ${{ secrets.MWD_DEPLOY_SSH_KEY }}
-      DEPLOY_KNOWN_HOSTS: ${{ secrets.MWD_DEPLOY_KNOWN_HOSTS }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
 
     steps:
       - name: Check out repository
@@ -54,12 +54,12 @@ jobs:
 
       - name: Verify deployment secrets
         run: |
-          test -n "$DEPLOY_HOST" || { echo "Missing MWD_DEPLOY_HOST secret"; exit 1; }
-          test -n "$DEPLOY_USER" || { echo "Missing MWD_DEPLOY_USER secret"; exit 1; }
-          test -n "$DEPLOY_SSH_KEY" || { echo "Missing MWD_DEPLOY_SSH_KEY secret"; exit 1; }
-          test -n "$DEPLOY_KNOWN_HOSTS" || { echo "Missing MWD_DEPLOY_KNOWN_HOSTS secret"; exit 1; }
-          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "MWD_DEPLOY_HOST must be a hostname only"; exit 1; }
-          [[ "$DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || { echo "MWD_DEPLOY_USER must be a valid SSH username"; exit 1; }
+          test -n "$DEPLOY_HOST" || { echo "Missing DEPLOY_HOST secret"; exit 1; }
+          test -n "$DEPLOY_USER" || { echo "Missing DEPLOY_USER secret"; exit 1; }
+          test -n "$DEPLOY_SSH_KEY" || { echo "Missing DEPLOY_SSH_KEY secret"; exit 1; }
+          test -n "$DEPLOY_KNOWN_HOSTS" || { echo "Missing DEPLOY_KNOWN_HOSTS secret"; exit 1; }
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "DEPLOY_HOST must be a hostname only"; exit 1; }
+          [[ "$DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || { echo "DEPLOY_USER must be a valid SSH username"; exit 1; }
 
       - name: Configure verified SSH access
         run: |

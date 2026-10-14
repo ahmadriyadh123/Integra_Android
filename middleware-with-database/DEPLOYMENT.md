@@ -153,12 +153,12 @@ Sebelum mengaktifkannya:
 
 1. Tambahkan repository secrets berikut pada **Settings → Secrets and variables
    → Actions**:
-   - `MWD_DEPLOY_HOST`: hostname server deployment saja, tanpa `https://`,
+   - `DEPLOY_HOST`: hostname server deployment saja, tanpa `https://`,
      path, atau port (contoh: `kp-sekolah.asetkoptii.com`).
-   - `MWD_DEPLOY_USER`: akun SSH deployment (`devmobile`).
-   - `MWD_DEPLOY_SSH_KEY`: private key SSH khusus deployment; tambahkan public
+   - `DEPLOY_USER`: akun SSH deployment (`devmobile`).
+   - `DEPLOY_SSH_KEY`: private key SSH khusus deployment; tambahkan public
      key pasangannya ke `authorized_keys` akun server.
-   - `MWD_DEPLOY_KNOWN_HOSTS`: entri host key SSH untuk hostname tersebut.
+   - `DEPLOY_KNOWN_HOSTS`: entri host key SSH untuk hostname tersebut.
      Verifikasi fingerprint host key melalui kanal tepercaya sebelum
      menyimpannya; jangan mengandalkan `ssh-keyscan` tanpa verifikasi.
 2. Pastikan akun dapat menulis ke `/srv/developer/mwd`, menjalankan
