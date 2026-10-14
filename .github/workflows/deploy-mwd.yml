@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "middleware-with-database/**"
+      - "fast-api-middleware/**"
       - ".github/workflows/deploy-mwd.yml"
   workflow_dispatch:
 
@@ -36,13 +36,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend dependencies
-        working-directory: middleware-with-database
+        working-directory: fast-api-middleware
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest pytest-asyncio
 
       - name: Validate backend and run tests
-        working-directory: middleware-with-database
+        working-directory: fast-api-middleware
         env:
           ODOO_HOST: 127.0.0.1
           DB_USER: ci
@@ -97,7 +97,7 @@ jobs:
             --exclude=.git \
             --exclude=__pycache__ \
             --exclude=.pytest_cache \
-            -C middleware-with-database .
+            -C fast-api-middleware .
           echo "REMOTE_ARCHIVE=mwd-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload and deploy backend
