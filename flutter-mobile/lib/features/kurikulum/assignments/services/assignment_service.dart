@@ -41,10 +41,10 @@ class AssignmentService {
     final url = Uri.parse(fullUrl);
 
     try {
-      final response = await http.get(
-        url,
-        headers: tenantApiConfig.headers(token: token),
-      );
+      final headers = tenantApiConfig.headers(token: token);
+      final response =
+          await tenantApiConfig.httpClient?.get(url, headers: headers) ??
+          await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final List<dynamic> decoded = json.decode(response.body);
@@ -82,10 +82,10 @@ class AssignmentService {
     final uri = Uri.parse(
       '$base/assignments/sync',
     ).replace(queryParameters: cursor == null ? null : {'cursor': cursor});
-    final response = await http.get(
-      uri,
-      headers: tenantApiConfig.headers(token: token),
-    );
+    final headers = tenantApiConfig.headers(token: token);
+    final response =
+        await tenantApiConfig.httpClient?.get(uri, headers: headers) ??
+        await http.get(uri, headers: headers);
     final decoded = jsonDecode(response.body);
     if (response.statusCode == 200 &&
         decoded is Map &&
@@ -122,7 +122,9 @@ class AssignmentService {
       );
 
     try {
-      final streamedResponse = await request.send().timeout(
+      final streamedResponse =
+          await (tenantApiConfig.httpClient?.send(request) ?? request.send())
+              .timeout(
         const Duration(seconds: 90),
       );
       final response = await http.Response.fromStream(streamedResponse);
@@ -180,7 +182,9 @@ class AssignmentService {
       );
 
     try {
-      final streamedResponse = await request.send().timeout(
+      final streamedResponse =
+          await (tenantApiConfig.httpClient?.send(request) ?? request.send())
+              .timeout(
         const Duration(seconds: 90),
       );
       final response = await http.Response.fromStream(streamedResponse);
@@ -234,10 +238,14 @@ class AssignmentService {
     required String token,
     required String fileUrl,
   }) async {
-    final response = await http.get(
-      attachmentUri(fileUrl),
-      headers: tenantApiConfig.headers(token: token, includeContentType: false),
+    final uri = attachmentUri(fileUrl);
+    final headers = tenantApiConfig.headers(
+      token: token,
+      includeContentType: false,
     );
+    final response =
+        await tenantApiConfig.httpClient?.get(uri, headers: headers) ??
+        await http.get(uri, headers: headers);
     if (response.statusCode != 200) {
       var message = 'Gagal mengunduh lampiran';
       try {

@@ -34,10 +34,13 @@ class ElearningService {
   Future<http.Response> _get(Uri uri, String token) {
     final headers = _headers(token);
     final client = httpClient;
+    final configuredClient = tenantApiConfig.httpClient;
     return _send(
-      client == null
-          ? http.get(uri, headers: headers)
-          : client.get(uri, headers: headers),
+      client != null
+          ? client.get(uri, headers: headers)
+          : configuredClient != null
+          ? configuredClient.get(uri, headers: headers)
+          : http.get(uri, headers: headers),
     );
   }
 
@@ -48,11 +51,14 @@ class ElearningService {
   }) {
     final headers = _headers(token);
     final client = httpClient;
+    final configuredClient = tenantApiConfig.httpClient;
     final encodedBody = jsonEncode(body);
     return _send(
-      client == null
-          ? http.post(uri, headers: headers, body: encodedBody)
-          : client.post(uri, headers: headers, body: encodedBody),
+      client != null
+          ? client.post(uri, headers: headers, body: encodedBody)
+          : configuredClient != null
+          ? configuredClient.post(uri, headers: headers, body: encodedBody)
+          : http.post(uri, headers: headers, body: encodedBody),
     );
   }
 

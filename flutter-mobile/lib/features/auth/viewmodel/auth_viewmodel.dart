@@ -81,6 +81,7 @@ class AuthViewModel extends ChangeNotifier {
       await repository.saveAuth(
         {
           'access_token': result.accessToken,
+          'refresh_token': result.refreshToken,
           'token_type': result.tokenType,
           'user': result.user.toJson(),
         },
@@ -145,8 +146,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       unawaited(_refreshPendingPasswordChangeState());
-      // Validasi token berjalan terpisah agar pemulihan session tetap cepat.
-      _validateSessionInBackground();
+      if (!await _validateRestoredSession()) return false;
 
       return true;
     } catch (_) {
@@ -154,20 +154,18 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Validasi session token secara lokal (decode JWT exp claim).
-  /// Tidak ada network request — aman untuk semua platform/device.
-  Future<void> _validateSessionInBackground() async {
-    if (token.isEmpty) return;
+  /// Check expiry locally, then confirm the cached token with the API.
+  /// Network failures keep the cached session available for offline use.
+  Future<bool> _validateRestoredSession() async {
+    final cachedToken = token;
+    if (cachedToken.isEmpty) return false;
 
     try {
-      // Decode payload hanya untuk membaca masa berlaku token.
-      final parts = token.split('.');
+      final parts = cachedToken.split('.');
       if (parts.length != 3) {
-        await logout();
-        return;
+        throw const FormatException('Token JWT tidak valid.');
       }
 
-      // JWT memakai Base64 URL tanpa padding wajib.
       String payload = parts[1];
       final remainder = payload.length % 4;
       if (remainder != 0) payload += '=' * (4 - remainder);
@@ -177,22 +175,78 @@ class AuthViewModel extends ChangeNotifier {
           json.decode(decoded) as Map<String, dynamic>;
 
       final exp = claims['exp'];
-      if (exp == null) return; // Tidak ada exp → anggap valid
+      if (exp != null) {
+        final expiry = DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
+        if (DateTime.now().isAfter(expiry)) {
+          return _refreshExpiredSession();
+        }
+      }
+    } on FormatException {
+      // The API still validates malformed or unreadable claims below.
+    } on TypeError {
+      // The API still validates claims with an unexpected local shape.
+    }
 
-      final expiry = DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
-      if (DateTime.now().isAfter(expiry)) {
-        // Token kedaluwarsa tidak boleh dipakai untuk melanjutkan session.
-        await logout();
-        _errorMessage = 'Session telah berakhir. Silakan login kembali.';
-        notifyListeners();
+    try {
+      await repository.validateSession(cachedToken);
+      return true;
+    } on AuthSessionInvalidException catch (error) {
+      if (_authResult == null) return false;
+      try {
+        _authResult = await repository.refreshSession(_authResult!);
+        return true;
+      } on AuthSessionInvalidException {
+        await _clearInvalidStoredSession(error.message);
+        return false;
+      } on TenantTokenMismatchException catch (refreshError) {
+        await _clearInvalidStoredSession(refreshError.message);
+        return false;
+      } on AuthNetworkException {
+        return true;
       }
     } catch (_) {
-      // Jika decode gagal karena format aneh, biarkan session tetap aktif
-      // Tidak perlu logout karena bisa jadi false positive
+      return true;
     }
   }
 
+  Future<bool> _refreshExpiredSession() async {
+    try {
+      _authResult = await repository.refreshSession(_authResult!);
+      return true;
+    } on AuthSessionInvalidException catch (error) {
+      await _clearInvalidStoredSession(error.message);
+      return false;
+    } on TenantTokenMismatchException catch (error) {
+      await _clearInvalidStoredSession(error.message);
+      return false;
+    } on AuthNetworkException {
+      return true;
+    }
+  }
+
+  Future<void> _clearInvalidStoredSession(String message) async {
+    _authResult = null;
+    await repository.clearStoredTokens();
+    _errorMessage = message;
+    notifyListeners();
+  }
+
+  Future<void> handleSessionExpired() async {
+    if (_authResult == null) {
+      await repository.clearStoredTokens();
+      return;
+    }
+    await _clearInvalidStoredSession(
+      'Sesi login tidak berlaku. Silakan login kembali.',
+    );
+  }
+
   Future<void> logout() async {
+    try {
+      await repository.revokeRefreshToken(_authResult?.refreshToken);
+    } catch (_) {
+      // Local logout must still complete when the server is unreachable.
+    }
     _authResult = null;
     _errorMessage = null;
     await repository.clearSession();

@@ -16,8 +16,11 @@ class RaporService {
   Future<List<dynamic>> fetchReportList(String token) async {
     final url = Uri.parse('$baseUrl/e-rapor/list');
     try {
-      final response = await http
-          .get(url, headers: _headers(token))
+      final response = await (tenantApiConfig.httpClient?.get(
+                url,
+                headers: _headers(token),
+              ) ??
+              http.get(url, headers: _headers(token)))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -51,8 +54,11 @@ class RaporService {
     final url = Uri.parse('$baseUrl/e-rapor/list/sync').replace(
       queryParameters: query,
     );
-    final response = await http
-        .get(url, headers: _headers(token))
+    final response = await (tenantApiConfig.httpClient?.get(
+              url,
+              headers: _headers(token),
+            ) ??
+            http.get(url, headers: _headers(token)))
         .timeout(const Duration(seconds: 15));
     final decoded = jsonDecode(response.body);
     if (response.statusCode == 200 &&
@@ -74,8 +80,11 @@ class RaporService {
   ) async {
     final url = Uri.parse('$baseUrl/e-rapor/$raporId');
     try {
-      final response = await http
-          .get(url, headers: _headers(token))
+      final response = await (tenantApiConfig.httpClient?.get(
+                url,
+                headers: _headers(token),
+              ) ??
+              http.get(url, headers: _headers(token)))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
@@ -102,8 +111,11 @@ class RaporService {
 
   Future<Uint8List> fetchReportPdf(String token, int raporId) async {
     final url = Uri.parse('$baseUrl/e-rapor/pdf/$raporId');
-    final response = await http
-        .get(url, headers: _headers(token))
+    final response = await (tenantApiConfig.httpClient?.get(
+              url,
+              headers: _headers(token),
+            ) ??
+            http.get(url, headers: _headers(token)))
         .timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
       String? responseDetail;

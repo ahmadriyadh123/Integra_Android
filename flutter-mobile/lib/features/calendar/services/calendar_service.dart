@@ -17,8 +17,12 @@ class CalendarService {
     if (cursor != null) query['cursor'] = cursor;
     final uri = Uri.parse('$baseUrl/calendar/sync')
         .replace(queryParameters: query);
-    final response = await http
-        .get(uri, headers: tenantApiConfig.headers(token: token))
+    final headers = tenantApiConfig.headers(token: token);
+    final response = await (tenantApiConfig.httpClient?.get(
+              uri,
+              headers: headers,
+            ) ??
+            http.get(uri, headers: headers))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
       throw Exception(
@@ -36,8 +40,12 @@ class CalendarService {
     final url = Uri.parse('$baseUrl/calendar/list');
 
     try {
-      final response = await http
-          .get(url, headers: tenantApiConfig.headers(token: token))
+      final headers = tenantApiConfig.headers(token: token);
+      final response = await (tenantApiConfig.httpClient?.get(
+                url,
+                headers: headers,
+              ) ??
+              http.get(url, headers: headers))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {

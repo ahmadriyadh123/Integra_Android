@@ -155,6 +155,8 @@ class FakeAuthRepository implements AuthRepository {
   Map<String, dynamic>? mockAuthData;
   bool saveAuthCalled = false;
   bool clearAuthCalled = false;
+  bool clearStoredTokensCalled = false;
+  bool invalidateCachedSession = false;
   bool tokenMatchesSelectedSchool = true;
 
   @override
@@ -169,6 +171,20 @@ class FakeAuthRepository implements AuthRepository {
   String savedUsername = '';
   String savedPassword = '';
   bool resolvePendingPasswordChangeCalled = false;
+  bool refreshSessionCalled = false;
+  AuthResult? mockRefreshResult;
+
+  @override
+  Future<AuthResult> refreshSession(AuthResult currentSession) async {
+    refreshSessionCalled = true;
+    if (currentSession.refreshToken == null) {
+      throw const AuthSessionInvalidException('Refresh token tidak tersedia');
+    }
+    return mockRefreshResult ?? currentSession;
+  }
+
+  @override
+  Future<void> revokeRefreshToken(String? refreshToken) async {}
 
   @override
   Future<AuthResult?> loginOffline(String username, String password) async {
@@ -208,7 +224,17 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> validateSession(String token) async {}
+  Future<void> clearStoredTokens() async {
+    clearStoredTokensCalled = true;
+    mockAuthData = null;
+  }
+
+  @override
+  Future<void> validateSession(String token) async {
+    if (invalidateCachedSession) {
+      throw const AuthSessionInvalidException('Signature verification failed');
+    }
+  }
 
   @override
   bool isTokenForSelectedSchool(String token) => tokenMatchesSelectedSchool;
@@ -261,30 +287,61 @@ void main() {
       viewModel = AuthViewModel(repository: fakeRepository);
     });
 
+    test('restoreSessionFromHive keeps a valid cached session', () async {
+      fakeRepository.mockAuthData = {
+        'access_token': 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature',
+        'token_type': 'bearer',
+        'user': {
+          'user_id': 1,
+          'partner_id': 2,
+          'student_id': 3,
+          'nis': '12345',
+          'name': 'Test User',
+          'username': 'testuser',
+          'email': 'test@example.com',
+          'is_portal': false,
+        },
+      };
+
+      final result = await viewModel.restoreSessionFromHive();
+
+      expect(result, true);
+      expect(fakeRepository.loginCalled, false);
+      expect(viewModel.token, 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature');
+      expect(viewModel.user?.username, 'testuser');
+    });
+
     test(
-      'restoreSessionFromHive loads auth from local storage without API call',
+      'refreshes an expired cached token when refresh token is available',
       () async {
         fakeRepository.mockAuthData = {
-          'access_token': 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature',
+          'access_token': 'header.eyJleHAiOjF9.signature',
+          'refresh_token': 'old-refresh',
           'token_type': 'bearer',
           'user': {
             'user_id': 1,
-            'partner_id': 2,
-            'student_id': 3,
-            'nis': '12345',
             'name': 'Test User',
             'username': 'testuser',
             'email': 'test@example.com',
-            'is_portal': false,
           },
         };
+        fakeRepository.mockRefreshResult = AuthResult(
+          accessToken: 'fresh-access-token',
+          refreshToken: 'rotated-refresh-token',
+          tokenType: 'bearer',
+          user: UserProfile(
+            userId: 1,
+            name: 'Test User',
+            username: 'testuser',
+            email: 'test@example.com',
+          ),
+        );
 
         final result = await viewModel.restoreSessionFromHive();
 
         expect(result, true);
-        expect(fakeRepository.loginCalled, false);
-        expect(viewModel.token, 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature');
-        expect(viewModel.user?.username, 'testuser');
+        expect(fakeRepository.refreshSessionCalled, true);
+        expect(viewModel.token, 'fresh-access-token');
       },
     );
 
@@ -334,6 +391,27 @@ void main() {
       expect(result, false);
       expect(fakeRepository.clearAuthCalled, true);
       expect(viewModel.isLoggedIn, false);
+    });
+
+    test('restore clears a cached token rejected by the server', () async {
+      fakeRepository.invalidateCachedSession = true;
+      fakeRepository.mockAuthData = {
+        'access_token': 'header.eyJleHAiOjI1MjQ2MDgwMDB9.signature',
+        'token_type': 'bearer',
+        'user': {
+          'user_id': 1,
+          'name': 'Test User',
+          'username': 'testuser',
+          'email': 'test@example.com',
+        },
+      };
+
+      final result = await viewModel.restoreSessionFromHive();
+
+      expect(result, false);
+      expect(fakeRepository.clearStoredTokensCalled, true);
+      expect(viewModel.isLoggedIn, false);
+      expect(viewModel.errorMessage, 'Signature verification failed');
     });
 
     test('login stores full auth result to Hive for offline restore', () async {

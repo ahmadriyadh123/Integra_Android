@@ -22,9 +22,12 @@ class WeeklyPlanService {
   Future<http.Response> _get(Uri uri, String token) async {
     try {
       final client = httpClient;
-      return await (client == null
-              ? http.get(uri, headers: _headers(token))
-              : client.get(uri, headers: _headers(token)))
+      final configuredClient = tenantApiConfig.httpClient;
+      return await (client != null
+              ? client.get(uri, headers: _headers(token))
+              : configuredClient != null
+              ? configuredClient.get(uri, headers: _headers(token))
+              : http.get(uri, headers: _headers(token)))
           .timeout(const Duration(seconds: 15));
     } on TimeoutException {
       throw Exception('Koneksi ke server terlalu lama. Coba lagi.');

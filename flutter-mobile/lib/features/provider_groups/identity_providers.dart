@@ -14,23 +14,34 @@ import '../../services/tenant_api_config.dart';
 
 List<SingleChildWidget> createIdentityProviders(
   String baseUrl,
-  TenantApiConfig tenantApiConfig,
-) => [
+  TenantApiConfig tenantApiConfig, {
+  AuthLocalStorage? authLocalStorage,
+}) => [
   Provider<AuthService>(
     create: (_) =>
         AuthService(baseUrl: baseUrl, tenantApiConfig: tenantApiConfig),
   ),
-  Provider<AuthLocalStorage>(create: (_) => AuthLocalStorage()),
+  Provider<AuthLocalStorage>.value(
+    value: authLocalStorage ?? AuthLocalStorage(),
+  ),
   ProxyProvider2<AuthService, AuthLocalStorage, AuthRepository>(
     update: (_, service, storage, _) =>
         AuthRepository(apiService: service, localStorageService: storage),
   ),
   ChangeNotifierProxyProvider<AuthRepository, AuthViewModel>(
-    create: (context) => AuthViewModel(
-      repository: Provider.of<AuthRepository>(context, listen: false),
-      connectivityChanges: Connectivity().onConnectivityChanged,
-    ),
-    update: (_, repo, previous) => previous ?? AuthViewModel(repository: repo),
+    create: (context) {
+      final viewModel = AuthViewModel(
+        repository: Provider.of<AuthRepository>(context, listen: false),
+        connectivityChanges: Connectivity().onConnectivityChanged,
+      );
+      tenantApiConfig.onSessionExpired = viewModel.handleSessionExpired;
+      return viewModel;
+    },
+    update: (_, repo, previous) {
+      final viewModel = previous ?? AuthViewModel(repository: repo);
+      tenantApiConfig.onSessionExpired = viewModel.handleSessionExpired;
+      return viewModel;
+    },
   ),
   Provider<ProfileService>(
     create: (_) =>

@@ -61,6 +61,7 @@ class AuthLocalStorage {
   static const String _keyOfflineAuth = 'offline_auth_result';
   static const String _keyUsername = 'saved_username';
   static const String _keyPassword = 'saved_password';
+  static const String _keyRefreshToken = 'refresh_token';
   static const String _keyPendingPasswordChange = 'pending_password_change';
 
   AuthLocalStorage({AuthSecretStorage? secretStorage})
@@ -83,8 +84,16 @@ class AuthLocalStorage {
   }) async {
     final box = await _box();
     await _secretStorage.write(_keyPassword, password);
-    await box.put(_keyAuth, authData);
-    await box.put(_keyOfflineAuth, authData);
+    final storedAuth = Map<String, dynamic>.from(authData)
+      ..remove('refresh_token');
+    final refreshToken = authData['refresh_token'];
+    if (refreshToken is String && refreshToken.isNotEmpty) {
+      await _secretStorage.write(_keyRefreshToken, refreshToken);
+    } else {
+      await _secretStorage.delete(_keyRefreshToken);
+    }
+    await box.put(_keyAuth, storedAuth);
+    await box.put(_keyOfflineAuth, storedAuth);
     await box.put(_keyUsername, username);
     await box.delete(_keyPassword);
   }
@@ -94,7 +103,30 @@ class AuthLocalStorage {
     final box = await _box();
     final raw = box.get(_keyAuth);
     if (raw is! Map) return null;
-    return Map<String, dynamic>.from(raw);
+    final auth = Map<String, dynamic>.from(raw);
+    final refreshToken = await _secretStorage.read(_keyRefreshToken);
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      auth['refresh_token'] = refreshToken;
+    }
+    return auth;
+  }
+
+  Future<String?> loadRefreshToken() => _secretStorage.read(_keyRefreshToken);
+
+  Future<void> saveRefreshedTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    final box = await _box();
+    for (final key in [_keyAuth, _keyOfflineAuth]) {
+      final raw = box.get(key);
+      if (raw is Map) {
+        final auth = Map<String, dynamic>.from(raw)
+          ..['access_token'] = accessToken;
+        await box.put(key, auth);
+      }
+    }
+    await _secretStorage.write(_keyRefreshToken, refreshToken);
   }
 
   Future<Map<String, dynamic>?> loadOfflineAuth() async {
@@ -162,7 +194,21 @@ class AuthLocalStorage {
 
   Future<void> clearSession() async {
     final box = await _box();
-    await Future.wait([box.delete(_keyAuth), box.delete(_keyLastTabIndex)]);
+    await Future.wait([
+      box.delete(_keyAuth),
+      box.delete(_keyLastTabIndex),
+      _secretStorage.delete(_keyRefreshToken),
+    ]);
+  }
+
+  Future<void> clearStoredTokens() async {
+    final box = await _box();
+    await Future.wait([
+      box.delete(_keyAuth),
+      box.delete(_keyOfflineAuth),
+      box.delete(_keyLastTabIndex),
+      _secretStorage.delete(_keyRefreshToken),
+    ]);
   }
 
   Future<void> saveLastTabIndex(int index) async {
@@ -185,6 +231,7 @@ class AuthLocalStorage {
       box.delete(_keyPassword),
       box.delete(_keyLastTabIndex),
       _secretStorage.delete(_keyPassword),
+      _secretStorage.delete(_keyRefreshToken),
     ]);
   }
 

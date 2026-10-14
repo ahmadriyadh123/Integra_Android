@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class TenantApiConfig {
-  TenantApiConfig({String schoolId = ''}) : schoolId = schoolId.trim();
+  TenantApiConfig({String schoolId = '', this.httpClient})
+    : schoolId = schoolId.trim();
 
   String schoolId;
+  http.Client? httpClient;
+  Future<void> Function()? onSessionExpired;
 
   int? schoolIdFromToken(String token) {
     final parts = token.split('.');

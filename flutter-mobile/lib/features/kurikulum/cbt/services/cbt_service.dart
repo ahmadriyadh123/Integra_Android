@@ -18,9 +18,12 @@ class CbtService {
   Future<http.Response> _get(Uri url, String token) {
     final headers = tenantApiConfig.headers(token: token);
     final client = httpClient;
-    return client == null
-        ? http.get(url, headers: headers)
-        : client.get(url, headers: headers);
+    final configuredClient = tenantApiConfig.httpClient;
+    return client != null
+        ? client.get(url, headers: headers)
+        : configuredClient != null
+        ? configuredClient.get(url, headers: headers)
+        : http.get(url, headers: headers);
   }
 
   Future<http.Response> _post(
@@ -30,9 +33,12 @@ class CbtService {
   }) {
     final headers = tenantApiConfig.headers(token: token);
     final client = httpClient;
-    return client == null
-        ? http.post(url, headers: headers, body: body)
-        : client.post(url, headers: headers, body: body);
+    final configuredClient = tenantApiConfig.httpClient;
+    return client != null
+        ? client.post(url, headers: headers, body: body)
+        : configuredClient != null
+        ? configuredClient.post(url, headers: headers, body: body)
+        : http.post(url, headers: headers, body: body);
   }
 
   /// Ambil daftar jadwal ujian CBT dari middleware

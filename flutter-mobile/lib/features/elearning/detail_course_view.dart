@@ -12,6 +12,7 @@ import '../widgets/shared_header.dart';
 import '../widgets/app_refresh_indicator.dart';
 import 'views/scorm_player_view.dart';
 import 'views/course_discussion_view.dart';
+import 'services/material_url_resolver.dart';
 
 const Color _green = Color(0xFF059669);
 const Color _bgSlate = Color(0xFFF8FAFC);
@@ -109,15 +110,10 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       if (!mounted) return;
     }
 
-    // Jika URL dari server relatif (tidak pakai http), gabungkan dengan base URL host saja
-    if (!fullUrl.startsWith('http')) {
-      final rawBaseUrl = _vm.repository.apiService.baseUrl;
-      final uriBase = Uri.parse(rawBaseUrl);
-      final hostOnly = '${uriBase.scheme}://${uriBase.host}:${uriBase.port}';
-
-      final cleanPath = fullUrl.startsWith('/') ? fullUrl : '/$fullUrl';
-      fullUrl = '$hostOnly$cleanPath';
-    }
+    fullUrl = resolveElearningMaterialUri(
+      fullUrl,
+      _vm.repository.apiService.baseUrl,
+    ).toString();
 
     // Bersihkan semua duplikasi teks /api/v1/api/v1/ atau /elearning/elearning/ yang berulang akibat penggabungan sebelumnya
     while (fullUrl.contains('/api/v1/api/v1/')) {

@@ -1,24 +1,48 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_application_1/features/auth/view/login_view.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/app_providers.dart';
+import 'features/auth/local/auth_local_storage.dart';
+import 'services/authenticated_http_client.dart';
+import 'services/remote_api_config_service.dart';
 import 'services/tenant_api_config.dart';
 
 const _apiBaseUrlKey = 'api_base_url';
 const _schoolIdKey = 'school_id';
+const _defaultApiBaseUrl =
+    'https://kp-sekolah.asetkoptii.com/mobile-api/api/v1';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   final preferences = await SharedPreferences.getInstance();
   final configuredBaseUrl = getApiBaseUrl();
-  final initialBaseUrl = configuredBaseUrl.isNotEmpty
+  var initialBaseUrl = configuredBaseUrl.isNotEmpty
       ? configuredBaseUrl
-      : preferences.getString(_apiBaseUrlKey) ?? '';
+      : preferences.getString(_apiBaseUrlKey) ?? _defaultApiBaseUrl;
+  if (configuredBaseUrl.isEmpty) {
+    try {
+      initialBaseUrl = await const RemoteApiConfigService().fetchBaseUrl();
+      try {
+        await preferences.setString(_apiBaseUrlKey, initialBaseUrl);
+      } on PlatformException catch (error) {
+        debugPrint('Gagal menyimpan konfigurasi API remote: $error');
+      }
+    } on RemoteApiConfigException catch (error) {
+      debugPrint('Gagal memuat konfigurasi API remote: $error');
+    } on TimeoutException {
+      debugPrint('Permintaan konfigurasi API remote melewati batas waktu.');
+    } on http.ClientException catch (error) {
+      debugPrint('Gagal menghubungi konfigurasi API remote: $error');
+    }
+  }
   final initialSchoolId = preferences.getString(_schoolIdKey) ?? getSchoolId();
   runApp(
     MyApp(
@@ -34,7 +58,6 @@ String getApiBaseUrl() {
   if (configuredUrl.isNotEmpty) {
     return configuredUrl.replaceFirst(RegExp(r'/+$'), '');
   }
-  if (kIsWeb) return Uri.base.resolve('/api/v1').toString();
   return '';
 }
 
@@ -62,6 +85,18 @@ class _MyAppState extends State<MyApp> {
   late final String _baseUrl = widget.initialBaseUrl;
   late String _schoolId = widget.initialSchoolId;
   late final _tenantApiConfig = TenantApiConfig(schoolId: _schoolId);
+  late final _authLocalStorage = AuthLocalStorage();
+  late final _authenticatedHttpClient = AuthenticatedHttpClient(
+    baseUrl: _baseUrl,
+    tenantApiConfig: _tenantApiConfig,
+    authStorage: _authLocalStorage,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _tenantApiConfig.httpClient = _authenticatedHttpClient;
+  }
 
   Future<void> _saveSchoolId(String schoolId) async {
     final normalizedSchoolId = schoolId.trim();
@@ -71,10 +106,20 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  void dispose() {
+    _authenticatedHttpClient.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       key: ValueKey(_baseUrl),
-      providers: getAppProviders(_baseUrl, _tenantApiConfig),
+      providers: getAppProviders(
+        _baseUrl,
+        _tenantApiConfig,
+        authLocalStorage: _authLocalStorage,
+      ),
       child: MaterialApp(
         title: 'Aplikasi Sekolah',
         theme: ThemeData(primarySwatch: Colors.teal),

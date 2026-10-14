@@ -109,11 +109,13 @@ class UserProfile {
 
 class AuthResult {
   final String accessToken;
+  final String? refreshToken;
   final String tokenType;
   final UserProfile user;
 
   AuthResult({
     required this.accessToken,
+    this.refreshToken,
     required this.tokenType,
     required this.user,
   });
@@ -126,8 +128,19 @@ class AuthResult {
 
     return AuthResult(
       accessToken: json['access_token'] as String,
+      refreshToken: json['refresh_token'] as String?,
       tokenType: json['token_type'] as String? ?? 'bearer',
       user: UserProfile.fromJson(Map<String, dynamic>.from(rawUser)),
     );
   }
+
+  AuthResult withTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) => AuthResult(
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+    tokenType: tokenType,
+    user: user,
+  );
 }

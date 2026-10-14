@@ -28,12 +28,15 @@ class ScormService {
   Future<http.Response> _send(http.Request request) async {
     try {
       final client = httpClient;
-      final streamedResponse =
-          await (client == null ? request.send() : client.send(request))
+      final configuredClient = tenantApiConfig.httpClient;
+      final streamedResponse = await (client != null
+          ? client.send(request)
+          : configuredClient != null
+          ? configuredClient.send(request)
+          : request.send());
+      final response = await http.Response.fromStream(streamedResponse)
               .timeout(const Duration(seconds: 15));
-      return await http.Response.fromStream(
-        streamedResponse,
-      ).timeout(const Duration(seconds: 15));
+      return response;
     } on TimeoutException {
       throw Exception('Koneksi ke server Odoo terlalu lama. Coba lagi.');
     } on http.ClientException catch (error) {
@@ -115,7 +118,9 @@ class ScormService {
     final zipFile = File(
       '${tempDir.path}/scorm_${DateTime.now().millisecondsSinceEpoch}.zip',
     );
-    final client = http.Client();
+    final client = httpClient ?? tenantApiConfig.httpClient ?? http.Client();
+    final shouldCloseClient =
+        httpClient == null && tenantApiConfig.httpClient == null;
 
     try {
       final request = http.Request('GET', uri);
@@ -152,7 +157,7 @@ class ScormService {
             : 'Gagal mengunduh SCORM (HTTP ${streamedResponse.statusCode})',
       );
     } finally {
-      client.close();
+      if (shouldCloseClient) client.close();
     }
   }
 

@@ -77,8 +77,11 @@ class ProfileService {
 
   Future<http.Response> _get(Uri uri, Map<String, String> headers) {
     final client = _client;
-    return client == null
-        ? http.get(uri, headers: headers)
-        : client.get(uri, headers: headers);
+    final configuredClient = tenantApiConfig.httpClient;
+    return client != null
+        ? client.get(uri, headers: headers)
+        : configuredClient != null
+        ? configuredClient.get(uri, headers: headers)
+        : http.get(uri, headers: headers);
   }
 }

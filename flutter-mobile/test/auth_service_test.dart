@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -7,6 +9,13 @@ import 'package:flutter_application_1/services/tenant_api_config.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  String encodeSegment(String value) =>
+      base64Url.encode(utf8.encode(value)).replaceAll('=', '');
+  final scopedToken = [
+    encodeSegment('{"alg":"HS256","typ":"JWT"}'),
+    encodeSegment('{"school_id":1}'),
+    encodeSegment('signature'),
+  ].join('.');
 
   test('uses cached schools until a refresh is explicitly requested', () async {
     SharedPreferences.setMockInitialValues({});
@@ -139,6 +148,45 @@ void main() {
       '/api/v1/auth/change-password',
     ]);
   });
+
+  test('validate reports a 401 as an invalid cached session', () async {
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      client: MockClient(
+        (request) async => http.Response(
+          '{"detail":"Token autentikasi tidak valid: Signature verification failed"}',
+          401,
+        ),
+      ),
+    );
+
+    await expectLater(
+      service.validateToken(scopedToken),
+      throwsA(
+        isA<AuthSessionInvalidException>().having(
+          (error) => error.message,
+          'message',
+          contains('Signature verification failed'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'validate preserves the cached session when the API is unavailable',
+    () async {
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+        client: MockClient(
+          (request) async => http.Response('Service unavailable', 503),
+        ),
+      );
+
+      await expectLater(service.validateToken(scopedToken), completes);
+    },
+  );
 
   test('classifies transport failures as retryable network failures', () async {
     const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';

@@ -54,6 +54,43 @@ class AuthRepository {
   /// Throw exception jika token invalid atau expired.
   Future<void> validateSession(String token) => apiService.validateToken(token);
 
+  Future<AuthResult> refreshSession(AuthResult currentSession) async {
+    final refreshToken = currentSession.refreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw const AuthSessionInvalidException(
+        'Sesi lama tidak memiliki refresh token. Silakan login kembali.',
+      );
+    }
+    final data = await apiService.refreshToken(refreshToken);
+    final accessToken = data['access_token'];
+    final newRefreshToken = data['refresh_token'];
+    final tokenType = data['token_type'];
+    if (accessToken is! String ||
+        accessToken.isEmpty ||
+        newRefreshToken is! String ||
+        newRefreshToken.isEmpty ||
+        (tokenType is String && tokenType.toLowerCase() != 'bearer') ||
+        !isTokenForSelectedSchool(accessToken)) {
+      throw const TenantTokenMismatchException();
+    }
+    final refreshed = currentSession.withTokens(
+      accessToken: accessToken,
+      refreshToken: newRefreshToken,
+    );
+    await localStorageService.saveRefreshedTokens(
+      accessToken: accessToken,
+      refreshToken: newRefreshToken,
+    );
+    return refreshed;
+  }
+
+  Future<void> revokeRefreshToken(String? refreshToken) async {
+    final currentRefreshToken = await localStorageService.loadRefreshToken();
+    final token = currentRefreshToken ?? refreshToken;
+    if (token == null || token.isEmpty) return;
+    await apiService.revokeRefreshToken(token);
+  }
+
   Future<PasswordChangeStatus> changePassword({
     required String token,
     required String currentPassword,
@@ -146,6 +183,10 @@ class AuthRepository {
 
   Future<void> clearSession() {
     return localStorageService.clearSession();
+  }
+
+  Future<void> clearStoredTokens() {
+    return localStorageService.clearStoredTokens();
   }
 
   /// Load saved username from local storage

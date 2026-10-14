@@ -52,6 +52,31 @@ void main() {
     expect(await localStorage.loadPassword(), 'strong-password');
   });
 
+  test('stores refresh tokens securely and updates access tokens on rotation', () async {
+    await localStorage.saveAuth(
+      {
+        'access_token': 'old-access',
+        'refresh_token': 'old-refresh',
+        'user': {'user_id': 1},
+      },
+      username: 'student',
+      password: 'password',
+    );
+
+    final box = await Hive.openBox('auth_session');
+    expect(secretStorage.values['refresh_token'], 'old-refresh');
+    expect((box.get('auth_result') as Map).containsKey('refresh_token'), false);
+    expect((await localStorage.loadAuth())?['refresh_token'], 'old-refresh');
+
+    await localStorage.saveRefreshedTokens(
+      accessToken: 'new-access',
+      refreshToken: 'new-refresh',
+    );
+
+    expect((await localStorage.loadAuth())?['access_token'], 'new-access');
+    expect(await localStorage.loadRefreshToken(), 'new-refresh');
+  });
+
   test('migrates a legacy Hive password into secure storage', () async {
     final box = await Hive.openBox('auth_session');
     await box.put('saved_password', 'legacy-password');

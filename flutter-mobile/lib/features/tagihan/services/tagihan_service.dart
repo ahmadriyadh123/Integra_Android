@@ -21,8 +21,12 @@ class TagihanService {
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
     try {
-      final response = await http
-          .get(url, headers: tenantApiConfig.headers(token: token))
+      final headers = tenantApiConfig.headers(token: token);
+      final response = await (tenantApiConfig.httpClient?.get(
+                url,
+                headers: headers,
+              ) ??
+              http.get(url, headers: headers))
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {

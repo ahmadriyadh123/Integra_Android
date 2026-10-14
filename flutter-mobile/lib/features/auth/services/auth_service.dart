@@ -15,6 +15,12 @@ class AuthNetworkException implements Exception {
   String toString() => message;
 }
 
+class AuthSessionInvalidException implements Exception {
+  const AuthSessionInvalidException(this.message);
+
+  final String message;
+}
+
 class AuthService {
   static const _schoolsCacheKeyPrefix = 'school_options_cache_';
 
@@ -31,14 +37,20 @@ class AuthService {
   Future<http.Response> _get(
     Uri uri, {
     Map<String, String>? headers,
-  }) => client?.get(uri, headers: headers) ?? http.get(uri, headers: headers);
+  }) =>
+      (client ?? tenantApiConfig.httpClient)?.get(uri, headers: headers) ??
+      http.get(uri, headers: headers);
 
   Future<http.Response> _post(
     Uri uri, {
     Map<String, String>? headers,
     Object? body,
   }) =>
-      client?.post(uri, headers: headers, body: body) ??
+      (client ?? tenantApiConfig.httpClient)?.post(
+        uri,
+        headers: headers,
+        body: body,
+      ) ??
       http.post(uri, headers: headers, body: body);
 
   Map<String, dynamic> _decodeObject(String body, String responseName) {
@@ -179,32 +191,75 @@ class AuthService {
   Future<void> validateToken(String token) async {
     final url = Uri.parse('$baseUrl/auth/validate');
 
+    final http.Response response;
     try {
-      final response = await _post(
+      response = await _post(
         url,
         headers: tenantApiConfig.headers(token: token),
-      )
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw TimeoutException('Validasi token timeout');
-            },
-          );
-
-      final jsonResponse = _decodeObject(response.body, 'validasi token');
-
-      if (response.statusCode != 200 || jsonResponse['success'] != true) {
-        throw Exception('Token tidak valid atau expired');
-      }
+      ).timeout(const Duration(seconds: 10));
     } on TimeoutException {
-      // Jika timeout, tidak perlu logout (mungkin server sedang lambat)
       return;
     } on http.ClientException {
-      // Network error, biarkan user tetap login dengan cache
       return;
-    } catch (_) {
-      throw Exception('Gagal validasi token');
+    } on SocketException {
+      return;
     }
+
+    if (response.statusCode == 401) {
+      var message = 'Sesi login tidak berlaku. Silakan login kembali.';
+      try {
+        final jsonResponse = _decodeObject(response.body, 'validasi token');
+        message = jsonResponse['detail']?.toString() ?? message;
+      } on FormatException {
+        // Keep the actionable session-expired message for non-JSON responses.
+      }
+      throw AuthSessionInvalidException(message);
+    }
+  }
+
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    final http.Response response;
+    try {
+      response = await _post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: tenantApiConfig.headers(),
+        body: json.encode({'refresh_token': refreshToken}),
+      ).timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw const AuthNetworkException(
+        'Koneksi ke server terlalu lama. Coba lagi.',
+      );
+    } on http.ClientException catch (error) {
+      throw AuthNetworkException('Gagal terhubung ke server: ${error.message}');
+    } on SocketException catch (error) {
+      throw AuthNetworkException('Gagal terhubung ke server: ${error.message}');
+    }
+    final decoded = _decodeObject(response.body, 'refresh token');
+    final data = decoded['data'];
+    if (response.statusCode == 200 &&
+        decoded['success'] == true &&
+        data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    if (response.statusCode == 401 ||
+        response.statusCode == 400 ||
+        response.statusCode == 403) {
+      throw AuthSessionInvalidException(
+        decoded['detail']?.toString() ??
+            'Sesi login telah berakhir. Silakan login kembali.',
+      );
+    }
+    throw Exception(
+      decoded['detail']?.toString() ?? 'Gagal memperbarui sesi login.',
+    );
+  }
+
+  Future<void> revokeRefreshToken(String refreshToken) async {
+    await _post(
+      Uri.parse('$baseUrl/auth/logout'),
+      headers: tenantApiConfig.headers(),
+      body: json.encode({'refresh_token': refreshToken}),
+    );
   }
 
   Future<void> changePassword({
