@@ -155,20 +155,24 @@ Workflow menjalankan tes backend terpilih sebelum mengirim source ke server.
 
 Keduanya memakai direktori dan service aktif yang sama (`/srv/developer/mwd`
 dan `mwd-api`), sehingga deployment mengganti backend yang melayani URL publik.
-Sebelum menjalankan pilihan manual, siapkan file environment terpisah di server:
+Konfigurasi backend dapat disediakan dengan salah satu dari dua cara berikut:
 
-```text
-/srv/developer/mwd-env/fast-api-middleware.env
-/srv/developer/mwd-env/middleware-with-database.env
-```
+1. **GitHub Actions Secrets (opsional):** isi `FAST_API_MIDDLEWARE_ENV` dan/atau
+   `MWD_DATABASE_ENV` dengan seluruh konfigurasi `.env` produksi backend
+   terkait. Workflow mengirim konfigurasi terpilih melalui SSH dan menghapus
+   salinan sementara dari runner/server setelah deployment.
+2. **File konfigurasi server (fallback):**
+   `/srv/developer/mwd-env/fast-api-middleware.env` dan
+   `/srv/developer/mwd-env/middleware-with-database.env`. Buat file sesuai
+   `.env.example` masing-masing backend dengan izin ketat dan beri akun
+   deployment izin baca.
 
-Isi masing-masing sesuai `.env.example` backend tersebut dan konfigurasi
-produksi aktual. Admin harus membuat direktori serta file dengan izin ketat,
-memberi akun deployment izin baca, dan menjaga agar file tidak bisa diunduh
-publik. Workflow memasang file yang terpilih sebagai
-`/srv/developer/mwd/.env`, yang dibaca service systemd; konfigurasi environment
-aktif sebelumnya disimpan pada backup deployment dan dipulihkan jika health
-check gagal. Jangan menyimpan file environment berisi rahasia di GitHub.
+Jika secret untuk backend terpilih terisi, nilainya digunakan; jika tidak,
+workflow memakai file konfigurasi server yang sesuai. Jangan menyimpan `.env`
+atau rahasia di source Git. Workflow memasang konfigurasi terpilih sebagai
+`/srv/developer/mwd/.env`, yang dibaca systemd, menyimpan konfigurasi aktif
+sebelumnya dalam backup berizin ketat, dan memulihkannya jika health check
+server gagal.
 
 Sebelum mengaktifkannya:
 
@@ -176,8 +180,11 @@ Sebelum mengaktifkannya:
    `DEPLOY_USER` (akun deployment), `DEPLOY_SSH_KEY` (private key deployment),
    dan `DEPLOY_KNOWN_HOSTS` (host key yang fingerprint-nya sudah diverifikasi
    melalui kanal tepercaya) di **Settings → Secrets and variables → Actions**.
-2. Pastikan akun dapat memperbarui `/srv/developer/mwd`, membaca kedua file
-   environment backend yang hendak dipilih, menjalankan
+2. Untuk konfigurasi via file server, pastikan akun dapat membaca file
+   environment backend yang dipilih. Untuk konfigurasi via GitHub Secrets,
+   tambahkan `FAST_API_MIDDLEWARE_ENV` dan/atau `MWD_DATABASE_ENV` sesuai
+   format `.env` backend, tanpa tanda kutip pembungkus. Selain itu akun harus
+   dapat memperbarui `/srv/developer/mwd`, menjalankan
    `systemctl --user restart mwd-api`, dan membaca
    `/srv/developer/mwd/.venv`.
 3. Pastikan `rsync`, `curl`, dan `tar` tersedia, service `mwd-api` aktif, dan
