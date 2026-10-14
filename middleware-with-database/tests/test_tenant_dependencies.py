@@ -202,6 +202,41 @@ async def test_missing_tenant_database_returns_configuration_error(tenant, monke
     assert "odoo_db" in error.value.detail
 
 
+@pytest.mark.asyncio
+async def test_raw_asyncpg_missing_tenant_database_returns_configuration_error(
+    tenant, monkeypatch
+):
+    from asyncpg.exceptions import InvalidCatalogNameError
+    from fastapi import HTTPException
+
+    class Session:
+        def __init__(self):
+            self.info = {}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def connection(self):
+            raise InvalidCatalogNameError(
+                f'database "{tenant.odoo_db}" does not exist'
+            )
+
+    monkeypatch.setattr(
+        "app.core.dependencies.create_tenant_session_factory",
+        lambda _database_name: Session,
+    )
+    database_session = get_db(tenant)
+
+    with pytest.raises(HTTPException) as error:
+        await anext(database_session)
+
+    assert error.value.status_code == 503
+    assert "odoo_db" in error.value.detail
+
+
 def test_tenant_database_name_rejects_invalid_characters():
     with pytest.raises(ValueError, match="Nama database tenant tidak valid"):
         database.get_tenant_engine("school/db")

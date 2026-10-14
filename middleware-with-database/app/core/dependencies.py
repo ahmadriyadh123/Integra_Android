@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import jwt
+from asyncpg.exceptions import InvalidCatalogNameError
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
@@ -19,8 +20,10 @@ from app.core.models import SchoolTenant
 security_scheme = HTTPBearer(auto_error=False)
 
 
-def _is_missing_database_error(error: DBAPIError) -> bool:
-    original: BaseException | None = error.orig
+def _is_missing_database_error(error: BaseException) -> bool:
+    original: BaseException | None = (
+        error.orig if isinstance(error, DBAPIError) else error
+    )
     while original is not None:
         sqlstate = getattr(original, "sqlstate", None) or getattr(
             original, "pgcode", None
@@ -61,7 +64,7 @@ async def get_db(
         session.info["tenant_odoo_url"] = tenant.odoo_url
         try:
             await session.connection()
-        except DBAPIError as exc:
+        except (DBAPIError, InvalidCatalogNameError) as exc:
             if _is_missing_database_error(exc):
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
