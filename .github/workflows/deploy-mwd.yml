@@ -273,6 +273,11 @@ jobs:
               sleep 2
             done
             echo "Backend did not pass its local HTTP health check."
+            echo "mwd-api systemd state:"
+            systemctl --user show mwd-api --no-pager \
+              --property=ActiveState,SubState,Result,ExecMainStatus,MainPID || true
+            echo "Inspect the startup traceback securely on the server with:"
+            echo "journalctl --user -u mwd-api -n 80 --no-pager"
             exit 1
           ); then
             echo "Deployment failed; restoring the previous backend source."
