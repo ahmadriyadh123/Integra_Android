@@ -92,6 +92,8 @@ Sebelum deployment, pastikan:
    LibreOffice Writer lalu pastikan executable tersedia:
 
    ```bash
+   sudo apt-get update
+   sudo apt-get install -y libreoffice-writer
    command -v soffice || command -v libreoffice
    ```
 
