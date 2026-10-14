@@ -25,6 +25,17 @@ class APIResponseCbtList(BaseModel):
     message: str
     data: CbtExamListResponse
 
+class CbtScheduleSyncData(BaseModel):
+    exams: List[CbtExamItemResponse]
+    removed_ids: List[int]
+    cursor: str
+    is_full_sync: bool
+
+class APIResponseCbtSync(BaseModel):
+    success: bool
+    message: str
+    data: CbtScheduleSyncData
+
 class VerifyTokenRequest(BaseModel):
     jadwal_ujian_id: int
     token_input: str

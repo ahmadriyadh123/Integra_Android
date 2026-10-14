@@ -1,10 +1,13 @@
+from datetime import datetime, timezone
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.cbt.schemas import (
     APIResponseCbtList,
+    APIResponseCbtSync,
     VerifyTokenRequest,
     APIResponseCbtQuestions,
     SubmitExamPayload,
@@ -45,6 +48,36 @@ async def get_cbt_schedules(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengambil jadwal CBT: {str(e)}"
         )
+
+
+@router.get("/schedules/sync", response_model=APIResponseCbtSync)
+async def sync_cbt_schedules(
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        service = CbtService(CbtRepository(db))
+        schedule_list = await service.get_exam_list(
+            course_id=creds.get("course_id"),
+            student_id=creds.get("student_id"),
+        )
+        return {
+            "success": True,
+            "message": "Berhasil menyinkronkan jadwal ujian CBT",
+            "data": {
+                "exams": schedule_list["exams"],
+                "removed_ids": [],
+                "cursor": datetime.now(timezone.utc).isoformat(),
+                "is_full_sync": True,
+            },
+        }
+    except Exception as exc:
+        logger.exception("[cbt/schedules/sync] Error uid=%s", creds.get("uid"))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal menyinkronkan jadwal CBT.",
+        ) from exc
+
 
 @router.post("/verify-token")
 async def verify_exam_token(

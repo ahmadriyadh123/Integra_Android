@@ -1,5 +1,25 @@
 # Middleware Direct Database
 
+## Konfigurasi URL API untuk Flutter
+
+Aplikasi Flutter terbaru mengambil URL API saat startup dari endpoint
+`GET /client-config` dan menyimpan URL terakhir sebagai fallback offline.
+Endpoint bootstrap tetapnya adalah
+`https://kp-sekolah.asetkoptii.com/mobile-api/client-config`.
+
+Atur URL layanan yang sedang aktif pada environment backend:
+
+```env
+CLIENT_API_BASE_URL=https://kp-sekolah.asetkoptii.com/mobile-api/api/v1
+```
+
+Nilai tersebut harus berupa URL HTTPS yang berakhir dengan `/api/v1`.
+Setelah mengubahnya, restart service backend. Aplikasi Play Store perlu
+mendapat satu kali pembaruan untuk mulai menggunakan konfigurasi remote;
+versi lama yang belum memiliki bootstrap ini tetap memakai URL yang dibangun
+ke dalam aplikasinya. Untuk pengembangan, `--dart-define=API_BASE_URL=...`
+tetap menjadi override eksplisit dan melewati konfigurasi remote.
+
 Backend ini membaca data sekolah langsung melalui SQLAlchemy async. Database
 registry menyimpan daftar sekolah, sedangkan setiap sekolah menunjuk ke database
 Odoo terpisah pada server PostgreSQL yang sama. Tidak ada pemanggilan JSON-RPC.
@@ -65,6 +85,11 @@ database tenant.
   membawa token untuk sekolah berbeda ditolak dengan HTTP 403.
 - Setiap request tenant membuka sesi SQLAlchemy ke database sekolah terpilih.
   Engine dan connection pool digunakan ulang per nama database.
+
+Endpoint sinkronisasi presensi (`/api/v1/attendance/history/sync`) dan jadwal
+CBT (`/api/v1/cbt/schedules/sync`) mengembalikan snapshot penuh untuk sekolah
+dan siswa/kelas pada token aktif. Klien menerima cursor untuk kompatibilitas
+kontrak, tetapi backend saat ini mengirim ulang snapshot pada setiap sinkronisasi.
 
 Contoh alur:
 

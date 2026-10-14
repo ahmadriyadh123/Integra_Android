@@ -15,7 +15,7 @@ class AuthService:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
             expire = datetime.now(timezone.utc) + timedelta(
-                days=settings.ACCESS_TOKEN_EXPIRE_DAYS
+                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
             )
 
         to_encode.update({"exp": expire})

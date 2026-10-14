@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
+from app.core.config import settings
 from app.core.database import dispose_database_engines, registry_engine
 from app.core.models import SchoolTenant
 
@@ -32,6 +33,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+@app.get("/client-config", include_in_schema=False)
+async def client_config():
+    return {"api_base_url": settings.CLIENT_API_BASE_URL}
 
 @app.get("/")
 async def root():

@@ -1,0 +1,559 @@
+# Panduan Deployment Backend MWD
+
+Panduan tahap demi tahap untuk men-deploy backend FastAPI Middleware Direct
+Database ke server Ubuntu yang sudah menjalankan PostgreSQL, Odoo, dan Nginx.
+Dokumen ini hanya membahas backend dan operasional server.
+
+## Batasan dan asumsi
+
+- Target: Ubuntu 22.04, akun deployment `devmobile`, direktori aplikasi
+  `/srv/developer/mwd`.
+- PostgreSQL, database registry, database tenant Odoo, Odoo filestore, DNS,
+  Nginx, dan sertifikat HTTPS dikelola oleh pemilik/admin server.
+- Backend menggunakan database registry dan tenant yang sudah ada. Panduan
+  ini tidak membuat, memigrasikan, atau menghapus database Odoo.
+- Backend tidak boleh memiliki akses tulis ke filestore. Berikan baca/traverse
+  minimum sesuai tenant yang diperlukan.
+- Backend listen pada `127.0.0.1:8000`. Jangan membuka port 8000 ke internet;
+  akses eksternal harus melalui Nginx/HTTPS.
+- Kredensial, private key, token, dan isi `.env` tidak boleh dimasukkan ke Git,
+  log yang dibagikan, tiket, atau chat.
+- Pembuatan PDF dari template DOCX memerlukan LibreOffice Writer (`soffice`).
+  Paket sistem ini harus dipasang oleh admin server; akun deployment tidak
+  memiliki `sudo`.
+- Beberapa langkah (ACL filestore, Nginx, linger, firewall, system service,
+  rotasi PostgreSQL) memerlukan hak admin. Akun `devmobile` tidak memiliki
+  `sudo`, jadi admin harus menjalankan bagian tersebut.
+- Dokumen ini bukan jaminan high availability. Satu VM dengan satu proses
+  backend tetap merupakan satu titik kegagalan. Backup, pemulihan, monitoring,
+  kapasitas, dan pemulihan bencana harus disepakati dengan admin.
+
+## Status server terakhir yang diketahui
+
+Status ini berdasarkan pemeriksaan terakhir pada 14 Oktober 2026; cek ulang
+sebelum menjalankan perubahan:
+
+- Ubuntu 22.04; root disk 20 GB dengan sekitar 10 GB tersedia pada pemeriksaan
+  tersebut.
+- PostgreSQL, Nginx, dan Odoo 16 pernah terverifikasi aktif.
+- Source dan virtual environment tersedia di `/srv/developer/mwd`.
+- Database registry `kp-sekolah.asetkoptii.com` pernah terverifikasi dapat
+  diakses oleh kredensial backend; tabel `school_tenants` sudah ada.
+- Akses baca root filestore
+  `/opt/odoo16/.local/share/Odoo/filestore` pernah terverifikasi.
+- Service user `mwd-api` pernah `enabled` dan backend pernah berhasil
+  menyajikan endpoint lokal.
+- `Linger=no` pada pemeriksaan terakhir. Service user belum terjamin berjalan
+  setelah logout atau boot.
+- Pemeriksaan endpoint publik terakhir mendapat HTTP 502 dan status/listener
+  service tidak konsisten. Anggap deployment **belum sehat untuk produksi**
+  sampai semua verifikasi di bagian akhir lulus.
+
+## Tahap 1 — Periksa ketersediaan dan prasyarat server
+
+Login ke server:
+
+```bash
+ssh devmobile@kp-sekolah.asetkoptii.com
+```
+
+Periksa OS, resource, DNS, service, dan listener:
+
+```bash
+cat /etc/os-release
+df -h /
+free -h
+getent ahostsv4 kp-sekolah.asetkoptii.com
+systemctl is-active nginx
+systemctl is-active postgresql
+systemctl is-active odoo16
+pg_isready -h 127.0.0.1 -p 5432
+ss -ltn
+curl -I --max-time 10 https://kp-sekolah.asetkoptii.com/
+```
+
+Sebelum deployment, pastikan:
+
+1. Disk dan memori mencukupi; kapasitas harus dipantau karena Odoo, PostgreSQL,
+   backup, dan log berbagi disk yang sama.
+2. DNS domain menuju IP server dan HTTPS valid.
+3. PostgreSQL menerima koneksi backend dan role aplikasi dapat membuka registry
+   serta database tenant yang dibutuhkan.
+4. Python 3, `venv`, `pip`, dan utilitas yang dipakai tersedia:
+
+   ```bash
+   python3 --version
+   python3 -m venv --help
+   command -v pip3
+   ```
+
+5. Backend hanya listen di loopback; firewall tidak mengekspos `8000`.
+6. Jika fitur PDF Weekly Plan/E-Rapor digunakan, minta admin memasang
+   LibreOffice Writer lalu pastikan executable tersedia:
+
+   ```bash
+   command -v soffice || command -v libreoffice
+   ```
+
+> Pada pemeriksaan terdahulu PostgreSQL listen pada `0.0.0.0:5432` dan
+> `[::]:5432`. Minta admin mengaudit firewall dan `pg_hba.conf`, lalu batasi
+> sumber koneksi PostgreSQL. Jangan mengubah firewall melalui SSH sebelum
+> memastikan port SSH tetap diizinkan.
+
+## Tahap 2 — Siapkan atau perbarui source
+
+Direktori deployment:
+
+```text
+/srv/developer/mwd
+```
+
+Untuk upload dari PowerShell Windows, jalankan dari folder proyek backend.
+Arsip ini mengecualikan `.env`, virtual environment, cache, dan Git:
+
+```powershell
+Set-Location C:\path\ke\project\middleware-with-database
+$archive = Join-Path $env:TEMP 'mwd-source.tar.gz'
+tar.exe -czf $archive `
+  --exclude=.env `
+  --exclude=.venv `
+  --exclude=venv `
+  --exclude=.git `
+  --exclude=__pycache__ `
+  --exclude=.pytest_cache `
+  -C . .
+scp $archive devmobile@kp-sekolah.asetkoptii.com:/home/devmobile/mwd-source.tar.gz
+ssh devmobile@kp-sekolah.asetkoptii.com `
+  "mkdir -p /srv/developer/mwd; tar -xzf /home/devmobile/mwd-source.tar.gz -C /srv/developer/mwd; rm -f /home/devmobile/mwd-source.tar.gz"
+Remove-Item -LiteralPath $archive
+```
+
+Ganti `C:\path\ke\project` dengan path checkout yang benar. Ekstraksi
+memperbarui source; perintah tersebut tidak menghapus file lama yang tidak ada
+di arsip. Sebelum deploy versi baru:
+
+1. Pastikan perubahan sudah diuji pada lingkungan pengembangan/staging.
+2. Pastikan backup dan prosedur rollback tersedia.
+3. Jangan pernah menyertakan `.env`, virtual environment Windows, atau secret
+   dalam arsip.
+
+### Deployment otomatis melalui GitHub Actions
+
+Repository menyediakan workflow `.github/workflows/deploy-mwd.yml`. Workflow
+berjalan setelah perubahan di `middleware-with-database/` masuk ke branch
+`main`, atau dapat dijalankan manual dari tab **Actions**. Workflow menjalankan
+tes dan pemeriksaan sintaks sebelum mengirim source ke server. Deployment
+menyimpan backup source sebelumnya, mempertahankan `.env` dan `.venv`, lalu
+memeriksa service dan endpoint publik. Jika pemeriksaan lokal di server gagal,
+workflow memulihkan source sebelumnya dan menandai run gagal.
+
+Sebelum mengaktifkannya:
+
+1. Tambahkan repository secrets berikut pada **Settings → Secrets and variables
+   → Actions**:
+   - `MWD_DEPLOY_HOST`: hostname server deployment saja, tanpa `https://`,
+     path, atau port (contoh: `kp-sekolah.asetkoptii.com`).
+   - `MWD_DEPLOY_USER`: akun SSH deployment (`devmobile`).
+   - `MWD_DEPLOY_SSH_KEY`: private key SSH khusus deployment; tambahkan public
+     key pasangannya ke `authorized_keys` akun server.
+   - `MWD_DEPLOY_KNOWN_HOSTS`: entri host key SSH untuk hostname tersebut.
+     Verifikasi fingerprint host key melalui kanal tepercaya sebelum
+     menyimpannya; jangan mengandalkan `ssh-keyscan` tanpa verifikasi.
+2. Pastikan akun dapat menulis ke `/srv/developer/mwd`, menjalankan
+   `systemctl --user restart mwd-api`, dan membaca virtual environment
+   `/srv/developer/mwd/.venv`.
+3. Pastikan admin server sudah memasang LibreOffice Writer dan
+   `command -v soffice` atau `command -v libreoffice` berhasil. Workflow
+   memeriksa prasyarat ini sebelum mengubah source dan akan berhenti dengan
+   pesan yang jelas bila executable tidak ditemukan.
+4. Pastikan `rsync`, `curl`, dan `tar` tersedia di server serta service
+   `mwd-api` sudah aktif. Runner GitHub menyediakan `rsync`, `curl`, dan `tar`.
+5. Uji workflow secara manual dari branch `main` setelah seluruh secrets
+   dipasang. Kode hanya dipublikasikan setelah perubahan di-commit dan
+   di-push ke GitHub.
+
+File `.env` dan `.venv` produksi tidak dikirim, ditimpa, atau dihapus oleh
+workflow. Backup source tersimpan di `~/mwd-deploy-backups/` pada akun server;
+pantau kapasitas disk dan bersihkan backup lama sesuai kebijakan retensi.
+Workflow hanya memvalidasi HTTP health endpoint; ia tidak menjalankan migrasi
+database atau memverifikasi fungsi dengan token pengguna.
+
+## Tahap 3 — Siapkan Python environment dan dependency
+
+Di server:
+
+```bash
+cd /srv/developer/mwd
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+.venv/bin/pip check
+.venv/bin/python -m compileall -q app
+```
+
+Jika virtual environment sudah ada, tidak perlu membuatnya ulang; cukup pasang
+dependency baru setelah `requirements.txt` berubah. `python-multipart` wajib
+untuk endpoint upload dan sudah tercantum di manifest.
+
+## Tahap 4 — Siapkan konfigurasi produksi dan rahasia
+
+Buat `.env` hanya jika belum ada:
+
+```bash
+cd /srv/developer/mwd
+cp .env.example .env
+nano .env
+```
+
+Jika file sudah ada, edit file itu tanpa menimpanya dengan template. Jangan
+menampilkan seluruh isinya menggunakan `cat`, `env`, atau shell tracing.
+
+Variabel backend utama:
+
+| Variabel | Ketentuan |
+|---|---|
+| `ODOO_HOST` | Host yang dapat dijangkau backend; dipakai sebagai host PostgreSQL dan pembentuk URL Odoo oleh aplikasi. Pastikan nilainya sesuai untuk kedua fungsi tersebut. |
+| `DB_PORT` | Port PostgreSQL, biasanya `5432`. |
+| `DB_USER` | Role database dengan izin minimum ke registry dan database tenant yang diperlukan. |
+| `DB_PASSWORD` | Password baru yang disimpan hanya di `.env`. |
+| `REGISTRY_DB_NAME` | Nama database registry yang benar dan sudah ada. `DB_NAME` merupakan alias kompatibilitas lama; jangan set keduanya ke nilai yang berbeda. |
+| `JWT_SECRET_KEY` | Secret acak minimal 32 karakter; buat langsung di server. Semua worker/instance harus memakai nilai yang sama dan stabil. Rotasi secret membatalkan access token yang masih aktif. |
+| `JWT_ALGORITHM` | Algoritma yang digunakan aplikasi, umumnya `HS256`. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Masa hidup access token; default 15 menit. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Masa hidup refresh token; default 30 hari dan diperpanjang saat rotasi. |
+| `APP_ENV` | Gunakan `production`. |
+| `ODOO_FILESTORE_PATH` | Root filestore bersama, bukan folder tenant tunggal. |
+
+Buat secret JWT tanpa mencetak nilai secret ke dokumen/chat:
+
+```bash
+openssl rand -hex 32
+```
+
+Ganti konfigurasi lama `ACCESS_TOKEN_EXPIRE_DAYS` dengan
+`ACCESS_TOKEN_EXPIRE_MINUTES` jika masa hidup access token ingin diatur.
+
+Atur izin file:
+
+```bash
+chmod 600 /srv/developer/mwd/.env
+```
+
+Password database yang pernah terpapar harus dirotasi. Jika role itu juga
+digunakan Odoo, koordinasikan perubahan password pada konfigurasi Odoo dan
+backend dalam jendela pemeliharaan yang sama. Jangan memasukkan password
+langsung sebagai argumen command atau ke shell history.
+
+## Tahap 5 — Verifikasi database dan skema aplikasi
+
+Pastikan registry dan tenant yang diperlukan sudah tersedia. Jangan membuat
+database Odoo baru atau mengganti nama database sebagai jalan pintas.
+
+Aplikasi membuat tabel `school_tenants` dan `refresh_tokens` di registry pada
+startup jika belum ada. Tabel refresh menyimpan hash token, bukan token mentah.
+Database user harus memiliki koneksi, izin schema yang diperlukan untuk
+pembuatan tabel, serta izin baca data pada registry dan database tenant.
+
+Flutter menyimpan refresh token di secure storage perangkat dan mencoba rotasi
+satu kali saat request middleware menerima HTTP 401. Instalasi lama yang belum
+memiliki refresh token perlu login ulang satu kali untuk menerbitkannya.
+Refresh token tidak memperbaiki konfigurasi JWT: semua instance backend tetap
+wajib berbagi `JWT_SECRET_KEY` yang sama. Jika key berbeda antar-instance,
+token access baru pun dapat gagal bergantung pada instance yang menerima
+request; selaraskan konfigurasi server secara terpisah dan jangan menaruh key
+di aplikasi.
+
+Jalankan backend sementara melalui systemd sesuai Tahap 7, lalu periksa log:
+
+```bash
+systemctl --user restart mwd-api
+journalctl --user -u mwd-api -n 60 --no-pager
+```
+
+Startup sehat berarti tidak ada error autentikasi, `database does not exist`,
+izin schema, DNS, atau timeout. Jangan mencetak atau mengirim password saat
+mendiagnosis masalah koneksi.
+
+## Tahap 6 — Berikan akses filestore baca-saja
+
+Cari root filestore aktual melalui admin Odoo. Pada server ini path yang pernah
+dikonfirmasi:
+
+```text
+/opt/odoo16/.local/share/Odoo/filestore
+```
+
+Jika `setfacl` belum tersedia, admin dapat memasang ACL tools:
+
+```bash
+command -v setfacl || sudo apt-get install -y acl
+```
+
+Untuk semua tenant, admin dapat memberi `devmobile` traverse pada parent dan
+baca-saja pada filestore:
+
+```bash
+sudo setfacl -m u:devmobile:--x /opt/odoo16
+sudo setfacl -m u:devmobile:--x /opt/odoo16/.local
+sudo setfacl -m u:devmobile:--x /opt/odoo16/.local/share
+sudo setfacl -m u:devmobile:--x /opt/odoo16/.local/share/Odoo
+sudo setfacl -m u:devmobile:r-x /opt/odoo16/.local/share/Odoo/filestore
+sudo setfacl -R -m u:devmobile:r-X /opt/odoo16/.local/share/Odoo/filestore
+sudo find /opt/odoo16/.local/share/Odoo/filestore -type d \
+  -exec setfacl -m d:u:devmobile:r-x {} +
+```
+
+Jika backend hanya memerlukan beberapa tenant, batasi ACL pada direktori tenant
+tersebut. Default ACL membantu file baru mewarisi izin yang dibutuhkan; uji
+perilaku setelah file baru dibuat. Jangan `chown` seluruh filestore atau
+memberi backend izin tulis.
+
+Verifikasi path:
+
+```bash
+test -r /opt/odoo16/.local/share/Odoo/filestore \
+  && test -x /opt/odoo16/.local/share/Odoo/filestore \
+  && echo "filestore root accessible"
+sudo -u devmobile find /opt/odoo16/.local/share/Odoo/filestore \
+  -type f -print -quit
+```
+
+Jika ditemukan file, uji baca pada file yang ditemukan:
+
+```bash
+sudo -u devmobile test -r "/path/ke/file-yang-ditemukan" \
+  && echo "filestore file readable"
+```
+
+## Tahap 7 — Jalankan backend sebagai service
+
+Unit user service:
+
+```text
+~/.config/systemd/user/mwd-api.service
+```
+
+Contoh unit minimal yang sesuai dengan server ini:
+
+```ini
+[Unit]
+Description=MWD FastAPI Middleware
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/developer/mwd
+EnvironmentFile=/srv/developer/mwd/.env
+ExecStart=/srv/developer/mwd/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --root-path /mobile-api
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target
+```
+
+Pada host ini opsi sandbox systemd tambahan pernah menyebabkan
+`218/CAPABILITIES`; gunakan konfigurasi minimal dan validasi sebelum
+menambahkan hardening khusus. Aktifkan:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now mwd-api
+systemctl --user status mwd-api --no-pager
+```
+
+Admin harus mengaktifkan linger agar user manager berjalan setelah logout dan
+boot:
+
+```bash
+sudo loginctl enable-linger devmobile
+```
+
+Verifikasi:
+
+```bash
+loginctl show-user devmobile -p Linger
+systemctl --user is-enabled mwd-api
+systemctl --user is-active mwd-api
+ss -ltn | grep '127.0.0.1:8000'
+```
+
+Jika kebijakan server tidak mengizinkan linger, minta admin menyediakan
+**system service** yang berjalan sebagai akun `devmobile` dan membaca
+`/srv/developer/mwd/.env`. Jangan menjalankan Uvicorn di terminal interaktif
+sebagai pengganti service produksi. Jangan gunakan `--reload` di produksi.
+
+Kontrol service dan log:
+
+```bash
+systemctl --user status mwd-api
+systemctl --user restart mwd-api
+systemctl --user stop mwd-api
+journalctl --user -u mwd-api -n 100 --no-pager
+journalctl --user -u mwd-api -f
+```
+
+## Tahap 8 — Pasang reverse proxy Nginx
+
+Admin mengedit server block HTTPS domain yang sudah ada. Buat backup dan
+periksa konfigurasi aktif terlebih dahulu:
+
+```bash
+readlink -f /etc/nginx/sites-enabled/asetkoptii
+sudo cp -a /etc/nginx/sites-available/asetkoptii \
+  "/etc/nginx/sites-available/asetkoptii.bak.$(date +%Y%m%d-%H%M%S)"
+sudo grep -nE 'server_name|listen 443|location|proxy_pass' \
+  /etc/nginx/sites-available/asetkoptii
+sudoedit /etc/nginx/sites-available/asetkoptii
+```
+
+Di dalam server block HTTPS yang benar, tambahkan location untuk meneruskan
+path API ke Uvicorn. Jangan menghapus atau mengubah routing Odoo yang sudah ada;
+pastikan tidak ada location yang bentrok.
+
+```nginx
+location = /mobile-api {
+    return 308 /mobile-api/;
+}
+
+location /mobile-api/ {
+    client_max_body_size 100m;
+
+    proxy_pass http://127.0.0.1:8000/;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_read_timeout 120s;
+}
+```
+
+Slash akhir pada `proxy_pass` menghapus prefix `/mobile-api/` sebelum request
+diteruskan. Backend dijalankan dengan `--root-path /mobile-api`. Sesuaikan
+batas upload sesuai kebijakan aplikasi dan kapasitas server.
+
+Validasi sebelum reload:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Jangan reload jika tes gagal. Perubahan Nginx/sertifikat memerlukan hak admin.
+
+## Tahap 9 — Uji kesiapan backend
+
+Uji lokal sebagai `devmobile`:
+
+```bash
+systemctl --user is-active mwd-api
+curl -i --max-time 10 http://127.0.0.1:8000/
+curl -i --max-time 10 http://127.0.0.1:8000/openapi.json
+```
+
+Uji melalui Nginx:
+
+```bash
+curl -i --max-time 10 \
+  https://kp-sekolah.asetkoptii.com/mobile-api/
+curl -i --max-time 10 \
+  https://kp-sekolah.asetkoptii.com/mobile-api/openapi.json
+curl -i --max-time 10 \
+  https://kp-sekolah.asetkoptii.com/mobile-api/api/v1/auth/schools
+```
+
+Backend dinyatakan siap ketika:
+
+1. Unit service `active` dan tetap hidup setelah koneksi SSH ditutup.
+2. Listener Uvicorn hanya `127.0.0.1:8000`, tidak `0.0.0.0:8000`.
+3. Root/OpenAPI lokal merespons sesuai aplikasi.
+4. Permintaan melalui HTTPS diproses FastAPI, bukan halaman Odoo.
+5. Endpoint sekolah merespons sesuai kontrak API.
+6. Koneksi registry dan tenant berfungsi, serta operasi yang memerlukan
+   filestore dapat membaca file.
+7. Setelah reboot terjadwal atau uji pemulihan yang disetujui admin, service
+   otomatis hidup kembali.
+
+## Tahap 10 — Operasi, pemantauan, dan pemulihan
+
+Pemeriksaan rutin:
+
+```bash
+systemctl --user is-active mwd-api
+systemctl --user status mwd-api --no-pager
+journalctl --user -u mwd-api --since today --no-pager
+df -h /
+free -h
+pg_isready -h 127.0.0.1 -p 5432
+```
+
+Untuk `502 Bad Gateway`, periksa service dan kedua sisi koneksi:
+
+```bash
+systemctl --user status mwd-api --no-pager
+ss -ltn | grep '127.0.0.1:8000'
+journalctl --user -u mwd-api -n 100 --no-pager
+sudo tail -n 100 /var/log/nginx/error.log
+```
+
+Jika service gagal atau request menghasilkan error, cari pesan error spesifik;
+contoh:
+
+- `218/CAPABILITIES`: opsi sandbox unit tidak didukung; tinjau unit minimal.
+- `python-multipart` tidak tersedia: pasang dependensi dari manifest pada
+  virtual environment yang benar.
+- `asyncpg.exceptions.InvalidCatalogNameError: database "..." does not exist`:
+  bedakan database registry (`REGISTRY_DB_NAME` di `.env`) dari database tenant
+  (`school_tenants.odoo_db` di registry). Jika error muncul saat request tenant,
+  periksa nilai `odoo_db` untuk sekolah yang dipilih; nilai itu harus persis
+  nama database PostgreSQL Odoo yang sudah ada. Domain sekolah seharusnya ada di
+  `odoo_url`, bukan `odoo_db`, kecuali admin memastikan nama database memang
+  sama dengan domain tersebut.
+
+  Periksa baris tenant tanpa menampilkan kredensial:
+
+  ```bash
+  psql -h 127.0.0.1 -U ROLE_BACKEND -d DB_REGISTRY
+  ```
+
+  Ganti `ROLE_BACKEND` dan `DB_REGISTRY` dengan nama role serta registry yang
+  benar, lalu jalankan:
+
+  ```sql
+  SELECT id, school_name, odoo_url, odoo_db, is_active
+  FROM school_tenants
+  WHERE odoo_db = 'sekolahalambogor.sch.id'
+     OR odoo_url ILIKE '%sekolahalambogor.sch.id%';
+  ```
+
+  Minta admin memastikan nama database tenant yang sebenarnya (misalnya dengan
+  `\l` di `psql` dan mencocokkannya dengan konfigurasi Odoo). Setelah dikonfirmasi,
+  perbaiki hanya `odoo_db` pada baris tenant yang tepat, bukan `REGISTRY_DB_NAME`
+  atau `odoo_url`. Jangan membuat database bernama domain sebagai jalan pintas.
+- autentikasi ditolak: koordinasikan rotasi password database pada semua
+  konsumen role terkait.
+- `Permission denied` pada filestore: admin meninjau ACL dan parent-directory
+  traversal tanpa memberi izin tulis.
+
+Sebelum update source, perubahan konfigurasi, rotasi kredensial, atau reboot:
+
+1. Informasikan maintenance window kepada pemilik layanan.
+2. Pastikan backup dan cara rollback tersedia dan sudah dipahami admin.
+3. Hindari menyalin `.env` ke backup yang dapat dibaca publik.
+4. Sesudah perubahan, ulangi uji lokal dan publik pada Tahap 9.
+
+## Kriteria penutupan deployment
+
+- [ ] Prasyarat server, kapasitas, DNS, HTTPS, dan batas jaringan telah diperiksa.
+- [ ] Source dan dependency tervalidasi.
+- [ ] `.env` produksi memiliki permission `600` dan rahasia telah dirotasi.
+- [ ] Registry dan database tenant yang diperlukan dapat diakses.
+- [ ] ACL filestore baca-saja sesuai scope tenant.
+- [ ] Service berjalan di loopback dan persisten setelah logout/boot.
+- [ ] Nginx lolos `nginx -t` dan meneruskan request ke backend.
+- [ ] Tes API lokal dan publik berhasil.
+- [ ] Admin memiliki prosedur monitoring, backup, rollback, dan recovery.

@@ -11,9 +11,17 @@ from app.core.dependencies import (
 )
 from app.core.database import get_registry_db
 from app.core.models import SchoolTenant
-from app.features.auth.schemas import LoginRequest, APIResponseLogin, TokenResponse, UserProfileData
+from app.features.auth.schemas import (
+    APIResponseLogin,
+    LoginRequest,
+    RefreshRequest,
+    RefreshTokenResponse,
+    TokenResponse,
+    UserProfileData,
+)
 from app.features.auth.schemas import ChangePasswordRequest
 from app.features.auth.repository import AuthRepository
+from app.features.auth.refresh_tokens import RefreshTokenRepository
 from app.features.auth.service import AuthService
 
 logger = logging.getLogger(__name__)
@@ -45,6 +53,7 @@ async def list_schools(db: AsyncSession = Depends(get_registry_db)):
 async def login(
     payload: LoginRequest,
     db: AsyncSession = Depends(get_db),
+    registry_db: AsyncSession = Depends(get_registry_db),
     tenant: SchoolTenant = Depends(get_current_tenant),
 ):
     repo = AuthRepository(db)
@@ -86,10 +95,17 @@ async def login(
     }
 
     access_token = AuthService.create_access_token(data=jwt_payload)
+    refresh_token = await RefreshTokenRepository().issue(
+        registry_db,
+        tenant_id=tenant.id,
+        user_id=user_info["user_id"],
+        claims=jwt_payload,
+    )
 
     # Kembalikan token bersama profil untuk inisialisasi session Flutter.
     response_data = TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
         user=UserProfileData(
             user_id=user_info["user_id"],
@@ -108,6 +124,64 @@ async def login(
         message="Login berhasil",
         data=response_data
     )
+
+@router.post("/refresh")
+async def refresh_token(
+    payload: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+    registry_db: AsyncSession = Depends(get_registry_db),
+    tenant: SchoolTenant = Depends(get_current_tenant),
+):
+    refresh_repository = RefreshTokenRepository()
+    rotated = await refresh_repository.rotate(
+        registry_db,
+        token=payload.refresh_token,
+        tenant_id=tenant.id,
+    )
+    if rotated is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesi refresh tidak berlaku. Silakan login kembali.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    new_refresh_token, claims = rotated
+    user_id = claims.get("uid")
+    if not isinstance(user_id, int) or not await AuthRepository(db).is_user_active(
+        user_id
+    ):
+        await refresh_repository.revoke(
+            registry_db,
+            token=new_refresh_token,
+            tenant_id=tenant.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Akun tidak aktif. Silakan hubungi administrator.",
+        )
+
+    return {
+        "success": True,
+        "message": "Token berhasil diperbarui",
+        "data": RefreshTokenResponse(
+            access_token=AuthService.create_access_token(data=claims),
+            refresh_token=new_refresh_token,
+        ),
+    }
+
+
+@router.post("/logout")
+async def logout(
+    payload: RefreshRequest,
+    registry_db: AsyncSession = Depends(get_registry_db),
+    tenant: SchoolTenant = Depends(get_current_tenant),
+):
+    await RefreshTokenRepository().revoke(
+        registry_db,
+        token=payload.refresh_token,
+        tenant_id=tenant.id,
+    )
+    return {"success": True, "message": "Sesi berhasil diakhiri"}
 
 
 @router.post("/validate")

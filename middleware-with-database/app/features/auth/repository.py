@@ -46,6 +46,16 @@ class AuthRepository:
         user = result.mappings().first()
         return dict(user) if user else None
 
+    async def is_user_active(self, user_id: int) -> bool:
+        result = await self.db.execute(
+            text(
+                "SELECT 1 FROM res_users "
+                "WHERE id = :user_id AND active = TRUE LIMIT 1"
+            ),
+            {"user_id": user_id},
+        )
+        return result.scalar_one_or_none() is not None
+
     async def authenticate_user(self, login: str, password_plain: str) -> Optional[Dict[str, Any]]:
         """
         Memverifikasi kredensial user langsung dari tabel res_users database.
