@@ -4,7 +4,7 @@ import hmac
 import secrets
 
 PASSWORD_HASH_ITERATIONS = 600_000
-PASSWORD_MIN_LENGTH = 5
+PASSWORD_MIN_LENGTH = 12
 
 
 def normalize_username(username: str) -> str:

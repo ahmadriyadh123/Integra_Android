@@ -139,46 +139,60 @@ di arsip. Sebelum deploy versi baru:
 3. Jangan pernah menyertakan `.env`, virtual environment Windows, atau secret
    dalam arsip.
 
-### Deployment otomatis melalui GitHub Actions
+### Deployment otomatis dan pemilihan backend
 
-Repository menyediakan workflow `.github/workflows/deploy-mwd.yml`. Workflow
-berjalan setelah perubahan di `middleware-with-database/` masuk ke branch
-`main`, atau dapat dijalankan manual dari tab **Actions**. Workflow menjalankan
-tes dan pemeriksaan sintaks sebelum mengirim source ke server. Deployment
-menyimpan backup source sebelumnya, mempertahankan `.env` dan `.venv`, lalu
-memeriksa service dan endpoint publik. Jika pemeriksaan lokal di server gagal,
-workflow memulihkan source sebelumnya dan menandai run gagal.
+Workflow `.github/workflows/deploy-mwd.yml` dapat mendeploy kedua backend dari
+repository yang sama:
+
+- `fast-api-middleware`: integrasi Odoo melalui XML-RPC.
+- `middleware-with-database`: akses tenant langsung melalui PostgreSQL.
+
+Saat perubahan hanya menyentuh salah satu folder backend di branch `main`,
+workflow memilih backend yang berubah secara otomatis. Jika kedua folder
+backend berubah sekaligus, jalankan workflow manual dari **Actions → Deploy
+MWD backend → Run workflow**, lalu pilih backend pada input `backend`.
+Workflow menjalankan tes backend terpilih sebelum mengirim source ke server.
+
+Keduanya memakai direktori dan service aktif yang sama (`/srv/developer/mwd`
+dan `mwd-api`), sehingga deployment mengganti backend yang melayani URL publik.
+Sebelum menjalankan pilihan manual, siapkan file environment terpisah di server:
+
+```text
+/srv/developer/mwd-env/fast-api-middleware.env
+/srv/developer/mwd-env/middleware-with-database.env
+```
+
+Isi masing-masing sesuai `.env.example` backend tersebut dan konfigurasi
+produksi aktual. Admin harus membuat direktori serta file dengan izin ketat,
+memberi akun deployment izin baca, dan menjaga agar file tidak bisa diunduh
+publik. Workflow memasang file yang terpilih sebagai
+`/srv/developer/mwd/.env`, yang dibaca service systemd; konfigurasi environment
+aktif sebelumnya disimpan pada backup deployment dan dipulihkan jika health
+check gagal. Jangan menyimpan file environment berisi rahasia di GitHub.
 
 Sebelum mengaktifkannya:
 
-1. Tambahkan repository secrets berikut pada **Settings → Secrets and variables
-   → Actions**:
-   - `DEPLOY_HOST`: hostname server deployment saja, tanpa `https://`,
-     path, atau port (contoh: `kp-sekolah.asetkoptii.com`).
-   - `DEPLOY_USER`: akun SSH deployment (`devmobile`).
-   - `DEPLOY_SSH_KEY`: private key SSH khusus deployment; tambahkan public
-     key pasangannya ke `authorized_keys` akun server.
-   - `DEPLOY_KNOWN_HOSTS`: entri host key SSH untuk hostname tersebut.
-     Verifikasi fingerprint host key melalui kanal tepercaya sebelum
-     menyimpannya; jangan mengandalkan `ssh-keyscan` tanpa verifikasi.
-2. Pastikan akun dapat menulis ke `/srv/developer/mwd`, menjalankan
-   `systemctl --user restart mwd-api`, dan membaca virtual environment
+1. Tambahkan repository secrets `DEPLOY_HOST` (hostname saja),
+   `DEPLOY_USER` (akun deployment), `DEPLOY_SSH_KEY` (private key deployment),
+   dan `DEPLOY_KNOWN_HOSTS` (host key yang fingerprint-nya sudah diverifikasi
+   melalui kanal tepercaya) di **Settings → Secrets and variables → Actions**.
+2. Pastikan akun dapat memperbarui `/srv/developer/mwd`, membaca kedua file
+   environment backend yang hendak dipilih, menjalankan
+   `systemctl --user restart mwd-api`, dan membaca
    `/srv/developer/mwd/.venv`.
-3. Pastikan admin server sudah memasang LibreOffice Writer dan
-   `command -v soffice` atau `command -v libreoffice` berhasil. Workflow
-   memberi peringatan bila executable belum ditemukan; pembuatan PDF akan
-   gagal sampai admin memasangnya.
-4. Pastikan `rsync`, `curl`, dan `tar` tersedia di server serta service
-   `mwd-api` sudah aktif. Runner GitHub menyediakan `rsync`, `curl`, dan `tar`.
-5. Uji workflow secara manual dari branch `main` setelah seluruh secrets
-   dipasang. Kode hanya dipublikasikan setelah perubahan di-commit dan
-   di-push ke GitHub.
+3. Pastikan `rsync`, `curl`, dan `tar` tersedia, service `mwd-api` aktif, dan
+   kebijakan server mengizinkan akun deployment memasang dependency Python
+   pada virtual environment bersama. Admin juga harus memasang LibreOffice
+   Writer (`soffice` atau `libreoffice`) bila fitur PDF memerlukannya.
+4. Jalankan workflow manual dahulu dari branch `main` dan verifikasi backend
+   aktif serta fungsi API setelah deployment. Push source hanya memulai
+   workflow; workflow gagal jika pemilihan backend ambigu.
 
-File `.env` dan `.venv` produksi tidak dikirim, ditimpa, atau dihapus oleh
-workflow. Backup source tersimpan di `~/mwd-deploy-backups/` pada akun server;
-pantau kapasitas disk dan bersihkan backup lama sesuai kebijakan retensi.
-Workflow hanya memvalidasi HTTP health endpoint; ia tidak menjalankan migrasi
-database atau memverifikasi fungsi dengan token pengguna.
+Workflow membuat backup source di `~/mwd-deploy-backups/`, mempertahankan
+virtual environment, memasang environment backend terpilih, dan memulihkan
+source serta environment aktif sebelumnya jika health check lokal gagal.
+Workflow tidak menjalankan migrasi database atau tes API dengan token pengguna.
+Pantau kapasitas disk dan bersihkan backup lama sesuai kebijakan retensi.
 
 ## Tahap 3 — Siapkan Python environment dan dependency
 

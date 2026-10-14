@@ -6,8 +6,18 @@ on:
       - main
     paths:
       - "fast-api-middleware/**"
+      - "middleware-with-database/**"
       - ".github/workflows/deploy-mwd.yml"
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend source to deploy
+        required: true
+        type: choice
+        options:
+          - fast-api-middleware
+          - middleware-with-database
+        default: fast-api-middleware
 
 permissions:
   contents: read
@@ -17,10 +27,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test-and-deploy:
+  resolve-backend:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.select.outputs.backend }}
+      backend_path: ${{ steps.select.outputs.backend_path }}
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select backend
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED_BACKEND: ${{ inputs.backend }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            backend="$SELECTED_BACKEND"
+          else
+            if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+              changed_files="$(git diff-tree --no-commit-id --name-only -r "$CURRENT_SHA")"
+            else
+              changed_files="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+            fi
+
+            changed_fast_api=false
+            changed_database=false
+            grep -q '^fast-api-middleware/' <<< "$changed_files" && changed_fast_api=true || true
+            grep -q '^middleware-with-database/' <<< "$changed_files" && changed_database=true || true
+
+            if [[ "$changed_fast_api" == true && "$changed_database" == true ]]; then
+              echo "::error::Both backend folders changed. Run this workflow manually and select which backend to deploy."
+              exit 1
+            elif [[ "$changed_fast_api" == true ]]; then
+              backend="fast-api-middleware"
+            elif [[ "$changed_database" == true ]]; then
+              backend="middleware-with-database"
+            else
+              echo "No backend source changed; skipping deployment."
+              exit 0
+            fi
+          fi
+
+          case "$backend" in
+            fast-api-middleware|middleware-with-database) ;;
+            *) echo "::error::Unsupported backend selection."; exit 1 ;;
+          esac
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "backend_path=$backend" >> "$GITHUB_OUTPUT"
+
+  test-and-deploy:
+    needs: resolve-backend
+    if: github.ref == 'refs/heads/main' && needs.resolve-backend.outputs.backend != ''
+    runs-on: ubuntu-latest
     env:
+      BACKEND: ${{ needs.resolve-backend.outputs.backend }}
+      BACKEND_PATH: ${{ needs.resolve-backend.outputs.backend_path }}
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -36,17 +104,18 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend dependencies
-        working-directory: fast-api-middleware
+        working-directory: ${{ needs.resolve-backend.outputs.backend_path }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest pytest-asyncio
 
       - name: Validate backend and run tests
-        working-directory: fast-api-middleware
+        working-directory: ${{ needs.resolve-backend.outputs.backend_path }}
         env:
           ODOO_HOST: 127.0.0.1
           DB_USER: ci
           DB_PASSWORD: ci-only-placeholder
+          DATABASE_URL: sqlite:///./ci.db
           JWT_SECRET_KEY: ci-only-not-for-production-mwd-test-key
         run: |
           python -m compileall -q app
@@ -97,17 +166,23 @@ jobs:
             --exclude=.git \
             --exclude=__pycache__ \
             --exclude=.pytest_cache \
-            -C fast-api-middleware .
+            -C "$BACKEND_PATH" .
           echo "REMOTE_ARCHIVE=mwd-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload and deploy backend
         run: |
           scp "$RUNNER_TEMP/mwd-source.tar.gz" "mwd-public:$REMOTE_ARCHIVE"
-          ssh mwd-public bash -s -- "$REMOTE_ARCHIVE" <<'REMOTE'
+          ssh mwd-public bash -s -- "$REMOTE_ARCHIVE" "$BACKEND" <<'REMOTE'
           set -euo pipefail
 
           archive="$1"
+          backend="$2"
+          case "$backend" in
+            fast-api-middleware|middleware-with-database) ;;
+            *) echo "Unsupported backend selection."; exit 1 ;;
+          esac
           app_dir="/srv/developer/mwd"
+          env_file="/srv/developer/mwd-env/$backend.env"
           backup_dir="$HOME/mwd-deploy-backups"
           timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
           backup="$backup_dir/source-$timestamp-${archive#mwd-source-}"
@@ -124,6 +199,17 @@ jobs:
           trap cleanup EXIT
 
           mkdir -p "$backup_dir"
+          if [ ! -r "$env_file" ]; then
+            echo "Backend configuration is missing or unreadable: $env_file"
+            echo "Ask the administrator to prepare this backend's production environment file."
+            exit 1
+          fi
+          had_previous_env=false
+          if [ -f "$app_dir/.env" ]; then
+            cp -p "$app_dir/.env" "$backup_dir/env-before-$timestamp"
+            chmod 600 "$backup_dir/env-before-$timestamp"
+            had_previous_env=true
+          fi
           tar -czf "$backup" \
             --exclude=.env \
             --exclude=.venv \
@@ -140,6 +226,8 @@ jobs:
               --exclude='/.env' \
               --exclude='/.venv/' \
               "$stage/" "$app_dir/"
+            install -m 600 "$env_file" "$app_dir/.env.next"
+            mv -f "$app_dir/.env.next" "$app_dir/.env"
             "$app_dir/.venv/bin/pip" install -r "$app_dir/requirements.txt"
             "$app_dir/.venv/bin/pip" check
             "$app_dir/.venv/bin/python" -m compileall -q "$app_dir/app"
@@ -162,11 +250,17 @@ jobs:
               --exclude='/.env' \
               --exclude='/.venv/' \
               "$rollback_stage/" "$app_dir/"
+            if [ "$had_previous_env" = true ]; then
+              cp -p "$backup_dir/env-before-$timestamp" "$app_dir/.env"
+            else
+              rm -f "$app_dir/.env"
+            fi
             "$app_dir/.venv/bin/pip" install -r "$app_dir/requirements.txt"
             systemctl --user restart mwd-api
             exit 1
           fi
 
+          printf '%s\n' "$backend" > "$HOME/mwd-active-backend"
           echo "Backend source deployed successfully; backup: $backup"
           REMOTE
 
