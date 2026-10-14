@@ -43,6 +43,11 @@ jobs:
 
       - name: Validate backend and run tests
         working-directory: middleware-with-database
+        env:
+          ODOO_HOST: 127.0.0.1
+          DB_USER: ci
+          DB_PASSWORD: ci-only-placeholder
+          JWT_SECRET_KEY: ci-only-not-for-production-mwd-test-key
         run: |
           python -m compileall -q app
           python -m pytest -q
