@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 import jwt
 from jwt.exceptions import PyJWTError
 
-from app.core.database import get_db
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.models import SchoolTenant
 from app.core.odoo_client import OdooRPCClient
 from app.features.auth.service import AuthService
@@ -15,20 +15,24 @@ security_scheme = HTTPBearer(auto_error=False)
 
 def get_current_tenant(
     x_school_id: int = Header(..., alias="X-School-ID"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> SchoolTenant:
-    """Dependency Injection untuk menyelesaikan identitas Tenant Sekolah dari Header"""
-    tenant = db.query(SchoolTenant).filter(
-        SchoolTenant.id == x_school_id, 
-        SchoolTenant.is_active == True
-    ).first()
-    
+    """Resolve the active tenant selected from the persistent registry."""
+    tenant = (
+        db.query(SchoolTenant)
+        .filter(
+            SchoolTenant.id == x_school_id,
+            SchoolTenant.is_active.is_(True),
+        )
+        .first()
+    )
     if not tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sekolah/Tenant tidak ditemukan atau sedang tidak aktif."
+            detail="Sekolah/Tenant tidak ditemukan atau sedang tidak aktif.",
         )
     return tenant
+
 
 def get_odoo_client(
     tenant: SchoolTenant = Depends(get_current_tenant)

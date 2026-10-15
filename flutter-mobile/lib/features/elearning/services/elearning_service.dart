@@ -159,6 +159,39 @@ class ElearningService {
     throw const FormatException('URL konten materi tidak valid');
   }
 
+  Future<http.StreamedResponse> downloadMaterial(
+    String token,
+    Uri uri,
+  ) async {
+    final apiUri = Uri.parse(baseUrl);
+    final headers = _headers(token);
+    if (uri.scheme != apiUri.scheme ||
+        uri.host != apiUri.host ||
+        uri.port != apiUri.port) {
+      headers.remove('Authorization');
+      headers.remove('X-School-ID');
+    }
+    final request = http.Request('GET', uri)
+      ..headers.addAll(headers);
+    final client = httpClient ?? tenantApiConfig.httpClient;
+    final streamedResponse = await (client?.send(request) ?? request.send())
+        .timeout(const Duration(minutes: 30));
+    if (streamedResponse.statusCode == 200) return streamedResponse;
+
+    final body = await streamedResponse.stream.bytesToString();
+    var message = 'Gagal mengunduh materi (HTTP ${streamedResponse.statusCode})';
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final detail = decoded['detail'] ?? decoded['message'];
+        if (detail is String && detail.isNotEmpty) message = detail;
+      }
+    } on FormatException {
+      if (body.isNotEmpty) message = body;
+    }
+    throw Exception(message);
+  }
+
   Future<void> markSlideCompleted(
     String token,
     int courseId,

@@ -34,8 +34,9 @@ class ScormService {
           : configuredClient != null
           ? configuredClient.send(request)
           : request.send());
-      final response = await http.Response.fromStream(streamedResponse)
-              .timeout(const Duration(seconds: 15));
+      final response = await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(const Duration(seconds: 15));
       return response;
     } on TimeoutException {
       throw Exception('Koneksi ke server Odoo terlalu lama. Coba lagi.');
@@ -161,7 +162,7 @@ class ScormService {
     }
   }
 
-  Future<Directory> extractZip(File zipFile) async {
+  Future<Directory> extractZip(File zipFile, {bool deleteSource = true}) async {
     final bytes = await zipFile.readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
 
@@ -173,7 +174,21 @@ class ScormService {
 
     for (final file in archive) {
       final filename = file.name;
-      final outPath = '${extractDir.path}/$filename';
+      final normalizedName = filename.replaceAll('\\', '/');
+      final pathSegments = normalizedName.split('/');
+      if (!file.isFile && pathSegments.last.isEmpty) {
+        pathSegments.removeLast();
+      }
+      if (normalizedName.startsWith('/') ||
+          pathSegments.any(
+            (segment) =>
+                segment == '..' || segment.contains(':') || segment.isEmpty,
+          )) {
+        throw const FormatException('Path berkas di dalam SCORM tidak valid.');
+      }
+      final outPath =
+          '${extractDir.path}${Platform.pathSeparator}'
+          '${pathSegments.join(Platform.pathSeparator)}';
       if (file.isFile) {
         final outFile = File(outPath);
         await outFile.parent.create(recursive: true);
@@ -183,9 +198,11 @@ class ScormService {
       }
     }
 
-    try {
-      if (zipFile.existsSync()) zipFile.deleteSync();
-    } catch (_) {}
+    if (deleteSource) {
+      try {
+        if (zipFile.existsSync()) zipFile.deleteSync();
+      } catch (_) {}
+    }
 
     _extractDir = extractDir;
     return extractDir;
@@ -232,9 +249,24 @@ class ScormService {
       try {
         var requestPath = Uri.decodeComponent(request.uri.path);
         if (requestPath.startsWith('/')) requestPath = requestPath.substring(1);
+        final normalizedPath = requestPath.replaceAll('\\', '/');
+        if (normalizedPath.isEmpty ||
+            normalizedPath
+                .split('/')
+                .any(
+                  (segment) =>
+                      segment == '..' ||
+                      segment.contains(':') ||
+                      segment.isEmpty,
+                )) {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          return;
+        }
 
         final fileToServe = File(
-          '${extractDir.path}${Platform.pathSeparator}$requestPath',
+          '${extractDir.path}${Platform.pathSeparator}'
+          '${normalizedPath.replaceAll('/', Platform.pathSeparator)}',
         );
         if (await fileToServe.exists()) {
           final ext = fileToServe.path.contains('.')

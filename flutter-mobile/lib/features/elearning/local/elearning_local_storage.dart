@@ -1,10 +1,20 @@
+import 'dart:io';
+
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Menyimpan dan membaca cache data elearning menggunakan Hive.
 /// TTL default 1 jam — setelah itu data dianggap stale dan di-refresh dari API.
 class ElearningLocalStorage {
   static const String boxName = 'elearning_cache_box';
   static const Duration _ttl = Duration(hours: 1);
+
+  final Future<Directory> Function() _supportDirectoryProvider;
+
+  ElearningLocalStorage({
+    Future<Directory> Function()? supportDirectoryProvider,
+  }) : _supportDirectoryProvider =
+           supportDirectoryProvider ?? getApplicationSupportDirectory;
 
   static const String _keyPrefix = 'elearning_';
   static const String _keyCourseList = 'courses';
@@ -154,6 +164,10 @@ class ElearningLocalStorage {
     for (final key in keys) {
       await box.delete(key);
     }
+    final offlineDirectory = await _offlineDirectory(cacheScope);
+    if (await offlineDirectory.exists()) {
+      await offlineDirectory.delete(recursive: true);
+    }
   }
 
   /// Hapus cache detail untuk satu kursus.
@@ -168,6 +182,82 @@ class ElearningLocalStorage {
     );
   }
 
+  Future<File?> loadOfflineMaterial(
+    int slideId, {
+    required String cacheScope,
+  }) async {
+    final box = await _getBox();
+    final key = _key(cacheScope, 'offline_material_$slideId');
+    final storedPath = box.get(key);
+    if (storedPath is! String || storedPath.isEmpty) return null;
+
+    final file = File(storedPath);
+    if (await file.exists()) return file;
+    await box.delete(key);
+    return null;
+  }
+
+  Future<File> saveOfflineMaterial(
+    int slideId, {
+    required String cacheScope,
+    required String fileName,
+    required Stream<List<int>> content,
+  }) async {
+    final directory = await _offlineDirectory(cacheScope);
+    await directory.create(recursive: true);
+    final safeName = _safeFileName(fileName);
+    final target = File('${directory.path}${Platform.pathSeparator}$safeName');
+    final temporary = File(
+      '${target.path}.${DateTime.now().microsecondsSinceEpoch}.part',
+    );
+
+    try {
+      final sink = temporary.openWrite();
+      await content.pipe(sink);
+      if (await temporary.length() == 0) {
+        throw const FormatException('Berkas materi yang diunduh kosong.');
+      }
+
+      if (await target.exists()) await target.delete();
+      final savedFile = await temporary.rename(target.path);
+      final box = await _getBox();
+      await box.put(
+        _key(cacheScope, 'offline_material_$slideId'),
+        savedFile.path,
+      );
+      return savedFile;
+    } catch (_) {
+      if (await temporary.exists()) await temporary.delete();
+      rethrow;
+    }
+  }
+
+  Future<void> removeOfflineMaterial(
+    int slideId, {
+    required String cacheScope,
+  }) async {
+    final box = await _getBox();
+    final key = _key(cacheScope, 'offline_material_$slideId');
+    final storedPath = box.get(key);
+    if (storedPath is String && storedPath.isNotEmpty) {
+      final file = File(storedPath);
+      if (await file.exists()) await file.delete();
+    }
+    await box.delete(key);
+  }
+
+  Future<Directory> _offlineDirectory(String cacheScope) async {
+    final directory = await _supportDirectoryProvider();
+    return Directory(
+      '${directory.path}${Platform.pathSeparator}elearning_offline'
+      '${Platform.pathSeparator}${_safeFileName(cacheScope)}',
+    );
+  }
+
+  String _safeFileName(String value) {
+    final safe = value.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    return safe.isEmpty ? 'material' : safe;
+  }
 
   bool _isFresh(Box box, String tsKey) {
     final ts = box.get(tsKey) as int?;

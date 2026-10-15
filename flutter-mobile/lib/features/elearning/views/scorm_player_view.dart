@@ -14,6 +14,7 @@ class ScormPlayerView extends StatefulWidget {
   final String odooUsername;
   final String odooPassword;
   final String odooDb;
+  final String? offlinePackagePath;
   final Future<void> Function(String completionStatus)? onCompleted;
 
   const ScormPlayerView({
@@ -22,6 +23,7 @@ class ScormPlayerView extends StatefulWidget {
     this.authToken = '',
     this.odooUsername = '',
     this.odooPassword = '',
+    this.offlinePackagePath,
     this.onCompleted,
     this.odooDb = const String.fromEnvironment(
       'ODOO_DB',
@@ -54,6 +56,7 @@ class _ScormPlayerViewState extends State<ScormPlayerView> {
       odooUsername: widget.odooUsername,
       odooPassword: widget.odooPassword,
       odooDb: widget.odooDb,
+      offlinePackagePath: widget.offlinePackagePath,
     );
   }
 

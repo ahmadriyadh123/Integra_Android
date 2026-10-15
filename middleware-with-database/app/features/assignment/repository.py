@@ -126,7 +126,9 @@ class AssignmentRepository:
         query = text("""
             SELECT id, name AS file_name, store_fname, create_uid
             FROM ir_attachment
-            WHERE res_model = :res_model AND res_id = :res_id
+            WHERE res_model = :res_model
+              AND res_id = :res_id
+              AND type = 'binary'
             ORDER BY id;
         """)
         result = await self.db.execute(
@@ -584,6 +586,7 @@ class AssignmentRepository:
                 att.res_id
             FROM ir_attachment att
             WHERE att.id = :attachment_id
+              AND att.type = 'binary'
               AND (
                 (
                     att.res_model = 'op.assignment'

@@ -206,11 +206,13 @@ class FakeAttachmentOdoo(FakeOdooClient):
         super().__init__()
         self.attachment = attachment
         self.submission_student_id = submission_student_id
+        self.attachment_domain = None
 
     def search_read(self, *, model, **kwargs):
         if model == "op.assignment":
             return [{"id": 5}]
         if model == "ir.attachment":
+            self.attachment_domain = kwargs.get("domain")
             return [self.attachment]
         if model == "op.assignment.sub.line":
             requested_domain = kwargs.get("domain", [])
@@ -225,16 +227,16 @@ class FakeAttachmentOdoo(FakeOdooClient):
 
 
 def test_assignment_attachment_allows_teacher_file_for_assigned_assignment():
-    repository = AssignmentRepository(
-        FakeAttachmentOdoo({
-            "id": 41,
-            "name": "petunjuk.pdf",
-            "datas": "cGRm",
-            "mimetype": "application/pdf",
-            "res_model": "op.assignment",
-            "res_id": 5,
-        })
-    )
+    odoo = FakeAttachmentOdoo({
+        "id": 41,
+        "name": "petunjuk.pdf",
+        "datas": "cGRm",
+        "mimetype": "application/pdf",
+        "res_model": "op.assignment",
+        "res_id": 5,
+        "type": "binary",
+    })
+    repository = AssignmentRepository(odoo)
 
     attachment = repository.get_assignment_attachment(
         uid=17,
@@ -245,6 +247,7 @@ def test_assignment_attachment_allows_teacher_file_for_assigned_assignment():
     )
 
     assert attachment["name"] == "petunjuk.pdf"
+    assert ("type", "=", "binary") in odoo.attachment_domain
 
 
 def test_assignment_attachment_rejects_another_students_submission():

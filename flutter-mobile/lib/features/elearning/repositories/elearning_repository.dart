@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import '../local/elearning_local_storage.dart';
 import '../models/elearning_model.dart';
@@ -112,6 +113,27 @@ class ElearningRepository {
 
   Future<String> getSlideContent(String token, int slideId) {
     return apiService.fetchSlideContent(token, slideId);
+  }
+
+  Future<File?> getOfflineMaterial(String token, int slideId) {
+    return localStorage.loadOfflineMaterial(
+      slideId,
+      cacheScope: cacheScopeForToken(token),
+    );
+  }
+
+  Future<File> saveOfflineMaterial(
+    String token,
+    int slideId, {
+    required String fileName,
+    required Stream<List<int>> content,
+  }) {
+    return localStorage.saveOfflineMaterial(
+      slideId,
+      cacheScope: cacheScopeForToken(token),
+      fileName: fileName,
+      content: content,
+    );
   }
 
   Future<void> markSlideCompleted(

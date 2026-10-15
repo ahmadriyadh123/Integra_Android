@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
@@ -45,6 +48,9 @@ class DetailCourseView extends StatefulWidget {
 
 class _DetailCourseViewState extends State<DetailCourseView> {
   late ElearningViewModel _vm;
+  final Set<int> _offlineSlideIds = {};
+  final Set<int> _downloadingSlideIds = {};
+  int? _offlineStateCourseId;
 
   @override
   void didChangeDependencies() {
@@ -57,9 +63,35 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Gunakan referensi yang sudah disimpan di didChangeDependencies
-      _vm.fetchCourseDetail(widget.authToken, widget.courseId);
+      _loadCourseDetail();
     });
+  }
+
+  Future<void> _loadCourseDetail({bool forceRefresh = false}) async {
+    await _vm.fetchCourseDetail(
+      widget.authToken,
+      widget.courseId,
+      forceRefresh: forceRefresh,
+    );
+    await _loadOfflineSlideStates();
+  }
+
+  Future<void> _loadOfflineSlideStates() async {
+    final detail = _vm.courseDetail;
+    if (detail == null || _offlineStateCourseId == detail.id) return;
+    _offlineStateCourseId = detail.id;
+    final savedIds = <int>{};
+    for (final slide in detail.slides) {
+      if (slide.isQuiz) continue;
+      if (await _vm.repository.getOfflineMaterial(
+            widget.authToken,
+            slide.id,
+          ) !=
+          null) {
+        savedIds.add(slide.id);
+      }
+    }
+    if (mounted) setState(() => _offlineSlideIds.addAll(savedIds));
   }
 
   @override
@@ -72,11 +104,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   }
 
   Future<void> _refreshCourseDetail() async {
-    await _vm.fetchCourseDetail(
-      widget.authToken,
-      widget.courseId,
-      forceRefresh: true,
-    );
+    await _loadCourseDetail(forceRefresh: true);
     if (!mounted || _vm.detailError == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_vm.detailError!)),
@@ -89,14 +117,36 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     bool markCompletedOnOpen = true,
     int? slideId,
   }) async {
-    if (url == null || url.isEmpty) {
+    File? offlineFile;
+    if (slideId != null) {
+      offlineFile = await _vm.repository.getOfflineMaterial(
+        widget.authToken,
+        slideId,
+      );
+      if (!mounted) return;
+    }
+
+    if ((url == null || url.isEmpty) && offlineFile == null) {
       _showSnack('Materi ini tidak tersedia secara langsung.');
       return;
     }
 
-    String fullUrl = url;
+    if (offlineFile != null && !isScorm) {
+      final result = await OpenFilex.open(offlineFile.path);
+      if (result.type != ResultType.done) {
+        _showSnack('Tidak dapat membuka berkas offline: ${result.message}');
+        return;
+      }
+      if (markCompletedOnOpen && slideId != null) {
+        await _recordOpenedMaterial(slideId);
+      }
+      return;
+    }
 
-    if (isScorm && slideId != null) {
+    String fullUrl = url ?? '';
+    String? offlinePackagePath = isScorm ? offlineFile?.path : null;
+
+    if (isScorm && slideId != null && offlinePackagePath == null) {
       try {
         fullUrl = await _vm.repository.getSlideContent(
           widget.authToken,
@@ -110,10 +160,12 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       if (!mounted) return;
     }
 
-    fullUrl = resolveElearningMaterialUri(
-      fullUrl,
-      _vm.repository.apiService.baseUrl,
-    ).toString();
+    if (fullUrl.isNotEmpty) {
+      fullUrl = resolveElearningMaterialUri(
+        fullUrl,
+        _vm.repository.apiService.baseUrl,
+      ).toString();
+    }
 
     // Bersihkan semua duplikasi teks /api/v1/api/v1/ atau /elearning/elearning/ yang berulang akibat penggabungan sebelumnya
     while (fullUrl.contains('/api/v1/api/v1/')) {
@@ -143,6 +195,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
             authToken: widget.authToken,
             odooUsername: username,
             odooPassword: password,
+            offlinePackagePath: offlinePackagePath,
             onCompleted: scormSlideId == null
                 ? null
                 : (completionStatus) async {
@@ -181,6 +234,129 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     } else {
       _showSnack('Tidak dapat membuka materi.');
     }
+  }
+
+  Future<void> _toggleOfflineMaterial(SlideItem slide) async {
+    if (slide.isQuiz || _downloadingSlideIds.contains(slide.id)) return;
+    final repository = _vm.repository;
+    final saved = await repository.getOfflineMaterial(
+      widget.authToken,
+      slide.id,
+    );
+    if (saved != null) {
+      await repository.localStorage.removeOfflineMaterial(
+        slide.id,
+        cacheScope: repository.cacheScopeForToken(widget.authToken),
+      );
+      if (mounted) {
+        setState(() => _offlineSlideIds.remove(slide.id));
+        _showSnack('Materi dihapus dari penyimpanan offline.');
+      }
+      return;
+    }
+
+    if (slide.downloadUrl == null || slide.downloadUrl!.isEmpty) {
+      _showSnack('Berkas materi ini tidak tersedia untuk diunduh.');
+      return;
+    }
+
+    setState(() => _downloadingSlideIds.add(slide.id));
+    try {
+      var contentUrl = slide.downloadUrl!;
+      if (slide.isScorm) {
+        contentUrl = await repository.getSlideContent(
+          widget.authToken,
+          slide.id,
+        );
+      }
+      final uri = resolveElearningMaterialUri(
+        contentUrl,
+        repository.apiService.baseUrl,
+      );
+      final response = await repository.apiService.downloadMaterial(
+        widget.authToken,
+        uri,
+      );
+      final contentType = response.headers['content-type']
+          ?.split(';')
+          .first
+          .toLowerCase();
+      if (contentType == 'text/html' ||
+          contentType == 'application/json' ||
+          contentType == 'text/json') {
+        throw const FormatException(
+          'Tautan materi tidak menghasilkan berkas yang dapat disimpan.',
+        );
+      }
+      final extension = slide.isScorm
+          ? 'zip'
+          : _materialExtension(uri, response.headers, slide.materialType);
+      final safeTitle = slide.title
+          .replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')
+          .replaceAll(RegExp(r'_+'), '_');
+      final fileName = '${slide.id}_$safeTitle.$extension';
+      await repository.saveOfflineMaterial(
+        widget.authToken,
+        slide.id,
+        fileName: fileName,
+        content: response.stream,
+      );
+      if (!mounted) return;
+      setState(() => _offlineSlideIds.add(slide.id));
+      _showSnack('Materi berhasil disimpan untuk dibuka offline.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(
+        'Gagal menyimpan materi: '
+        '${error.toString().replaceAll('Exception: ', '')}',
+      );
+    } finally {
+      if (mounted) setState(() => _downloadingSlideIds.remove(slide.id));
+    }
+  }
+
+  String _materialExtension(
+    Uri uri,
+    Map<String, String> headers,
+    String materialType,
+  ) {
+    final contentDisposition = headers['content-disposition'];
+    if (contentDisposition != null) {
+      final filenameMatch = RegExp(
+        r"filename\*?=(?:UTF-8'')?([^;]+)",
+        caseSensitive: false,
+      ).firstMatch(contentDisposition);
+      final name = filenameMatch?.group(1)?.replaceAll('"', '').trim();
+      final filenameExtension =
+          name != null && name.contains('.') ? name.split('.').last : '';
+      if (RegExp(r'^[A-Za-z0-9]{1,8}$').hasMatch(filenameExtension)) {
+        return filenameExtension.toLowerCase();
+      }
+    }
+
+    final path = uri.pathSegments.isEmpty ? '' : uri.pathSegments.last;
+    final pathExtension = path.contains('.') ? path.split('.').last : '';
+    if (RegExp(r'^[A-Za-z0-9]{1,8}$').hasMatch(pathExtension)) {
+      return pathExtension.toLowerCase();
+    }
+    final contentType = headers['content-type']?.split(';').first.toLowerCase();
+    return switch (contentType) {
+      'application/pdf' => 'pdf',
+      'video/mp4' => 'mp4',
+      'video/webm' => 'webm',
+      'video/quicktime' => 'mov',
+      'application/zip' => 'zip',
+      'application/msword' => 'doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+        'docx',
+      'application/vnd.ms-powerpoint' => 'ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation' =>
+        'pptx',
+      'application/vnd.ms-excel' => 'xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' =>
+        'xlsx',
+      _ => materialType == 'video' ? 'mp4' : 'pdf',
+    };
   }
 
   Future<void> _recordOpenedMaterial(int slideId) async {
@@ -561,6 +737,53 @@ class _DetailCourseViewState extends State<DetailCourseView> {
                                             slide.isVideo || slide.isPdf,
                                         slideId: slide.id,
                                       ),
+                                      trailing: slide.isQuiz
+                                          ? const Tooltip(
+                                              message:
+                                                  'Kuis offline belum tersedia',
+                                              child: Icon(
+                                                Icons.cloud_outlined,
+                                                size: 18,
+                                                color: _textMuted,
+                                              ),
+                                            )
+                                          : _downloadingSlideIds.contains(
+                                              slide.id,
+                                            )
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: _green,
+                                                  ),
+                                            )
+                                          : IconButton(
+                                              tooltip:
+                                                  _offlineSlideIds.contains(
+                                                    slide.id,
+                                                  )
+                                                  ? 'Hapus dari offline'
+                                                  : 'Simpan offline',
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              onPressed: () =>
+                                                  _toggleOfflineMaterial(
+                                                    slide,
+                                                  ),
+                                              icon: Icon(
+                                                _offlineSlideIds.contains(
+                                                  slide.id,
+                                                )
+                                                    ? Icons
+                                                          .offline_pin_rounded
+                                                    : Icons
+                                                          .download_for_offline_outlined,
+                                                color: _green,
+                                                size: 21,
+                                              ),
+                                            ),
                                     ),
                                   );
                                 }),

@@ -27,8 +27,11 @@ class ScormRepository {
   }
 
   /// Extract SCORM zip file to directory
-  Future<Directory> extractZip(File zipFile) async {
-    return scormService.extractZip(zipFile);
+  Future<Directory> extractZip(
+    File zipFile, {
+    bool deleteSource = true,
+  }) async {
+    return scormService.extractZip(zipFile, deleteSource: deleteSource);
   }
 
   /// Find index HTML file in extracted SCORM directory

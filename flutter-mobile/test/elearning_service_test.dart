@@ -105,4 +105,26 @@ void main() {
     );
     client.close();
   });
+
+  test('does not send tenant credentials to external material hosts', () async {
+    final client = MockClient((request) async {
+      expect(request.url.host, 'cdn.example.test');
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.headers.containsKey('X-School-ID'), isFalse);
+      return http.Response.bytes([1, 2, 3], 200);
+    });
+    final service = ElearningService(
+      baseUrl: 'https://api.example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '4'),
+      httpClient: client,
+    );
+
+    final response = await service.downloadMaterial(
+      _token(),
+      Uri.parse('https://cdn.example.test/material.mp4'),
+    );
+
+    expect(await response.stream.toBytes(), [1, 2, 3]);
+    client.close();
+  });
 }

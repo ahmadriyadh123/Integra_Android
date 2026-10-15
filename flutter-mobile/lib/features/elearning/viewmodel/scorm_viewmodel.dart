@@ -33,6 +33,7 @@ class ScormViewModel extends ChangeNotifier {
       String odooUsername = '',
       String odooPassword = '',
       String odooDb = '',
+      String? offlinePackagePath,
     }) async {
       _isLoading = true;
       _error = null;
@@ -41,6 +42,11 @@ class ScormViewModel extends ChangeNotifier {
 
       File? zipFile;
       try {
+        final offlinePackage = offlinePackagePath == null
+            ? null
+            : File(offlinePackagePath);
+        final useOfflinePackage =
+            offlinePackage != null && await offlinePackage.exists();
         final uri = Uri.parse(scormUrl);
         final lowerUrl = uri.path.toLowerCase();
 
@@ -48,7 +54,9 @@ class ScormViewModel extends ChangeNotifier {
         final isMiddlewareDownload = lowerUrl.contains('/api/v1/elearning/content/') &&
           lowerUrl.endsWith('/download');
 
-        if (!lowerUrl.endsWith('.zip') && !isMiddlewareDownload) {
+        if (!useOfflinePackage &&
+            !lowerUrl.endsWith('.zip') &&
+            !isMiddlewareDownload) {
         // Lakukan autentikasi sesi Odoo jika kredensial tersedia
         if (odooUsername.isNotEmpty && odooPassword.isNotEmpty) {
           _statusMessage = 'Menghubungkan sesi Odoo...';
@@ -69,11 +77,16 @@ class ScormViewModel extends ChangeNotifier {
         return;
       }
 
-      zipFile = await repository.downloadZipFile(uri, authToken);
+      zipFile = useOfflinePackage
+          ? offlinePackage
+          : await repository.downloadZipFile(uri, authToken);
       _statusMessage = 'Mengekstrak berkas SCORM...';
       notifyListeners();
 
-      final extractDir = await repository.extractZip(zipFile);
+      final extractDir = await repository.extractZip(
+        zipFile,
+        deleteSource: !useOfflinePackage,
+      );
       final indexPath = repository.findIndexPath(extractDir);
       final resolvedStartUrl = await repository.startLocalServer(extractDir, indexPath);
 
@@ -82,7 +95,9 @@ class ScormViewModel extends ChangeNotifier {
       _statusMessage = null;
       notifyListeners();
     } catch (e) {
-      if (zipFile != null && zipFile.existsSync()) {
+      if (zipFile != null &&
+          zipFile.existsSync() &&
+          zipFile.path != offlinePackagePath) {
         try { zipFile.deleteSync(); } catch (_) {}
       }
       _error = e.toString().replaceAll('Exception: ', '');

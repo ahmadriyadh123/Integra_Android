@@ -1,10 +1,15 @@
+import base64
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
 
-from app.features.assignment.router import router
+from app.features.assignment.router import (
+    download_assignment_attachment,
+    router,
+)
 from app.features.assignment.repository import (
     AssignmentAlreadySubmittedError,
     AssignmentDeadlinePassedError,
@@ -502,8 +507,48 @@ async def test_attachment_lookup_scopes_teacher_and_student_files_to_assignment(
     query = str(db.execute.await_args.args[0])
     assert "rel.op_student_id = :student_id" in query
     assert "s.student_id = :student_id" in query
+    assert "att.type = 'binary'" in query
     assert db.execute.await_args.args[1] == {
         "student_id": 12,
         "assignment_id": 14,
         "attachment_id": 51,
     }
+
+
+@pytest.mark.asyncio
+async def test_assignment_download_reads_database_stored_binary_attachment():
+    content = b"\x89PNG\r\n\x1a\nassignment-image"
+    db = SimpleNamespace(
+        info={"tenant_database": "school_db"},
+        execute=AsyncMock(
+            return_value=_Result(
+                row={
+                    "id": 2158,
+                    "name": "Screenshot_20261008-135006.png",
+                    "mimetype": "application/octet-stream",
+                    "type": "binary",
+                    "db_datas": base64.b64encode(content),
+                    "store_fname": None,
+                    "res_model": "op.assignment.sub.line",
+                    "res_id": 3,
+                }
+            )
+        ),
+    )
+
+    response = await download_assignment_attachment(
+        assignment_id=14,
+        attachment_id=2158,
+        credentials={"student_id": 12, "uid": 17},
+        db=db,
+    )
+    downloaded = b"".join(
+        [chunk async for chunk in response.body_iterator]
+    )
+
+    assert downloaded == content
+    assert response.media_type == "application/octet-stream"
+    assert "Screenshot_20261008-135006.png" in response.headers[
+        "content-disposition"
+    ]
+    assert "att.type = 'binary'" in str(db.execute.await_args.args[0])

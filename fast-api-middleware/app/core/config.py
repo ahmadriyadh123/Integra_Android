@@ -1,29 +1,34 @@
-import os
 import base64
 import logging
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Middleware Odoo RPC"
     APP_ENV: str = "development"
     CORS_ALLOW_ORIGINS: str = ""
-
-    # Database PostgreSQL khusus Middleware (Tenant Registry)
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/middleware_db"
-
+    REGISTRY_DB_HOST: str = "127.0.0.1"
+    REGISTRY_DB_PORT: int = 5432
+    REGISTRY_DB_NAME: str
+    REGISTRY_DB_USER: str
+    REGISTRY_DB_PASSWORD: str
     ODOO_FILESTORE_PATH: str = ""
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 30
-    SCHOOL_ADMIN_USERNAME: str = ""
-    SCHOOL_ADMIN_PASSWORD: str = ""
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.CORS_ALLOW_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.CORS_ALLOW_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -31,6 +36,7 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
     )
+
 
 settings = Settings()
 
@@ -46,14 +52,14 @@ def get_attachment_base64(store_fname: str, odoo_db: str) -> str | None:
     try:
         clean_store_fname = os.path.normpath(store_fname)
         base_filestore = os.path.normpath(settings.ODOO_FILESTORE_PATH)
-        
+
         file_path = os.path.join(base_filestore, odoo_db, clean_store_fname)
 
         if os.path.exists(file_path) and os.path.isfile(file_path):
             with open(file_path, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
                 return f"data:image/png;base64,{encoded_string}"
-    except Exception as e:
-        logger.error(f"[config] Gagal membaca file fisik: {e}")
+    except Exception as exc:
+        logger.error(f"[config] Gagal membaca file fisik: {exc}")
 
     return None

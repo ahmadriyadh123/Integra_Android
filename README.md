@@ -42,25 +42,28 @@ Salin konfigurasi contoh dan isi nilai Odoo serta JWT:
 Copy-Item .env.example .env
 ```
 
-Contoh nilai penting di `.env`:
+Tenant sekolah untuk Fast API Middleware dibaca dari tabel `school_tenants` di
+database registry. Konfigurasi koneksi registry memakai variabel khusus
+`REGISTRY_DB_*`, terpisah dari variabel koneksi PostgreSQL backend
+`middleware-with-database`. Contoh nilai `.env`:
 
 ```env
 APP_ENV=development
-ODOO_HOST=localhost
-ODOO_DB=nama_database_odoo
-ODOO_SCHEME=http
-ODOO_PORT=8069
-ODOO_ADMIN_USER=admin
-ODOO_ADMIN_PASS=password_odoo
+REGISTRY_DB_HOST=127.0.0.1
+REGISTRY_DB_PORT=5432
+REGISTRY_DB_NAME=middleware_registry
+REGISTRY_DB_USER=middleware_registry_user
+REGISTRY_DB_PASSWORD=ganti-dengan-password-registry
 JWT_SECRET_KEY=ganti-dengan-secret-yang-aman
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_DAYS=30
-SCHOOL_ADMIN_USERNAME=admin
-SCHOOL_ADMIN_PASSWORD=ganti-dengan-password-admin-yang-aman
 CORS_ALLOW_ORIGINS=
 ```
 
-Web admin dijalankan sebagai project terpisah di `school-admin-web`. Saat pertama kali backend dijalankan, `SCHOOL_ADMIN_USERNAME` dan `SCHOOL_ADMIN_PASSWORD` di environment backend digunakan untuk membuat akun awal dalam tabel `school_admin_accounts`; password disimpan sebagai hash PBKDF2, bukan teks biasa. Setelah akun awal tersimpan, login diverifikasi terhadap database dan nilai bootstrap tidak mengubah akun saat backend dimulai ulang. Gunakan password acak minimal 12 karakter. Lihat [panduan deployment](fast-api-middleware/DEPLOYMENT.md) dan [school-admin-web/README.md](school-admin-web/README.md).
+Fast API Middleware memakai JSON-RPC untuk berkomunikasi dengan Odoo dan
+koneksi PostgreSQL registry hanya untuk membaca tenant sekolah. Backend ini
+tidak memakai variabel `DATABASE_URL`; seluruh tenant
+tetap disimpan di tabel registry. Lihat [panduan deployment](middleware-with-database/DEPLOYMENT.md) dan [school-admin-web/README.md](school-admin-web/README.md).
 
 Jalankan server development:
 

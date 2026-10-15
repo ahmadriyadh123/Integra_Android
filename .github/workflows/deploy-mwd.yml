@@ -109,7 +109,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest pytest-asyncio
 
-      - name: Validate backend and run tests
+      - name: Validate Fast API Middleware and run tests
+        if: env.BACKEND == 'fast-api-middleware'
+        working-directory: ${{ needs.resolve-backend.outputs.backend_path }}
+        env:
+          REGISTRY_DB_NAME: mwd_ci
+          REGISTRY_DB_USER: ci
+          REGISTRY_DB_PASSWORD: ci-only-placeholder
+          JWT_SECRET_KEY: ci-only-not-for-production-mwd-test-key
+        run: |
+          python -m compileall -q app
+          python -m pytest -q
+
+      - name: Validate Middleware with Database and run tests
+        if: env.BACKEND == 'middleware-with-database'
         working-directory: ${{ needs.resolve-backend.outputs.backend_path }}
         env:
           ODOO_HOST: 127.0.0.1
@@ -267,7 +280,7 @@ jobs:
 
             for attempt in $(seq 1 30); do
               if curl --fail --silent --show-error --max-time 5 \
-                http://127.0.0.1:8000/ >/dev/null; then
+                http://127.0.0.1:8000/health/ready >/dev/null; then
                 exit 0
               fi
               sleep 2
@@ -304,4 +317,4 @@ jobs:
       - name: Verify public endpoint
         run: |
           curl --fail --silent --show-error --retry 12 --retry-delay 5 \
-            "https://$DEPLOY_HOST/mobile-api/" >/dev/null
+            "https://$DEPLOY_HOST/mobile-api/health/ready" >/dev/null

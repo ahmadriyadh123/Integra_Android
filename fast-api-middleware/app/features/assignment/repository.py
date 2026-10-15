@@ -389,7 +389,11 @@ class AssignmentRepository:
             uid=uid,
             password=password,
             model='ir.attachment',
-            domain=[('res_model', '=', res_model), ('res_id', '=', res_id)],
+            domain=[
+                ('res_model', '=', res_model),
+                ('res_id', '=', res_id),
+                ('type', '=', 'binary'),
+            ],
             fields=['id', 'name', 'store_fname', 'create_uid'],
         )
         res = []
@@ -434,6 +438,7 @@ class AssignmentRepository:
             domain=[
                 ('id', '=', attachment_id),
                 ('res_model', 'in', ['op.assignment', 'op.assignment.sub.line']),
+                ('type', '=', 'binary'),
             ],
             fields=['id', 'name', 'datas', 'mimetype', 'res_model', 'res_id'],
             limit=1,

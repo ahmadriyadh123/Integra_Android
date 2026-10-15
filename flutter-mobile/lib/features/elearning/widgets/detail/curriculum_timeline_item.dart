@@ -13,6 +13,7 @@ class CurriculumTimelineItem extends StatelessWidget {
   final String? badgeText;
   final Color? badgeColor;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const CurriculumTimelineItem({
     super.key,
@@ -28,6 +29,7 @@ class CurriculumTimelineItem extends StatelessWidget {
     this.badgeText,
     this.badgeColor,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -117,6 +119,7 @@ class CurriculumTimelineItem extends StatelessWidget {
                               ),
                             ),
                           ],
+                          ?trailing,
                         ],
                       ),
                       const SizedBox(height: 4),

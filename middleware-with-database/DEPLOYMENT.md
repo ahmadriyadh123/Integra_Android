@@ -174,6 +174,16 @@ atau rahasia di source Git. Workflow memasang konfigurasi terpilih sebagai
 sebelumnya dalam backup berizin ketat, dan memulihkannya jika health check
 server gagal.
 
+Konfigurasi `FAST_API_MIDDLEWARE_ENV` harus memuat `REGISTRY_DB_HOST`,
+`REGISTRY_DB_PORT`, `REGISTRY_DB_NAME`, `REGISTRY_DB_USER`,
+`REGISTRY_DB_PASSWORD`, dan `JWT_SECRET_KEY`, sesuai
+`fast-api-middleware/.env.example`. Fast API Middleware memakai JSON-RPC untuk
+mengakses Odoo, sedangkan PostgreSQL registry dipakai untuk membaca tenant
+sekolah. Pengaturan `DATABASE_URL`/`DB_USER`/`DB_PASSWORD` pada bagian
+konfigurasi database di bawah berlaku untuk backend
+`middleware-with-database`; jangan gunakan `DATABASE_URL` untuk Fast API
+Middleware.
+
 Sebelum mengaktifkannya:
 
 1. Tambahkan repository secrets `DEPLOY_HOST` (hostname saja),
@@ -202,6 +212,12 @@ Workflow tidak menjalankan migrasi database atau tes API dengan token pengguna.
 Pantau kapasitas disk dan bersihkan backup lama sesuai kebijakan retensi.
 
 ## Tahap 3 — Siapkan Python environment dan dependency
+
+Langkah membuat virtual environment dan memasang `requirements.txt` berlaku
+untuk kedua backend. Fast API Middleware memerlukan akses PostgreSQL untuk
+registry tenant sekolahnya melalui konfigurasi `REGISTRY_DB_*`. Pemeriksaan
+dan konfigurasi database pada Tahap 4–5 di bawah menjelaskan koneksi backend
+`middleware-with-database`, yang tetap memakai konfigurasi berbeda.
 
 Di server:
 
