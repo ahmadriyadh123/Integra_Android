@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
     DB_USER: str
     DB_PASSWORD: str
+    TENANT_SECRETS_FILE: str = ""
     REGISTRY_DB_NAME: str = Field(
         default="middleware_registry",
         validation_alias=AliasChoices("REGISTRY_DB_NAME", "DB_NAME"),

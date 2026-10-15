@@ -165,13 +165,15 @@ def test_tenant_engine_targets_school_database_host_and_port(monkeypatch):
         "10.20.30.40",
         5433,
         "sekolah_alam_bogor_db",
+        "tenant_user",
+        "tenant_password",
     )
     assert engine.url.host == "10.20.30.40"
     assert engine.url.port == 5433
     assert engine.url.database == "sekolah_alam_bogor_db"
 
     database._tenant_engines.pop(
-        ("10.20.30.40", 5433, "sekolah_alam_bogor_db"),
+        ("10.20.30.40", 5433, "sekolah_alam_bogor_db", "tenant_user"),
         None,
     )
     import asyncio
@@ -208,7 +210,11 @@ async def test_missing_tenant_database_returns_configuration_error(tenant, monke
 
     monkeypatch.setattr(
         "app.core.dependencies.create_tenant_session_factory",
-        lambda _database_host, _database_port, _database_name: Session,
+        lambda _host, _port, _name, _user, _password: Session,
+    )
+    monkeypatch.setattr(
+        "app.core.dependencies.get_tenant_credentials",
+        lambda _secret_ref: {"username": "tenant_user", "password": "tenant_password"},
     )
     database_session = get_db(tenant)
 
@@ -246,7 +252,11 @@ async def test_raw_asyncpg_missing_tenant_database_returns_configuration_error(
 
     monkeypatch.setattr(
         "app.core.dependencies.create_tenant_session_factory",
-        lambda _database_host, _database_port, _database_name: Session,
+        lambda _host, _port, _name, _user, _password: Session,
+    )
+    monkeypatch.setattr(
+        "app.core.dependencies.get_tenant_credentials",
+        lambda _secret_ref: {"username": "tenant_user", "password": "tenant_password"},
     )
     database_session = get_db(tenant)
 
@@ -269,14 +279,22 @@ def test_tenant_engine_cache_includes_host_and_port(monkeypatch):
         ),
     )
 
-    first = database.get_tenant_engine("10.20.30.40", 5432, "shared_name")
-    second = database.get_tenant_engine("10.20.30.41", 5432, "shared_name")
+    first = database.get_tenant_engine(
+        "10.20.30.40", 5432, "shared_name", "user", "password"
+    )
+    second = database.get_tenant_engine(
+        "10.20.30.41", 5432, "shared_name", "user", "password"
+    )
 
     assert first is not second
     assert first.url.host != second.url.host
 
-    database._tenant_engines.pop(("10.20.30.40", 5432, "shared_name"), None)
-    database._tenant_engines.pop(("10.20.30.41", 5432, "shared_name"), None)
+    database._tenant_engines.pop(
+        ("10.20.30.40", 5432, "shared_name", "user"), None
+    )
+    database._tenant_engines.pop(
+        ("10.20.30.41", 5432, "shared_name", "user"), None
+    )
     import asyncio
 
     asyncio.run(first.dispose())
@@ -285,7 +303,9 @@ def test_tenant_engine_cache_includes_host_and_port(monkeypatch):
 
 def test_tenant_database_name_rejects_invalid_characters():
     with pytest.raises(ValueError, match="Nama database tenant tidak valid"):
-        database.get_tenant_engine("10.20.30.40", 5432, "school/db")
+        database.get_tenant_engine(
+            "10.20.30.40", 5432, "school/db", "user", "password"
+        )
 
 
 def test_filestore_path_stays_within_selected_tenant(tmp_path, monkeypatch):

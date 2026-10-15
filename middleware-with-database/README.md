@@ -30,9 +30,10 @@ pemanggilan JSON-RPC.
 Salin `.env.example` menjadi `.env`, lalu atur kredensial PostgreSQL dan secret
 JWT. `REGISTRY_DB_NAME` adalah database pusat yang harus dibuat sebelum backend
 dijalankan. Role PostgreSQL pada environment digunakan untuk registry dan koneksi
-tenant; pastikan host tenant dapat dijangkau dari server middleware, firewall dan
-`pg_hba.conf` mengizinkan koneksi, serta role tersebut memiliki izin ke database
-sekolah.
+tenant; untuk kredensial tenant yang berbeda, atur `TENANT_SECRETS_FILE` ke file
+JSON yang hanya dapat dibaca service backend. Pastikan host tenant dapat
+dijangkau dari server middleware, firewall dan `pg_hba.conf` mengizinkan koneksi,
+serta role tersebut memiliki izin ke database sekolah.
 Jika file Odoo memakai filestore, `ODOO_FILESTORE_PATH` harus menunjuk ke root
 filestore bersama dengan susunan `<database-sekolah>/<store_fname>`.
 Attachment SCORM publik juga dapat diambil backend melalui endpoint HTTP Odoo
@@ -64,6 +65,21 @@ Odoo; `odoo_db_host` dan `odoo_db_port` adalah alamat PostgreSQL sekolah;
 `odoo_db` adalah nama katalog database PostgreSQL. `user_db` menyimpan username
 database bila diperlukan untuk integrasi secret per tenant, sedangkan
 `secret_ref_db` hanya menyimpan referensi secret, bukan password.
+
+Format file `TENANT_SECRETS_FILE`:
+
+```json
+{
+  "tenant/bogor/postgresql": {
+    "username": "mwd_bogor",
+    "password": "diisi-admin-server"
+  }
+}
+```
+
+File tersebut harus dibuat dan dikelola admin server dengan permission minimum
+yang memungkinkan service membacanya. Password tenant tidak dimasukkan ke
+registry, Git, atau respons API.
 Tambahkan data yang diberikan ke registry yang kosong, misalnya:
 
 ```sql

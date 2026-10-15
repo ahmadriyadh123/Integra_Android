@@ -25,7 +25,7 @@ RegistrySessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
-_tenant_engines: dict[tuple[str, int, str], AsyncEngine] = {}
+_tenant_engines: dict[tuple[str, int, str, str], AsyncEngine] = {}
 _DATABASE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _DATABASE_HOST_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
@@ -34,6 +34,8 @@ def get_tenant_engine(
     database_host: str,
     database_port: int,
     database_name: str,
+    database_user: str,
+    database_password: str,
 ) -> AsyncEngine:
     if not _DATABASE_HOST_PATTERN.fullmatch(database_host):
         raise ValueError("Host database tenant tidak valid.")
@@ -42,13 +44,15 @@ def get_tenant_engine(
     if not _DATABASE_NAME_PATTERN.fullmatch(database_name):
         raise ValueError("Nama database tenant tidak valid.")
 
-    cache_key = (database_host, database_port, database_name)
+    cache_key = (database_host, database_port, database_name, database_user)
     engine = _tenant_engines.get(cache_key)
     if engine is None:
         tenant_url = make_url(settings.DATABASE_URL).set(
             host=database_host,
             port=database_port,
             database=database_name,
+            username=database_user,
+            password=database_password,
         )
         engine = create_async_engine(
             tenant_url,
@@ -79,9 +83,17 @@ def create_tenant_session_factory(
     database_host: str,
     database_port: int,
     database_name: str,
+    database_user: str,
+    database_password: str,
 ):
     return sessionmaker(
-        bind=get_tenant_engine(database_host, database_port, database_name),
+        bind=get_tenant_engine(
+            database_host,
+            database_port,
+            database_name,
+            database_user,
+            database_password,
+        ),
         class_=AsyncSession,
         expire_on_commit=False,
     )

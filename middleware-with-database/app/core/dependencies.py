@@ -17,6 +17,7 @@ from app.core.database import (
     get_registry_db,
 )
 from app.core.models import SchoolTenant
+from app.core.tenant_secrets import TenantSecretError, get_tenant_credentials
 
 security_scheme = HTTPBearer(auto_error=False)
 logger = logging.getLogger(__name__)
@@ -59,11 +60,21 @@ async def get_db(
     tenant: SchoolTenant = Depends(get_current_tenant),
 ) -> AsyncGenerator[AsyncSession, None]:
     """Open an isolated SQLAlchemy session against the selected school's database."""
-    session_factory = create_tenant_session_factory(
-        tenant.odoo_db_host,
-        tenant.odoo_db_port,
-        tenant.odoo_db,
-    )
+    try:
+        credentials = get_tenant_credentials(tenant.secret_ref_db)
+        session_factory = create_tenant_session_factory(
+            tenant.odoo_db_host,
+            tenant.odoo_db_port,
+            tenant.odoo_db,
+            credentials["username"],
+            credentials["password"],
+        )
+    except TenantSecretError as exc:
+        logger.error("[tenant/%s] Kredensial database tenant tidak tersedia", tenant.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Konfigurasi layanan sekolah belum lengkap. Silakan hubungi administrator.",
+        ) from exc
     async with session_factory() as session:
         session.info["tenant_id"] = tenant.id
         session.info["tenant_database_host"] = tenant.odoo_db_host
