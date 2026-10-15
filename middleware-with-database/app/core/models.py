@@ -19,6 +19,10 @@ class SchoolTenant(Base):
         String(120), nullable=False, unique=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    user_db: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    secret_ref_db: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    odoo_db_host: Mapped[str] = mapped_column(String(255), nullable=False)
+    odoo_db_port: Mapped[int] = mapped_column(Integer, default=5432, nullable=False)
 
 
 class RefreshToken(Base):

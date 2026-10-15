@@ -25,17 +25,31 @@ RegistrySessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
-_tenant_engines: dict[str, AsyncEngine] = {}
+_tenant_engines: dict[tuple[str, int, str], AsyncEngine] = {}
 _DATABASE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+_DATABASE_HOST_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
 
-def get_tenant_engine(database_name: str) -> AsyncEngine:
+def get_tenant_engine(
+    database_host: str,
+    database_port: int,
+    database_name: str,
+) -> AsyncEngine:
+    if not _DATABASE_HOST_PATTERN.fullmatch(database_host):
+        raise ValueError("Host database tenant tidak valid.")
+    if not 1 <= database_port <= 65535:
+        raise ValueError("Port database tenant tidak valid.")
     if not _DATABASE_NAME_PATTERN.fullmatch(database_name):
         raise ValueError("Nama database tenant tidak valid.")
 
-    engine = _tenant_engines.get(database_name)
+    cache_key = (database_host, database_port, database_name)
+    engine = _tenant_engines.get(cache_key)
     if engine is None:
-        tenant_url = make_url(settings.DATABASE_URL).set(database=database_name)
+        tenant_url = make_url(settings.DATABASE_URL).set(
+            host=database_host,
+            port=database_port,
+            database=database_name,
+        )
         engine = create_async_engine(
             tenant_url,
             echo=False,
@@ -45,7 +59,7 @@ def get_tenant_engine(database_name: str) -> AsyncEngine:
             pool_recycle=1800,
             pool_pre_ping=True,
         )
-        _tenant_engines[database_name] = engine
+        _tenant_engines[cache_key] = engine
     return engine
 
 
@@ -61,9 +75,13 @@ async def get_registry_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def create_tenant_session_factory(database_name: str):
+def create_tenant_session_factory(
+    database_host: str,
+    database_port: int,
+    database_name: str,
+):
     return sessionmaker(
-        bind=get_tenant_engine(database_name),
+        bind=get_tenant_engine(database_host, database_port, database_name),
         class_=AsyncSession,
         expire_on_commit=False,
     )

@@ -22,14 +22,17 @@ tetap menjadi override eksplisit dan melewati konfigurasi remote.
 
 Backend ini membaca data sekolah langsung melalui SQLAlchemy async. Database
 registry menyimpan daftar sekolah, sedangkan setiap sekolah menunjuk ke database
-Odoo terpisah pada server PostgreSQL yang sama. Tidak ada pemanggilan JSON-RPC.
+Odoo terpisah melalui host dan port PostgreSQL miliknya sendiri. Tidak ada
+pemanggilan JSON-RPC.
 
 ## Konfigurasi
 
 Salin `.env.example` menjadi `.env`, lalu atur kredensial PostgreSQL dan secret
 JWT. `REGISTRY_DB_NAME` adalah database pusat yang harus dibuat sebelum backend
-dijalankan. Pengguna PostgreSQL yang sama harus memiliki izin membaca database
-registry dan setiap database sekolah.
+dijalankan. Role PostgreSQL pada environment digunakan untuk registry dan koneksi
+tenant; pastikan host tenant dapat dijangkau dari server middleware, firewall dan
+`pg_hba.conf` mengizinkan koneksi, serta role tersebut memiliki izin ke database
+sekolah.
 Jika file Odoo memakai filestore, `ODOO_FILESTORE_PATH` harus menunjuk ke root
 filestore bersama dengan susunan `<database-sekolah>/<store_fname>`.
 Attachment SCORM publik juga dapat diambil backend melalui endpoint HTTP Odoo
@@ -55,23 +58,28 @@ milik siswa pada token aktif; catatan pekan baru dapat dibuat dengan `line_id`
 
 Saat startup, tabel `school_tenants` dibuat di database registry jika belum ada,
 dengan kolom yang sama seperti daftar tenant yang digunakan admin: `id`,
-`school_code`, `school_name`, `odoo_url`, `odoo_db`, dan `is_active`. `odoo_url`
-disimpan sebagai identitas sekolah; koneksi SQL tenant memakai host dan user
-PostgreSQL bersama dari environment, lalu memilih database dari `odoo_db`.
+`school_code`, `school_name`, `odoo_url`, `odoo_db`, `is_active`, `user_db`,
+`secret_ref_db`, `odoo_db_host`, dan `odoo_db_port`. `odoo_url` adalah URL HTTP
+Odoo; `odoo_db_host` dan `odoo_db_port` adalah alamat PostgreSQL sekolah;
+`odoo_db` adalah nama katalog database PostgreSQL. `user_db` menyimpan username
+database bila diperlukan untuk integrasi secret per tenant, sedangkan
+`secret_ref_db` hanya menyimpan referensi secret, bukan password.
 Tambahkan data yang diberikan ke registry yang kosong, misalnya:
 
 ```sql
 INSERT INTO school_tenants
-    (id, school_code, school_name, odoo_url, odoo_db, is_active)
+    (id, school_code, school_name, odoo_url, odoo_db_host, odoo_db_port,
+     odoo_db, is_active)
 VALUES
     (1, 'TEST APK', 'test', 'https://kp-sekolah.asetkoptii.com',
-     '<nama_database_postgresql_odoo_test>', TRUE),
+     '10.20.30.40', 5432, '<nama_database_postgresql_odoo_test>', TRUE),
     (2, 'SEKOLAH-001', 'Sekolah Alam Bogor',
-     'https://sekolahalambogor.sch.id',
+     'https://sekolahalambogor.sch.id', '10.20.30.41', 5432,
      '<nama_database_postgresql_odoo_sekolah_alam_bogor>', TRUE);
 ```
 
-Kolom `odoo_db` harus persis sama dengan nama database sekolah yang sudah ada.
+Kolom `odoo_db` harus persis sama dengan nama database sekolah yang sudah ada
+pada `odoo_db_host:odoo_db_port`.
 Jangan mengisi `odoo_db` dengan URL/domain sekolah kecuali memang itulah nama
 database PostgreSQL-nya. Database registry tidak boleh dipakai sebagai
 database tenant.
@@ -83,8 +91,9 @@ database tenant.
 - Login dan endpoint tenant lainnya memerlukan `X-School-ID: <id>`.
 - Login menghasilkan JWT yang terikat pada sekolah tersebut. Request yang
   membawa token untuk sekolah berbeda ditolak dengan HTTP 403.
-- Setiap request tenant membuka sesi SQLAlchemy ke database sekolah terpilih.
-  Engine dan connection pool digunakan ulang per nama database.
+- Setiap request tenant membuka sesi SQLAlchemy ke host, port, dan database
+  sekolah terpilih. Engine dan connection pool digunakan ulang per kombinasi
+  host, port, dan nama database.
 
 Endpoint sinkronisasi presensi (`/api/v1/attendance/history/sync`) dan jadwal
 CBT (`/api/v1/cbt/schedules/sync`) mengembalikan snapshot penuh untuk sekolah

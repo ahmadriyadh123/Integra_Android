@@ -251,7 +251,7 @@ Variabel backend utama:
 
 | Variabel | Ketentuan |
 |---|---|
-| `ODOO_HOST` | Host yang dapat dijangkau backend; dipakai sebagai host PostgreSQL dan pembentuk URL Odoo oleh aplikasi. Pastikan nilainya sesuai untuk kedua fungsi tersebut. |
+| `ODOO_HOST` | Host PostgreSQL registry yang dapat dijangkau backend. Host PostgreSQL tenant diatur per baris pada `school_tenants.odoo_db_host`. |
 | `DB_PORT` | Port PostgreSQL, biasanya `5432`. |
 | `DB_USER` | Role database dengan izin minimum ke registry dan database tenant yang diperlukan. |
 | `DB_PASSWORD` | Password baru yang disimpan hanya di `.env`. |
@@ -546,12 +546,11 @@ contoh:
 - `python-multipart` tidak tersedia: pasang dependensi dari manifest pada
   virtual environment yang benar.
 - `asyncpg.exceptions.InvalidCatalogNameError: database "..." does not exist`:
-  bedakan database registry (`REGISTRY_DB_NAME` di `.env`) dari database tenant
-  (`school_tenants.odoo_db` di registry). Jika error muncul saat request tenant,
-  periksa nilai `odoo_db` untuk sekolah yang dipilih; nilai itu harus persis
-  nama database PostgreSQL Odoo yang sudah ada. Domain sekolah seharusnya ada di
-  `odoo_url`, bukan `odoo_db`, kecuali admin memastikan nama database memang
-  sama dengan domain tersebut.
+  bedakan database registry (`REGISTRY_DB_NAME` di `.env`) dari database tenant.
+  Jika error muncul saat request tenant, periksa kombinasi
+  `odoo_db_host`, `odoo_db_port`, dan `odoo_db`; ketiganya harus menunjuk ke
+  katalog PostgreSQL yang benar. Gunakan `odoo_url` hanya sebagai URL HTTP Odoo,
+  bukan sebagai host PostgreSQL.
 
   Periksa baris tenant tanpa menampilkan kredensial:
 
@@ -563,16 +562,20 @@ contoh:
   benar, lalu jalankan:
 
   ```sql
-  SELECT id, school_name, odoo_url, odoo_db, is_active
+  SELECT id, school_name, odoo_url, odoo_db_host, odoo_db_port, odoo_db, is_active
   FROM school_tenants
-  WHERE odoo_db = 'sekolahalambogor.sch.id'
-     OR odoo_url ILIKE '%sekolahalambogor.sch.id%';
+  WHERE school_code = 'bogor';
   ```
 
   Minta admin memastikan nama database tenant yang sebenarnya (misalnya dengan
   `\l` di `psql` dan mencocokkannya dengan konfigurasi Odoo). Setelah dikonfirmasi,
-  perbaiki hanya `odoo_db` pada baris tenant yang tepat, bukan `REGISTRY_DB_NAME`
-  atau `odoo_url`. Jangan membuat database bernama domain sebagai jalan pintas.
+  perbaiki hanya host/port/nama database pada baris tenant yang tepat, bukan
+  `REGISTRY_DB_NAME` atau `odoo_url`. Uji koneksi dari server middleware:
+
+  ```bash
+  psql -h <odoo_db_host> -p <odoo_db_port> -U "$DB_USER" -d <odoo_db> \
+    -c "SELECT current_database(), current_user;"
+  ```
 - autentikasi ditolak: koordinasikan rotasi password database pada semua
   konsumen role terkait.
 - `Permission denied` pada filestore: admin meninjau ACL dan parent-directory

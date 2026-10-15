@@ -59,9 +59,15 @@ async def get_db(
     tenant: SchoolTenant = Depends(get_current_tenant),
 ) -> AsyncGenerator[AsyncSession, None]:
     """Open an isolated SQLAlchemy session against the selected school's database."""
-    session_factory = create_tenant_session_factory(tenant.odoo_db)
+    session_factory = create_tenant_session_factory(
+        tenant.odoo_db_host,
+        tenant.odoo_db_port,
+        tenant.odoo_db,
+    )
     async with session_factory() as session:
         session.info["tenant_id"] = tenant.id
+        session.info["tenant_database_host"] = tenant.odoo_db_host
+        session.info["tenant_database_port"] = tenant.odoo_db_port
         session.info["tenant_database"] = tenant.odoo_db
         session.info["tenant_odoo_url"] = tenant.odoo_url
         try:

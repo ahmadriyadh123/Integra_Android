@@ -48,6 +48,10 @@ def tenant():
         school_code="SEKOLAH-001",
         school_name="Sekolah Alam Bogor",
         odoo_url="https://sekolahalambogor.sch.id",
+        user_db="kposk",
+        secret_ref_db="secret/tenant/bogor",
+        odoo_db_host="10.20.30.40",
+        odoo_db_port=5432,
         odoo_db="sekolah_alam_bogor_db",
         is_active=True,
     )
@@ -61,6 +65,10 @@ def test_tenant_model_matches_registry_columns():
         "odoo_url",
         "odoo_db",
         "is_active",
+        "user_db",
+        "secret_ref_db",
+        "odoo_db_host",
+        "odoo_db_port",
     }
 
 
@@ -141,7 +149,7 @@ async def test_credentials_include_selected_tenant(tenant):
     assert credentials["school_db"] == tenant.odoo_db
 
 
-def test_tenant_engine_targets_school_database(monkeypatch):
+def test_tenant_engine_targets_school_database_host_and_port(monkeypatch):
     monkeypatch.setattr(
         database,
         "settings",
@@ -153,10 +161,19 @@ def test_tenant_engine_targets_school_database(monkeypatch):
         ),
     )
 
-    engine = database.get_tenant_engine("sekolah_alam_bogor_db")
+    engine = database.get_tenant_engine(
+        "10.20.30.40",
+        5433,
+        "sekolah_alam_bogor_db",
+    )
+    assert engine.url.host == "10.20.30.40"
+    assert engine.url.port == 5433
     assert engine.url.database == "sekolah_alam_bogor_db"
 
-    database._tenant_engines.pop("sekolah_alam_bogor_db", None)
+    database._tenant_engines.pop(
+        ("10.20.30.40", 5433, "sekolah_alam_bogor_db"),
+        None,
+    )
     import asyncio
 
     asyncio.run(engine.dispose())
@@ -191,7 +208,7 @@ async def test_missing_tenant_database_returns_configuration_error(tenant, monke
 
     monkeypatch.setattr(
         "app.core.dependencies.create_tenant_session_factory",
-        lambda _database_name: Session,
+        lambda _database_host, _database_port, _database_name: Session,
     )
     database_session = get_db(tenant)
 
@@ -229,7 +246,7 @@ async def test_raw_asyncpg_missing_tenant_database_returns_configuration_error(
 
     monkeypatch.setattr(
         "app.core.dependencies.create_tenant_session_factory",
-        lambda _database_name: Session,
+        lambda _database_host, _database_port, _database_name: Session,
     )
     database_session = get_db(tenant)
 
@@ -243,9 +260,32 @@ async def test_raw_asyncpg_missing_tenant_database_returns_configuration_error(
     assert tenant.odoo_db not in error.value.detail
 
 
+def test_tenant_engine_cache_includes_host_and_port(monkeypatch):
+    monkeypatch.setattr(
+        database,
+        "settings",
+        SimpleNamespace(
+            DATABASE_URL="postgresql+asyncpg://user:password@registry:5432/registry"
+        ),
+    )
+
+    first = database.get_tenant_engine("10.20.30.40", 5432, "shared_name")
+    second = database.get_tenant_engine("10.20.30.41", 5432, "shared_name")
+
+    assert first is not second
+    assert first.url.host != second.url.host
+
+    database._tenant_engines.pop(("10.20.30.40", 5432, "shared_name"), None)
+    database._tenant_engines.pop(("10.20.30.41", 5432, "shared_name"), None)
+    import asyncio
+
+    asyncio.run(first.dispose())
+    asyncio.run(second.dispose())
+
+
 def test_tenant_database_name_rejects_invalid_characters():
     with pytest.raises(ValueError, match="Nama database tenant tidak valid"):
-        database.get_tenant_engine("school/db")
+        database.get_tenant_engine("10.20.30.40", 5432, "school/db")
 
 
 def test_filestore_path_stays_within_selected_tenant(tmp_path, monkeypatch):
