@@ -300,6 +300,29 @@ async function authenticatedOdooCall(tenant, login, password, model, method, arg
   if (!authResult || !Number.isInteger(authResult.uid)) {
     throw new HttpError(401, "Odoo tenant menolak login atau password.");
   }
+
+  async function checkOdooConnection(tenant) {
+    const startedAt = Date.now();
+    try {
+      const { result } = await odooJsonRpc(tenant.url, "/web/webclient/version_info", {});
+      return {
+        tenantId: tenant.id,
+        connected: true,
+        latencyMs: Date.now() - startedAt,
+        odooVersion: result?.server_version || "",
+        message: "Koneksi Odoo berhasil.",
+        checkedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        tenantId: tenant.id,
+        connected: false,
+        latencyMs: Date.now() - startedAt,
+        message: error instanceof Error ? error.message : "Koneksi Odoo gagal.",
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  }
   const cookie = getSessionCookie(response);
   const call = await odooJsonRpc(
     tenant.url,
@@ -573,13 +596,18 @@ async function handleApi(request, response, url) {
   }
 
   requireSession(request);
-  const body = ["POST", "PUT", "DELETE"].includes(request.method)
+  const body = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
     ? await readBody(request)
     : {};
   const store = await readStore();
 
   if (request.method === "GET" && url.pathname === "/api/tenants") {
-    return sendJson(response, 200, { tenants: store.tenants });
+    return sendJson(response, 200, {
+      tenants: store.tenants.map((tenant) => ({
+        ...tenant,
+        active: tenant.active !== false,
+      })),
+    });
   }
 
   if (request.method === "POST" && url.pathname === "/api/tenants") {
@@ -593,6 +621,7 @@ async function handleApi(request, response, url) {
       name: requireString(body.name, "Nama sekolah", 150),
       url: normalizeTenantUrl(body.url),
       database: requireString(body.database, "Database Odoo", 120),
+      active: body.active !== false,
       createdAt: new Date().toISOString(),
     };
     store.tenants.push(tenant);
@@ -600,10 +629,27 @@ async function handleApi(request, response, url) {
     return sendJson(response, 201, { tenant });
   }
 
+  const connectionRoute = url.pathname.match(/^\/api\/tenants\/([a-f0-9-]+)\/connection\/check$/i);
+  if (connectionRoute && request.method === "POST") {
+    const tenant = store.tenants.find((item) => item.id === connectionRoute[1]);
+    if (!tenant) throw new HttpError(404, "Tenant tidak ditemukan.");
+    return sendJson(response, 200, { connection: await checkOdooConnection(tenant) });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tenants/connections/check") {
+    const connections = await Promise.all(store.tenants.map(checkOdooConnection));
+    return sendJson(response, 200, { connections });
+  }
+
   const tenantRoute = url.pathname.match(/^\/api\/tenants\/([a-f0-9-]+)$/i);
-  if (tenantRoute && request.method === "PUT") {
+  if (tenantRoute && ["PUT", "PATCH"].includes(request.method)) {
     const tenant = store.tenants.find((item) => item.id === tenantRoute[1]);
     if (!tenant) throw new HttpError(404, "Tenant tidak ditemukan.");
+    if (request.method === "PATCH" && body.active !== undefined) {
+      tenant.active = body.active === true;
+      await writeStore(store);
+      return sendJson(response, 200, { tenant });
+    }
     const code = requireString(body.schoolCode, "Kode sekolah", 50).toUpperCase();
     if (store.tenants.some((item) => item.id !== tenant.id && item.schoolCode === code)) {
       throw new HttpError(409, "Kode sekolah sudah digunakan.");
@@ -612,6 +658,7 @@ async function handleApi(request, response, url) {
     tenant.name = requireString(body.name, "Nama sekolah", 150);
     tenant.url = normalizeTenantUrl(body.url);
     tenant.database = requireString(body.database, "Database Odoo", 120);
+    tenant.active = body.active !== false;
     await writeStore(store);
     return sendJson(response, 200, { tenant });
   }

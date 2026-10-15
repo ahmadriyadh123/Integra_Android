@@ -90,6 +90,20 @@ untuk mencoba alur lengkap karena API tetap diperlukan. Endpoint
 
 ## Addon Odoo terdahulu
 
-Direktori `odoo-addons/integra_school_admin` tetap tersedia sebagai artefak
-terpisah dari panel mandiri ini. Perubahan/pemetaan pada panel tidak membaca
-atau menulis konfigurasi addon tersebut.
+Direktori `odoo-addons/integra_school_admin` adalah custom addon yang dapat
+disalin langsung ke `addons_path` Odoo untuk mengelola daftar server Odoo
+sekolah pada database pusat. Addon menyimpan kode sekolah, nama sekolah, URL
+Odoo, nama database, status aktif, dan konfigurasi model/relasi. Petunjuk
+instalasi dan pengujian ada di
+[`odoo-addons/integra_school_admin/README.md`](odoo-addons/integra_school_admin/README.md).
+
+Salinan data untuk pengujian npm ada di
+[`test/fixtures/odoo-tenant-directory.json`](test/fixtures/odoo-tenant-directory.json).
+Jalankan validasinya dengan:
+
+```powershell
+npm test
+```
+
+Fixture hanya berisi URL dan database contoh; tidak berisi password atau
+kredensial Odoo.
