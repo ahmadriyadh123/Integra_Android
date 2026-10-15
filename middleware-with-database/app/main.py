@@ -1,10 +1,16 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import api_router
 from app.core.config import settings
-from app.core.database import dispose_database_engines, registry_engine
+from app.core.database import (
+    RegistrySessionLocal,
+    dispose_database_engines,
+    registry_engine,
+)
 from app.core.models import SchoolTenant
 
 @asynccontextmanager
@@ -41,3 +47,30 @@ async def client_config():
 @app.get("/")
 async def root():
     return {"status": "Active", "message": "Odoo Mobile Middleware Services Running"}
+
+
+@app.get("/health/live")
+async def liveness():
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+async def readiness():
+    try:
+        async with RegistrySessionLocal() as session:
+            result = await session.execute(
+                select(SchoolTenant.id).where(SchoolTenant.is_active.is_(True))
+            )
+            active_school_count = len(result.scalars().all())
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "not_ready", "registry": "unreachable"},
+        ) from exc
+
+    if active_school_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "not_ready", "reason": "no_active_tenants"},
+        )
+    return {"status": "ready", "configured_schools": active_school_count}
