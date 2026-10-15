@@ -33,3 +33,17 @@ class TestSchoolTenant(TransactionCase):
                         "odoo_db": "sekolah_db_2",
                     }
                 )
+
+    def test_rejects_duplicate_odoo_database(self):
+        values = {
+            "school_code": "SDN-003",
+            "school_name": "SD Negeri 3",
+            "odoo_url": "https://odoo.example.test",
+            "odoo_db": "sekolah_db_3",
+        }
+        self.env["integra.school.tenant"].create(values)
+
+        with self.assertRaises(ValidationError):
+            self.env["integra.school.tenant"].create(
+                dict(values, school_code="SDN-004", school_name="SD Negeri 4")
+            )

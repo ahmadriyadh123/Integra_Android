@@ -91,11 +91,16 @@ untuk mencoba alur lengkap karena API tetap diperlukan. Endpoint
 ## Addon Odoo terdahulu
 
 Direktori `odoo-addons/integra_school_admin` adalah custom addon yang dapat
-disalin langsung ke `addons_path` Odoo untuk mengelola daftar server Odoo
-sekolah pada database pusat. Addon menyimpan kode sekolah, nama sekolah, URL
-Odoo, nama database, status aktif, dan konfigurasi model/relasi. Petunjuk
-instalasi dan pengujian ada di
+disalin langsung ke `addons_path` Odoo untuk menampilkan representasi daftar
+server Odoo sekolah. Petunjuk instalasi dan pengujian ada di
 [`odoo-addons/integra_school_admin/README.md`](odoo-addons/integra_school_admin/README.md).
+
+Untuk backend mobile, **database registry middleware tetap menjadi source of
+truth**. Endpoint `GET /api/v1/auth/schools` membaca tabel
+`school_tenants` dengan field `school_code`, `school_name`, `odoo_url`,
+`odoo_db`, dan `is_active`. Model addon Odoo
+`integra.school.tenant` hanya menyamakan kontrak dan tampilan lokal; addon
+tidak mengganti, membaca langsung, atau menyinkronkan otomatis tabel registry.
 
 Salinan data untuk pengujian npm ada di
 [`test/fixtures/odoo-tenant-directory.json`](test/fixtures/odoo-tenant-directory.json).

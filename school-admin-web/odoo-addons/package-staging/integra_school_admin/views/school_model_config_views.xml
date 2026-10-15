@@ -1,0 +1,94 @@
+<odoo>
+    <record id="view_integra_school_model_config_tree" model="ir.ui.view">
+        <field name="name">integra.school.model.config.tree</field>
+        <field name="model">integra.school.model.config</field>
+        <field name="arch" type="xml">
+            <tree string="Konfigurasi Model">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="model_id"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_integra_school_model_config_form" model="ir.ui.view">
+        <field name="name">integra.school.model.config.form</field>
+        <field name="model">integra.school.model.config</field>
+        <field name="arch" type="xml">
+            <form string="Konfigurasi Model">
+                <header>
+                    <field name="active" widget="boolean_button"
+                           options="{'terminology': 'archive'}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Contoh: Profil siswa"/></h1>
+                    </div>
+                    <group>
+                        <field name="model_id"
+                               options="{'no_create': True, 'no_open': True}"/>
+                        <field name="active" invisible="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Field model">
+                            <field name="field_ids"
+                                   widget="many2many_tags"
+                                   domain="[('model_id', '=', model_id)]"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                        </page>
+                        <page string="Relasi">
+                            <field name="relation_ids">
+                                <tree editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="source_field_id"
+                                           domain="[('model_id', '=', parent.model_id), ('ttype', 'in', ['many2one', 'one2many', 'many2many'])]"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="relation_model" readonly="1"/>
+                                    <field name="field_ids"
+                                           widget="many2many_tags"
+                                           domain="[('model', '=', relation_model)]"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Catatan">
+                            <field name="notes" placeholder="Tujuan atau catatan konfigurasi"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_integra_school_model_config_search" model="ir.ui.view">
+        <field name="name">integra.school.model.config.search</field>
+        <field name="model">integra.school.model.config</field>
+        <field name="arch" type="xml">
+            <search string="Cari konfigurasi">
+                <field name="name"/>
+                <field name="model_id"/>
+                <filter name="active" string="Aktif"
+                        domain="[('active', '=', True)]"/>
+                <filter name="inactive" string="Diarsipkan"
+                        domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_integra_school_model_config" model="ir.actions.act_window">
+        <field name="name">Konfigurasi Model</field>
+        <field name="res_model">integra.school.model.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_integra_school_model_config_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+    </record>
+
+    <menuitem id="menu_integra_school_model_config"
+              name="Konfigurasi Model"
+              parent="menu_integra_school_admin_root"
+              action="action_integra_school_model_config"
+              sequence="20"
+              groups="base.group_system"/>
+</odoo>

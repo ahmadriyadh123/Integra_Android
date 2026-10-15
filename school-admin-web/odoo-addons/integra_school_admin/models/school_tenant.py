@@ -33,13 +33,27 @@ class SchoolTenant(models.Model):
             "unique(school_code)",
             "Kode sekolah harus unik.",
         ),
+        (
+            "odoo_db_unique",
+            "unique(odoo_db)",
+            "Nama database Odoo harus unik.",
+        ),
     ]
 
     school_code = fields.Char(required=True, index=True, size=50)
     school_name = fields.Char(required=True, index=True, size=150)
     odoo_url = fields.Char(required=True, size=500)
     odoo_db = fields.Char(required=True, size=120)
-    active = fields.Boolean(default=True)
+    # This mirrors registry.school_tenants.is_active for display and local
+    # validation only. The middleware registry remains the source of truth.
+    active = fields.Boolean(
+        string="Aktif di addon",
+        default=True,
+        help=(
+            "Pemetaan lokal ke school_tenants.is_active. Perubahan pada "
+            "field ini tidak mengubah database registry middleware."
+        ),
+    )
 
     @api.model_create_multi
     def create(self, vals_list):

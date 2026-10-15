@@ -32,6 +32,12 @@
                            options="{'terminology': 'archive'}"/>
                 </header>
                 <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Daftar sekolah pada aplikasi mobile tetap membaca
+                        database registry middleware (<code>school_tenants</code>).
+                        Data pada addon ini adalah representasi lokal yang
+                        menggunakan kontrak field yang sama.
+                    </div>
                     <div class="oe_title">
                         <label for="school_name"/>
                         <h1><field name="school_name" placeholder="Nama sekolah"/></h1>
