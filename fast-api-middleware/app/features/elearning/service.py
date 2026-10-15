@@ -118,6 +118,8 @@ class ElearningService:
             password,
             [int(course['id']) for course in raw_courses if course.get('id')],
         )
+        if not isinstance(slide_counts, dict):
+            slide_counts = None
         progress_by_course = (
             self.repo.get_progress_by_course(uid, password, partner_id)
             if partner_id is not None
@@ -164,6 +166,8 @@ class ElearningService:
                 password,
                 [int(course['id']) for course in raw_courses if course.get('id')],
             )
+            if not isinstance(slide_counts, dict):
+                slide_counts = None
             items = self._map_courses(
                 raw_courses,
                 progress_by_course,
