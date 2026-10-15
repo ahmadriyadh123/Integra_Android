@@ -65,7 +65,7 @@ async def get_current_user_credentials(
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token tidak valid: Kredensial User ID (uid) tidak ditemukan.",
+                detail="Sesi Anda tidak valid. Silakan login kembali.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
@@ -73,13 +73,13 @@ async def get_current_user_credentials(
         if type(token_school_id) is not int:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token belum terikat ke sekolah. Silakan login kembali.",
+                detail="Sesi Anda belum terhubung dengan sekolah. Silakan login kembali.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         if token_school_id != tenant.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token tidak berlaku untuk sekolah yang dipilih.",
+                detail="Akun Anda tidak sesuai dengan sekolah yang dipilih. Silakan pilih sekolah yang benar atau login kembali.",
             )
 
         return {
@@ -97,6 +97,6 @@ async def get_current_user_credentials(
     except PyJWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token autentikasi tidak valid atau telah kedaluwarsa: {str(e)}",
+            detail="Sesi Anda sudah berakhir atau tidak valid. Silakan login kembali.",
             headers={"WWW-Authenticate": "Bearer"},
         )

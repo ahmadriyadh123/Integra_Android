@@ -57,11 +57,11 @@ def get_attendance_history(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[attendance/history] Error uid={creds['uid']}: {e}")
+        logger.exception("[attendance/history] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data dari Odoo: {str(e)}"
-        )
+            detail="Riwayat presensi belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 @router.get("/history/sync")
 def sync_attendance_history(
     cursor: datetime | None = Query(None),
@@ -73,7 +73,7 @@ def sync_attendance_history(
     if not student_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Akun Odoo belum terhubung ke data siswa.",
+            detail="Akun Anda belum terhubung dengan data siswa. Silakan hubungi pihak sekolah.",
         )
 
     try:

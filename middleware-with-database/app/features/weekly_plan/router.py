@@ -41,7 +41,10 @@ async def sync_weekly_plans(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=(
+                "Daftar rencana mingguan perlu dimuat ulang. "
+                "Silakan coba perbarui halaman."
+            ),
         ) from exc
     except Exception as exc:
         logger.exception(
@@ -50,7 +53,7 @@ async def sync_weekly_plans(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal menyinkronkan daftar Weekly Plan.",
+            detail="Rencana mingguan belum dapat diperbarui. Silakan coba lagi.",
         ) from exc
 
 @router.get("/list", response_model=APIResponseWeeklyPlanList)
@@ -71,11 +74,14 @@ async def get_weekly_plans(
             data=data
         )
     except Exception as e:
-        logger.error(f"[weekly-plan/list] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[weekly-plan/list] Error uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil daftar Weekly Plan: {str(e)}"
-        )
+            detail="Rencana mingguan belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/detail/{plan_id}", response_model=APIResponseWeeklyPlanDetail)
 async def get_weekly_plan_detail(
@@ -102,11 +108,15 @@ async def get_weekly_plan_detail(
             data=data
         )
     except Exception as e:
-        logger.error(f"[weekly-plan/detail/{plan_id}] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[weekly-plan/detail/%s] Error uid=%s",
+            plan_id,
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail Weekly Plan: {str(e)}"
-        )
+            detail="Detail rencana mingguan belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/pdf/{plan_id}")
 async def get_weekly_plan_pdf(
@@ -128,7 +138,7 @@ async def get_weekly_plan_pdf(
         if not header:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Weekly Plan ID {plan_id} tidak ditemukan"
+                detail="Rencana mingguan tidak ditemukan."
             )
 
         kelas = str(header.get('course_name') or 'SD').replace(' ', '_')
@@ -174,8 +184,12 @@ async def get_weekly_plan_pdf(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[weekly-plan/pdf/{plan_id}] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[weekly-plan/pdf/%s] Error uid=%s",
+            plan_id,
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil/membuat PDF Weekly Plan: {str(e)}"
-        )
+            detail="Dokumen rencana mingguan belum dapat dibuka. Silakan coba lagi.",
+        ) from e

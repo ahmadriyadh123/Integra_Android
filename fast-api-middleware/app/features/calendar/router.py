@@ -28,7 +28,7 @@ def get_academic_calendars(
     if type(course_id) is not int or course_id <= 0:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Akun Odoo belum terhubung ke kelas siswa.",
+            detail="Akun Anda belum terhubung dengan data kelas. Silakan hubungi pihak sekolah.",
         )
 
     try:
@@ -57,11 +57,11 @@ def get_academic_calendars(
             data=data
         )
     except Exception as e:
-        logger.error(f"[calendar/list] Error uid={creds['uid']}: {e}")
+        logger.exception("[calendar/list] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data kalender dari Odoo: {str(e)}"
-        )
+            detail="Kalender akademik belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 @router.get("/sync")
 def sync_academic_calendars(
     cursor: datetime | None = None,
@@ -72,7 +72,7 @@ def sync_academic_calendars(
     if type(course_id) is not int or course_id <= 0:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Akun Odoo belum terhubung ke kelas siswa.",
+            detail="Akun Anda belum terhubung dengan data kelas. Silakan hubungi pihak sekolah.",
         )
     try:
         items = CalendarService(CalendarRepository(odoo_client)).get_calendars_list(

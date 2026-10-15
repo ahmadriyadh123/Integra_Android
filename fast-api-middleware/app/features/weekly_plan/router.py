@@ -49,7 +49,7 @@ def sync_weekly_plans(
         logger.exception("[weekly-plan/list/sync] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal menyinkronkan daftar Weekly Plan.",
+            detail="Rencana mingguan belum dapat diperbarui. Silakan coba lagi.",
         ) from exc
 
 @router.get("/list", response_model=APIResponseWeeklyPlanList)
@@ -76,11 +76,11 @@ def get_weekly_plans(
             data=data
         )
     except Exception as e:
-        logger.error(f"[weekly-plan/list] Error uid={creds['uid']}: {e}")
+        logger.exception("[weekly-plan/list] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil daftar Weekly Plan: {str(e)}"
-        )
+            detail="Rencana mingguan belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/detail/{plan_id}", response_model=APIResponseWeeklyPlanDetail)
 def get_weekly_plan_detail(
@@ -114,11 +114,15 @@ def get_weekly_plan_detail(
             data=data
         )
     except Exception as e:
-        logger.error(f"[weekly-plan/detail/{plan_id}] Error uid={creds['uid']}: {e}")
+        logger.exception(
+            "[weekly-plan/detail/%s] Error uid=%s",
+            plan_id,
+            creds["uid"],
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail Weekly Plan: {str(e)}"
-        )
+            detail="Detail rencana mingguan belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/pdf/{plan_id}")
@@ -147,7 +151,7 @@ def get_weekly_plan_pdf(
         if not header:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Weekly Plan ID {plan_id} tidak ditemukan"
+                detail="Rencana mingguan tidak ditemukan."
             )
 
         # Nama file untuk Content-Disposition
@@ -203,8 +207,12 @@ def get_weekly_plan_pdf(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[weekly-plan/pdf/{plan_id}] Error uid={creds['uid']}: {e}")
+        logger.exception(
+            "[weekly-plan/pdf/%s] Error uid=%s",
+            plan_id,
+            creds["uid"],
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil PDF Weekly Plan: {str(e)}"
-        )
+            detail="Dokumen rencana mingguan belum dapat dibuka. Silakan coba lagi.",
+        ) from e

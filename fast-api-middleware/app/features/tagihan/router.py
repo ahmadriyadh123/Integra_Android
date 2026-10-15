@@ -1,9 +1,13 @@
+import logging
+
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional
 from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.tagihan.schemas import APIResponseInvoiceSummary
 from app.features.tagihan.repository import TagihanRepository
 from app.features.tagihan.service import TagihanService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/tagihan",
@@ -32,7 +36,8 @@ def get_tagihan_summary(
             data=data
         )
     except Exception as e:
+        logger.exception("[tagihan/summary] Gagal mengambil ringkasan partner_id=%s", partner_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data tagihan dari Odoo: {str(e)}"
-        )
+            detail="Informasi tagihan belum dapat dimuat. Silakan coba lagi.",
+        ) from e

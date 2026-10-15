@@ -143,4 +143,8 @@ def change_password(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Gagal memperbarui password: {str(e)}")
+        logger.exception("[auth/change-password] Gagal memperbarui password")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password belum dapat diperbarui. Silakan coba lagi.",
+        ) from e

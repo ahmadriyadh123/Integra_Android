@@ -35,11 +35,11 @@ async def get_courses(
             data=data
         )
     except Exception as e:
-        logger.error(f"[elearning/courses] Error uid={creds.get('uid')}: {e}")
+        logger.exception("[elearning/courses] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data kursus: {str(e)}"
-        )
+            detail="Daftar materi belajar belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/courses/sync")
 async def sync_courses(
@@ -95,11 +95,15 @@ async def get_course_detail(
             data=data
         )
     except Exception as e:
-        logger.error(f"[elearning/courses/{course_id}] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[elearning/courses/%s] Error uid=%s",
+            course_id,
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail kursus: {str(e)}"
-        )
+            detail="Materi kursus belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.post("/courses/{course_id}/slides/{slide_id}/progress")
@@ -149,8 +153,8 @@ async def complete_course_slide(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan progres materi: {str(e)}",
-        )
+            detail="Progres belajar belum dapat disimpan. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/content/{slide_id}")
@@ -205,8 +209,8 @@ async def get_slide_content(
         logger.exception(f"[elearning/content/{slide_id}] Error uid={creds.get('uid')}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil konten slide: {str(e)}"
-        )
+            detail="Materi belum dapat dibuka. Silakan coba lagi.",
+        ) from e
 
 @router.get("/content/{slide_id}/download")
 async def download_scorm(
@@ -221,8 +225,8 @@ async def download_scorm(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=(
-                    "Paket SCORM ditemukan, tetapi file tidak dapat diambil dari "
-                    "database, filestore, atau URL publik Odoo tenant."
+                    "Materi ujian belum dapat dibuka. Periksa koneksi internet "
+                    "atau coba lagi beberapa saat."
                 ),
             )
 
@@ -241,5 +245,5 @@ async def download_scorm(
         logger.exception(f"[elearning/content/{slide_id}/download] Error uid={creds.get('uid')}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengunduh paket SCORM: {str(e)}"
-        )
+            detail="Materi pembelajaran belum dapat diunduh. Silakan coba lagi.",
+        ) from e

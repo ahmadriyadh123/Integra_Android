@@ -49,11 +49,11 @@ def get_cbt_schedules(
             data=data
         )
     except Exception as e:
-        logger.error(f"[cbt/schedules] Error uid={creds['uid']}: {e}")
+        logger.exception("[cbt/schedules] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil jadwal CBT: {str(e)}"
-        )
+            detail="Jadwal ujian belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/schedules/sync", response_model=APIResponseCbtSync)
@@ -83,11 +83,11 @@ def sync_cbt_schedules(
             data=data,
         )
     except Exception as e:
-        logger.error(f"[cbt/schedules/sync] Error uid={creds['uid']}: {e}")
+        logger.exception("[cbt/schedules/sync] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyinkronkan jadwal CBT: {str(e)}",
-        )
+            detail="Jadwal ujian belum dapat diperbarui. Silakan coba lagi.",
+        ) from e
 
 
 @router.post("/verify-token")
@@ -120,11 +120,11 @@ def verify_exam_token(
             "data": True
         }
     except Exception as e:
-        logger.error(f"[cbt/verify-token] Error uid={creds['uid']}: {e}")
+        logger.exception("[cbt/verify-token] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal verifikasi token: {str(e)}"
-        )
+            detail="Token ujian belum dapat diperiksa. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/questions/{jadwal_id}", response_model=APIResponseCbtQuestions)
@@ -151,11 +151,15 @@ def get_exam_questions(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except Exception as e:
-        logger.error(f"[cbt/questions/{jadwal_id}] Error uid={creds['uid']}: {e}")
+        logger.exception(
+            "[cbt/questions/%s] Error uid=%s",
+            jadwal_id,
+            creds["uid"],
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil soal ujian: {str(e)}"
-        )
+            detail="Soal ujian belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.post("/submit", response_model=APIResponseSubmitExam)
@@ -195,11 +199,11 @@ def submit_exam(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except Exception as e:
-        logger.error(f"[cbt/submit] Error uid={creds['uid']}: {e}")
+        logger.exception("[cbt/submit] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan jawaban ujian: {str(e)}"
-        )
+            detail="Jawaban ujian belum dapat dikirim. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/riwayat", response_model=APIResponseRiwayatUjian)
@@ -230,8 +234,8 @@ def get_riwayat_ujian(
             data=data
         )
     except Exception as e:
-        logger.error(f"[cbt/riwayat] Error uid={creds['uid']}: {e}")
+        logger.exception("[cbt/riwayat] Error uid=%s", creds["uid"])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil riwayat ujian: {str(e)}"
-        )
+            detail="Riwayat ujian belum dapat dimuat. Silakan coba lagi.",
+        ) from e

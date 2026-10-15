@@ -1,10 +1,13 @@
 import base64
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.profile.schemas import APIResponseProfile
 from app.features.profile.repository import ProfileRepository
 from app.features.profile.service import ProfileService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/profile",
@@ -64,10 +67,11 @@ def get_profile_image(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("[profile/image] Gagal mengambil foto profil")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil foto profil: {str(e)}",
-        )
+            detail="Foto profil belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/me", response_model=APIResponseProfile)
 def get_my_profile(
@@ -105,7 +109,8 @@ def get_my_profile(
             data=data
         )
     except Exception as e:
+        logger.exception("[profile/me] Gagal mengambil profil uid=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil profil siswa dari Odoo: {str(e)}"
-        )
+            detail="Profil belum dapat dimuat. Silakan coba lagi.",
+        ) from e

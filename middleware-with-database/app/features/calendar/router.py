@@ -41,11 +41,11 @@ async def get_academic_calendars(
             data=data
         )
     except Exception as e:
-        logger.error(f"[calendar/list] Error uid={creds.get('uid')}: {e}")
+        logger.exception("[calendar/list] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data kalender: {str(e)}"
-        )
+            detail="Kalender akademik belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/sync")

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.dependencies import get_odoo_client, get_current_user_credentials
 from app.features.buku_komunikasi.service import BukuKomunikasiService
@@ -9,6 +11,7 @@ router = APIRouter(
     prefix="/buku-komunikasi",
     tags=["Menu Buku Komunikasi"]
 )
+logger = logging.getLogger(__name__)
 
 
 def _resolve_student_id(creds: dict, odoo_client) -> int:
@@ -25,8 +28,8 @@ def _resolve_student_id(creds: dict, odoo_client) -> int:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Data siswa belum terhubung dengan akun Odoo Anda. "
-                "Pastikan relasi user/partner ke siswa sudah diatur."
+                "Akun Anda belum terhubung dengan data siswa. "
+                "Silakan hubungi pihak sekolah."
             ),
         )
     return student_id
@@ -65,10 +68,14 @@ def get_buku_komunikasi(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception(
+            "[buku-komunikasi] Gagal mengambil data uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil buku komunikasi: {str(e)}"
-        )
+            detail="Buku komunikasi belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.post("/feedback")
 def submit_parent_feedback(
@@ -105,10 +112,14 @@ def submit_parent_feedback(
         raise
 
     except Exception as e:
+        logger.exception(
+            "[buku-komunikasi/feedback] Gagal menyimpan feedback uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan feedback: {str(e)}"
-        )
+            detail="Masukan belum dapat disimpan. Silakan coba lagi.",
+        ) from e
 
 @router.post("/note")
 def submit_daily_note(
@@ -147,7 +158,11 @@ def submit_daily_note(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception(
+            "[buku-komunikasi/note] Gagal menyimpan catatan uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan catatan: {str(e)}"
-        )
+            detail="Catatan harian belum dapat disimpan. Silakan coba lagi.",
+        ) from e

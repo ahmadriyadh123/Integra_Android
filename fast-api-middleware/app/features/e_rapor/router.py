@@ -32,8 +32,8 @@ def _resolve_request_student_id(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Data siswa belum terhubung dengan akun Odoo Anda. "
-                "Pastikan relasi user/partner ke siswa sudah diatur."
+                "Akun Anda belum terhubung dengan data siswa. "
+                "Silakan hubungi pihak sekolah."
             ),
         )
     logger.info(
@@ -73,7 +73,7 @@ def get_student_reports(
         logger.exception("[e-rapor/list] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data e-rapor: {str(exc)}"
+            detail="Daftar e-Rapor belum dapat dimuat. Silakan coba lagi.",
         ) from exc
 
 
@@ -104,13 +104,14 @@ def sync_student_reports(
         raise
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data sinkronisasi e-Rapor tidak valid. Muat ulang halaman.",
         ) from exc
     except Exception as exc:
         logger.exception("[e-rapor/list/sync] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal sinkronisasi daftar e-rapor: {exc}",
+            detail="Daftar e-Rapor belum dapat diperbarui. Silakan coba lagi.",
         ) from exc
 
 
@@ -150,7 +151,7 @@ def get_report_card_details(
         logger.exception("[e-rapor/%s] Error uid=%s", rapor_id, creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail e-rapor: {str(exc)}"
+            detail="Detail e-Rapor belum dapat dimuat. Silakan coba lagi.",
         ) from exc
 
 
@@ -193,5 +194,5 @@ def get_rapor_pdf(
         logger.exception("[e-rapor/pdf/%s] Error uid=%s", rapor_id, creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil PDF rapor: {str(exc)}"
+            detail="Dokumen e-Rapor belum dapat dibuka. Silakan coba lagi.",
         ) from exc

@@ -39,7 +39,7 @@ def get_my_assignments(
     if not student_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda."
+            detail="Data siswa belum tersedia. Silakan login kembali atau hubungi pihak sekolah."
         )
 
     try:
@@ -47,10 +47,14 @@ def get_my_assignments(
         service = AssignmentService(repo)
         return service.get_student_assignments(uid=uid, password=password, student_id=student_id)
     except Exception as e:
+        logger.exception(
+            "[assignments] Gagal mengambil data uid=%s",
+            credentials.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data penugasan: {str(e)}"
-        )
+            detail="Daftar tugas belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/sync")
@@ -63,7 +67,7 @@ def sync_my_assignments(
     if not student_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda.",
+            detail="Data siswa belum tersedia. Silakan login kembali atau hubungi pihak sekolah.",
         )
     try:
         service = AssignmentService(AssignmentRepository(odoo_client))
@@ -75,12 +79,15 @@ def sync_my_assignments(
         )
         return {"success": True, "data": data}
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Daftar tugas perlu dimuat ulang. Silakan perbarui halaman.",
+        ) from exc
     except Exception as exc:
         logger.exception("[assignments/sync] Gagal sinkron uid=%s", credentials.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal sinkronisasi data penugasan: {exc}",
+            detail="Daftar tugas belum dapat diperbarui. Silakan coba lagi.",
         ) from exc
 
 
@@ -95,7 +102,7 @@ async def submit_assignment(
     if not student_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda.",
+            detail="Data siswa belum tersedia. Silakan login kembali atau hubungi pihak sekolah.",
         )
 
     try:
@@ -168,7 +175,7 @@ def download_assignment_attachment(
     if not student_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda.",
+            detail="Data siswa belum tersedia. Silakan login kembali atau hubungi pihak sekolah.",
         )
 
     repository = AssignmentRepository(odoo_client)

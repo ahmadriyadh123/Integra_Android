@@ -41,8 +41,8 @@ async def get_tagihan_summary(
             data=data
         )
     except Exception as e:
-        logger.error(f"[tagihan/summary] Error partner_id={partner_id}: {e}")
+        logger.exception("[tagihan/summary] Error partner_id=%s", partner_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data tagihan: {str(e)}"
-        )
+            detail="Informasi tagihan belum dapat dimuat. Silakan coba lagi.",
+        ) from e

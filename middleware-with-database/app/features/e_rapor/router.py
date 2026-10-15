@@ -33,7 +33,8 @@ def _requested_level(jenjang: str | None, creds: dict) -> str:
         return ERaporRepository.normalize_level(jenjang or creds.get("jenjang"))
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Jenjang e-Rapor tidak valid. Pilih SD, SMP, atau TK.",
         ) from exc
 
 
@@ -59,7 +60,7 @@ async def get_student_reports(
         logger.exception("[e-rapor/list] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal mengambil data e-rapor.",
+            detail="Daftar e-Rapor belum dapat dimuat. Silakan coba lagi.",
         ) from None
 
 
@@ -82,13 +83,14 @@ async def sync_student_reports(
         }
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data sinkronisasi e-Rapor tidak valid. Muat ulang halaman.",
         ) from exc
     except Exception:
         logger.exception("[e-rapor/list/sync] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal sinkronisasi daftar e-rapor.",
+            detail="Daftar e-Rapor belum dapat diperbarui. Silakan coba lagi.",
         ) from None
 
 
@@ -121,7 +123,7 @@ async def get_report_detail(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal mengambil detail e-rapor.",
+            detail="Detail e-Rapor belum dapat dimuat. Silakan coba lagi.",
         ) from None
 
 
@@ -166,5 +168,5 @@ async def get_rapor_pdf(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gagal mengambil PDF rapor.",
+            detail="Dokumen e-Rapor belum dapat dibuka. Silakan coba lagi.",
         ) from None

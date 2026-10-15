@@ -52,11 +52,14 @@ async def get_attendance_history(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[attendance/history] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[attendance/history] Error uid=%s",
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data presensi: {str(e)}"
-        )
+            detail="Riwayat presensi belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/history/sync")

@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+import logging
 from typing import Any
 
 import jwt
@@ -18,6 +19,7 @@ from app.core.database import (
 from app.core.models import SchoolTenant
 
 security_scheme = HTTPBearer(auto_error=False)
+logger = logging.getLogger(__name__)
 
 
 def _is_missing_database_error(error: BaseException) -> bool:
@@ -66,12 +68,15 @@ async def get_db(
             await session.connection()
         except (DBAPIError, InvalidCatalogNameError) as exc:
             if _is_missing_database_error(exc):
+                logger.exception(
+                    "[tenant/%s] Database tenant tidak tersedia",
+                    tenant.id,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail=(
-                        "Database untuk tenant ini tidak ditemukan. "
-                        "Periksa nilai odoo_db di registry; nilainya harus "
-                        "sama persis dengan nama database PostgreSQL Odoo."
+                        "Layanan sekolah sedang tidak tersedia. "
+                        "Silakan coba lagi beberapa saat."
                     ),
                 ) from exc
             raise
@@ -98,7 +103,7 @@ async def get_current_user_credentials(
     except PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token autentikasi tidak valid atau telah kedaluwarsa: {exc}",
+            detail="Sesi Anda sudah berakhir atau tidak valid. Silakan login kembali.",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
@@ -106,7 +111,7 @@ async def get_current_user_credentials(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token tidak valid: Kredensial User ID (uid) tidak ditemukan.",
+            detail="Sesi Anda tidak valid. Silakan login kembali.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -114,13 +119,13 @@ async def get_current_user_credentials(
     if type(token_school_id) is not int:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token belum terikat ke sekolah. Silakan login kembali.",
+            detail="Sesi Anda belum terhubung dengan sekolah. Silakan login kembali.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if token_school_id != tenant.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Token tidak berlaku untuk sekolah yang dipilih.",
+            detail="Akun Anda tidak sesuai dengan sekolah yang dipilih. Silakan pilih sekolah yang benar atau login kembali.",
         )
 
     return {

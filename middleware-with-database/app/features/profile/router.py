@@ -91,8 +91,8 @@ async def get_my_profile(
             data=data
         )
     except Exception as e:
-        logger.error(f"[profile/me] Error uid={user_id}: {e}")
+        logger.exception("[profile/me] Error uid=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil profil siswa: {str(e)}"
-        )
+            detail="Profil belum dapat dimuat. Silakan coba lagi.",
+        ) from e

@@ -47,11 +47,11 @@ def get_courses(
             data=data
         )
     except Exception as e:
-        logger.error(f"[elearning/courses] Error uid={creds.get('uid')}: {e}")
+        logger.exception("[elearning/courses] Error uid=%s", creds.get("uid"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil data kursus dari Odoo: {str(e)}"
-        )
+            detail="Daftar materi belajar belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 @router.get("/courses/sync", response_model=APIResponseCourseSync)
 def sync_courses(
@@ -79,7 +79,7 @@ def sync_courses(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyinkronkan kursus dari Odoo: {str(e)}",
+            detail="Daftar materi belajar belum dapat diperbarui. Silakan coba lagi.",
         ) from e
 
 @router.get("/courses/{course_id}", response_model=APIResponseCourseDetail)
@@ -109,11 +109,15 @@ def get_course_detail(
             data=data
         )
     except Exception as e:
-        logger.error(f"[elearning/courses/{course_id}] Error uid={creds.get('uid')}: {e}")
+        logger.exception(
+            "[elearning/courses/%s] Error uid=%s",
+            course_id,
+            creds.get("uid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil detail kursus dari Odoo: {str(e)}"
-        )
+            detail="Materi kursus belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.post("/courses/{course_id}/slides/{slide_id}/progress")
@@ -165,8 +169,8 @@ def complete_course_slide(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal menyimpan progres materi: {str(e)}",
-        )
+            detail="Progres belajar belum dapat disimpan. Silakan coba lagi.",
+        ) from e
 
 
 @router.get(
@@ -206,8 +210,8 @@ def get_course_messages(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil diskusi kursus: {str(e)}",
-        )
+            detail="Diskusi kursus belum dapat dimuat. Silakan coba lagi.",
+        ) from e
 
 
 @router.post("/courses/{course_id}/messages")
@@ -250,8 +254,8 @@ def post_course_message(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengirim pesan diskusi: {str(e)}",
-        )
+            detail="Pesan belum dapat dikirim. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/content/{slide_id}")
@@ -310,8 +314,8 @@ def get_slide_content(
         logger.exception(f"[elearning/content/{slide_id}] Error uid={creds.get('uid')}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengambil konten slide: {str(e)}"
-        )
+            detail="Materi belum dapat dibuka. Silakan coba lagi.",
+        ) from e
 
 
 @router.get("/content/{slide_id}/download")
@@ -331,7 +335,7 @@ def download_scorm(
         if not package:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Paket SCORM tidak ditemukan pada Odoo."
+                detail="Materi pembelajaran tidak ditemukan.",
             )
 
         content, filename, mimetype = package
@@ -349,5 +353,5 @@ def download_scorm(
         logger.exception(f"[elearning/content/{slide_id}/download] Error uid={creds.get('uid')}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gagal mengunduh paket SCORM: {str(e)}"
-        )
+            detail="Materi pembelajaran belum dapat diunduh. Silakan coba lagi.",
+        ) from e

@@ -199,7 +199,10 @@ async def test_missing_tenant_database_returns_configuration_error(tenant, monke
         await anext(database_session)
 
     assert error.value.status_code == 503
-    assert "odoo_db" in error.value.detail
+    assert error.value.detail == (
+        "Layanan sekolah sedang tidak tersedia. Silakan coba lagi beberapa saat."
+    )
+    assert tenant.odoo_db not in error.value.detail
 
 
 @pytest.mark.asyncio
@@ -234,7 +237,10 @@ async def test_raw_asyncpg_missing_tenant_database_returns_configuration_error(
         await anext(database_session)
 
     assert error.value.status_code == 503
-    assert "odoo_db" in error.value.detail
+    assert error.value.detail == (
+        "Layanan sekolah sedang tidak tersedia. Silakan coba lagi beberapa saat."
+    )
+    assert tenant.odoo_db not in error.value.detail
 
 
 def test_tenant_database_name_rejects_invalid_characters():

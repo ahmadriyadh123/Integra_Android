@@ -40,7 +40,7 @@ def _student_id(credentials: Dict[str, Any]) -> int:
     if type(student_id) is not int or student_id <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Kredensial student_id tidak ditemukan pada Token JWT Anda.",
+            detail="Data siswa belum tersedia. Silakan login kembali atau hubungi pihak sekolah.",
         )
     return student_id
 
@@ -82,7 +82,7 @@ async def sync_my_assignments(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail="Data tugas belum dapat disinkronkan. Muat ulang halaman.",
         ) from exc
     except Exception as exc:
         logger.exception(
