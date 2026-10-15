@@ -192,4 +192,4 @@ def test_readiness_rejects_missing_active_tenant(monkeypatch):
 
 
 def test_fast_api_does_not_mount_removed_admin_routes():
-    assert not any(route.path.startswith("/api/v1/admin") for route in app.routes)
+    assert not any(path.startswith("/api/v1/admin") for path in app.openapi()["paths"])
