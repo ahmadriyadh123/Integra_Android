@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -285,7 +286,12 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            userFriendlyError(
+              error,
+              fallback: 'Berkas belum dapat dipilih. Silakan coba lagi.',
+            ),
+          ),
         ),
       );
     }
@@ -385,7 +391,12 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
       setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            userFriendlyError(
+              error,
+              fallback: 'Jawaban tugas belum dapat dikirim. Silakan coba lagi.',
+            ),
+          ),
         ),
       );
     }
@@ -743,7 +754,12 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            userFriendlyError(
+              error,
+              fallback: 'Lampiran belum dapat dibuka. Silakan coba lagi.',
+            ),
+          ),
         ),
       );
     } finally {

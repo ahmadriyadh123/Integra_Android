@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/tagihan_model.dart';
 import '../repositories/tagihan_repository.dart';
 
@@ -11,7 +12,8 @@ class TagihanViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   TagihanSummary? _summary;
   TagihanSummary? get summary => _summary;

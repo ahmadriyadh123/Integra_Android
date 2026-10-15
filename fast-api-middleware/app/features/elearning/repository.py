@@ -91,6 +91,35 @@ class ElearningRepository:
             order='name asc, id asc',
         )
 
+    def get_published_slide_counts(
+        self,
+        uid: int,
+        password: str,
+        course_ids: List[int],
+    ) -> Dict[int, int]:
+        if not course_ids:
+            return {}
+
+        slides = self._search_all(
+            uid=uid,
+            password=password,
+            model='slide.slide',
+            domain=[
+                ('channel_id', 'in', course_ids),
+                ('is_published', '=', True),
+            ],
+            fields=['channel_id'],
+            order='id asc',
+        )
+        counts: Dict[int, int] = {}
+        for slide in slides:
+            channel = slide.get('channel_id')
+            if not isinstance(channel, (list, tuple)) or not channel:
+                continue
+            course_id = int(channel[0])
+            counts[course_id] = counts.get(course_id, 0) + 1
+        return counts
+
     def get_course_sync_changes(
         self,
         uid: int,

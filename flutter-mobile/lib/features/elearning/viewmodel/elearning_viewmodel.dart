@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/elearning_model.dart';
 import '../repositories/elearning_repository.dart';
 
@@ -18,7 +19,8 @@ class ElearningViewModel extends ChangeNotifier {
   bool get isRefreshingCourses => _isRefreshingCourses;
 
   String? _coursesError;
-  String? get coursesError => _coursesError;
+  String? get coursesError =>
+      _coursesError == null ? null : userFriendlyError(_coursesError!);
 
   List<CourseItem> _courses = [];
   List<CourseItem> get courses => _courses;
@@ -81,7 +83,8 @@ class ElearningViewModel extends ChangeNotifier {
   bool get isRefreshingDetail => _isRefreshingDetail;
 
   String? _detailError;
-  String? get detailError => _detailError;
+  String? get detailError =>
+      _detailError == null ? null : userFriendlyError(_detailError!);
 
   CourseDetail? _courseDetail;
   CourseDetail? get courseDetail => _courseDetail;

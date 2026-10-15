@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/calendar_model.dart';
 import '../repositories/calendar_repository.dart';
 
@@ -11,7 +12,8 @@ class CalendarViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   List<CalendarItem> _calendars = [];
   List<CalendarItem> get calendars => _calendars;

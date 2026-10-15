@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
@@ -67,7 +68,10 @@ class _LoginViewState extends State<LoginView> {
       } catch (error) {
         if (!mounted) return;
         setState(() {
-          _schoolLoadError = error.toString().replaceFirst('Exception: ', '');
+          _schoolLoadError = userFriendlyError(
+            error,
+            fallback: 'Daftar sekolah belum dapat dimuat. Silakan coba lagi.',
+          );
           _isLoadingSchools = false;
         });
       }
@@ -96,7 +100,10 @@ class _LoginViewState extends State<LoginView> {
       if (!mounted) return;
       setState(() {
         _isLoadingSchools = false;
-        final message = error.toString().replaceFirst('Exception: ', '');
+        final message = userFriendlyError(
+          error,
+          fallback: 'Daftar sekolah belum dapat dimuat. Silakan coba lagi.',
+        );
         if (_schools.isEmpty) {
           _schoolLoadError = message;
         }

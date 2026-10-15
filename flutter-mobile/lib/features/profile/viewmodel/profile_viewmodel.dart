@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../../auth/models/auth_model.dart';
 import '../models/profile_model.dart';
 import '../repositories/profile_repository.dart';
@@ -12,7 +13,8 @@ class ProfileViewModel extends ChangeNotifier {
   StudentProfile? get profile => _profile;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   final Map<String, Future<void>> _profileLoads = {};
   final Set<String> _profileLoadAttempts = {};

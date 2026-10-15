@@ -50,13 +50,12 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
 
   Future<void> _onRefresh() async {
     final vm = context.read<RaporViewModel>();
-    await vm.fetchReportList(
-      widget.authToken,
-      forceRefresh: true,
-    );
+    await vm.fetchReportList(widget.authToken, forceRefresh: true);
     if (mounted && vm.lastSyncError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui daftar: ${vm.lastSyncError}')),
+        SnackBar(
+          content: Text('Gagal memperbarui daftar: ${vm.lastSyncError}'),
+        ),
       );
     }
   }
@@ -68,7 +67,7 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
     return Scaffold(
       backgroundColor: backgroundSlate,
       appBar: SharedHeader(
-        title: 'E-RAPOR',
+        title: 'E-RAPOR DIKNAS',
         backgroundColor: Colors.white,
         foregroundColor: darkSlate,
         centerTitle: true,

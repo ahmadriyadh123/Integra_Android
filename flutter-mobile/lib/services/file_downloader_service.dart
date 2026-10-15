@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'user_friendly_error.dart';
 
 class FileDownloaderService {
   /// Menyimpan bytes PDF ke folder Download/Dokumen Lokal HP
@@ -47,7 +48,10 @@ class FileDownloaderService {
 
       return filePath;
     } catch (e) {
-      throw Exception('Gagal menyimpan file ke penyimpanan lokal: $e');
+      throw Exception(
+        'File belum dapat disimpan. '
+        '${userFriendlyError(e, fallback: 'Silakan coba lagi.')}',
+      );
     }
   }
 }

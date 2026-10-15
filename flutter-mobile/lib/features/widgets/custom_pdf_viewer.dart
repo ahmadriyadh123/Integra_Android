@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart'; // 👈 Tambah ini untuk handle izin storage
 import 'package:printing/printing.dart';
@@ -190,7 +191,10 @@ class _CustomPdfViewerState extends State<CustomPdfViewer> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Gagal mengunduh file: $e'),
+                  content: Text(
+                    'File belum dapat disimpan. '
+                    '${userFriendlyError(e, fallback: 'Silakan coba lagi.')}',
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );

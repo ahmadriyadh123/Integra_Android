@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../repositories/scorm_repository.dart';
 
 class ScormViewModel extends ChangeNotifier {
@@ -14,7 +15,8 @@ class ScormViewModel extends ChangeNotifier {
   String? get statusMessage => _statusMessage;
 
   String? _error;
-  String? get error => _error;
+  String? get error =>
+      _error == null ? null : userFriendlyError(_error!);
 
   String? _startUrl;
   String? get startUrl => _startUrl;
@@ -100,7 +102,10 @@ class ScormViewModel extends ChangeNotifier {
           zipFile.path != offlinePackagePath) {
         try { zipFile.deleteSync(); } catch (_) {}
       }
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFriendlyError(
+        e,
+        fallback: 'Materi belum dapat dibuka. Silakan coba lagi.',
+      );
       _isLoading = false;
       notifyListeners();
     }

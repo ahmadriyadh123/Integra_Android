@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/cbt_model.dart';
 import '../repositories/cbt_repository.dart';
 
@@ -11,7 +12,8 @@ class CbtViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   List<CbtExamSchedule> _exams = [];
   List<CbtExamSchedule> get exams => _exams;

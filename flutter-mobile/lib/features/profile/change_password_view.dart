@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:provider/provider.dart';
 import '../auth/repositories/auth_repository.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
@@ -82,7 +83,10 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = userFriendlyError(
+          e,
+          fallback: 'Password belum dapat diperbarui. Silakan coba lagi.',
+        );
       });
     }
   }

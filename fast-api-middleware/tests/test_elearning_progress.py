@@ -39,6 +39,7 @@ def test_course_list_progress_is_scoped_to_student_and_course_ids():
             "description": "",
         }
     ]
+    repository.get_published_slide_counts.return_value = {5: 4}
     repository.get_progress_by_course.return_value = {5: {10, 11}, 99: {20}}
 
     courses = ElearningService(repository).get_courses_list(
@@ -50,6 +51,7 @@ def test_course_list_progress_is_scoped_to_student_and_course_ids():
     assert courses[0]["completed_slides"] == 2
     assert courses[0]["progress_percent"] == 50
     repository.get_progress_by_course.assert_called_once_with(22, "secret", 7)
+    repository.get_published_slide_counts.assert_called_once_with(22, "secret", [5])
 
 
 def test_repository_creates_native_odoo_completion_record():

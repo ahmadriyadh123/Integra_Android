@@ -144,9 +144,12 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     final List<String> months = _monthOptions;
     final List<String> weeks = _weekOptions;
 
+    final currentMonthName = _monthOptions[DateTime.now().month - 1];
     final String? currentMonth = months.contains(_selectedMonth)
         ? _selectedMonth
-        : (months.isNotEmpty ? months.first : null);
+        : (months.contains(currentMonthName)
+            ? currentMonthName
+            : (months.isNotEmpty ? months.first : null));
     final String? currentWeek = weeks.contains(_selectedWeek)
         ? _selectedWeek
         : weeks.first;

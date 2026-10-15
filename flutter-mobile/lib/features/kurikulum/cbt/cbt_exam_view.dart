@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:provider/provider.dart';
 import 'models/cbt_model.dart';
 import 'viewmodel/cbt_viewmodel.dart';
@@ -86,7 +87,10 @@ class _CbtExamViewState extends State<CbtExamView> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = userFriendlyError(
+          e,
+          fallback: 'Soal ujian belum dapat dimuat. Silakan coba lagi.',
+        );
         _isLoading = false;
       });
     }
@@ -133,7 +137,7 @@ class _CbtExamViewState extends State<CbtExamView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Gagal mengirim jawaban: ${e.toString().replaceAll("Exception: ", "")}',
+              'Jawaban belum dapat dikirim. ${userFriendlyError(e)}',
             ),
             backgroundColor: dangerColor,
           ),

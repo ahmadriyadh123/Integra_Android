@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/auth_model.dart';
 import '../repositories/auth_repository.dart';
 import '../services/auth_service.dart';
@@ -27,7 +28,8 @@ class AuthViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   AuthResult? _authResult;
   AuthResult? get authResult => _authResult;
@@ -283,7 +285,7 @@ class AuthViewModel extends ChangeNotifier {
       }
     } catch (error) {
       _passwordChangeSyncMessage =
-          'Antrean perubahan password tidak dapat dibaca: $error';
+          'Status perubahan password belum dapat diperiksa. Silakan coba lagi.';
       notifyListeners();
     }
   }
@@ -305,8 +307,8 @@ class AuthViewModel extends ChangeNotifier {
     } catch (error) {
       _passwordChangePending = true;
       _passwordChangeSyncMessage =
-          'Sinkronisasi perubahan password gagal: '
-          '${error.toString().replaceFirst('Exception: ', '')}';
+          'Perubahan password belum tersinkron. '
+          '${userFriendlyError(error, fallback: 'Silakan coba lagi saat koneksi tersedia.')}';
     } finally {
       _isSyncingPasswordChange = false;
       notifyListeners();

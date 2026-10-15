@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:flutter_application_1/services/tenant_api_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -102,7 +103,10 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _errorMessage = error.toString().replaceFirst('Exception: ', '');
+          _errorMessage = userFriendlyError(
+            error,
+            fallback: 'Dokumen rapor belum dapat dibuka. Silakan coba lagi.',
+          );
         });
         if (_pdfBytes != null) {
           ScaffoldMessenger.of(context).showSnackBar(

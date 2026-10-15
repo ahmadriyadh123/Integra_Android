@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/attendance_record.dart';
 import '../repositories/attendance_repository.dart';
 
@@ -31,7 +32,8 @@ class AttendanceViewModel extends ChangeNotifier {
   bool get hasLoadedData => _hasLoadedData;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   List<AttendanceRecord> _allRecords = [];
 
@@ -40,12 +42,15 @@ class AttendanceViewModel extends ChangeNotifier {
   bool _hasUserSelectedMonth = false;
 
   List<String> get availableMonths {
-    final year = _allRecords.isEmpty
-        ? DateTime.now().year
-        : _allRecords
-              .map((record) => record.date.year)
-              .reduce((a, b) => a > b ? a : b);
-    return _monthNames.map((month) => '$month $year').toList();
+    final years = {
+      DateTime.now().year,
+      ..._allRecords.map((record) => record.date.year),
+    }.toList()
+      ..sort((a, b) => b.compareTo(a));
+    return [
+      for (final year in years)
+        for (final month in _monthNames) '$month $year',
+    ];
   }
 
   void setActiveMonth(String? newMonth) {
@@ -113,10 +118,13 @@ class AttendanceViewModel extends ChangeNotifier {
       return;
     }
 
-    final latestRecord = _allRecords.reduce(
-      (current, record) => record.date.isAfter(current.date) ? record : current,
-    );
-    _activeMonthLabel = monthLabelFor(latestRecord.date);
+    final currentMonth = monthLabelFor(DateTime.now());
+    _activeMonthLabel = months.contains(currentMonth)
+        ? currentMonth
+        : monthLabelFor(_allRecords.reduce(
+            (current, record) =>
+                record.date.isAfter(current.date) ? record : current,
+          ).date);
     _hasUserSelectedMonth = false;
   }
 

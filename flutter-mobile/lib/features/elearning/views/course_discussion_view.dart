@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../../widgets/app_refresh_indicator.dart';
 import '../models/elearning_model.dart';
 import '../repositories/elearning_repository.dart';
@@ -98,7 +99,10 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = error.toString().replaceFirst('Exception: ', '');
+        _loadError = userFriendlyError(
+          error,
+          fallback: 'Diskusi belum dapat dimuat. Silakan coba lagi.',
+        );
       });
     } finally {
       _isFetching = false;
@@ -136,7 +140,12 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            userFriendlyError(
+              error,
+              fallback: 'Pesan belum dapat dikirim. Silakan coba lagi.',
+            ),
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -291,8 +300,8 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.78,
         ),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
         decoration: BoxDecoration(
           color: own ? _discussionGreen : Colors.white,
           borderRadius: BorderRadius.only(
@@ -306,17 +315,15 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!own) ...[
-              Text(
-                message.authorName,
-                style: const TextStyle(
-                  color: _discussionGreen,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+            Text(
+              message.authorName,
+              style: TextStyle(
+                color: own ? Colors.white : _discussionGreen,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 4),
-            ],
+            ),
+            const SizedBox(height: 4),
             Text(
               message.body,
               style: TextStyle(
@@ -325,7 +332,7 @@ class _CourseDiscussionViewState extends State<CourseDiscussionView> {
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Align(
               alignment: Alignment.bottomRight,
               child: Text(

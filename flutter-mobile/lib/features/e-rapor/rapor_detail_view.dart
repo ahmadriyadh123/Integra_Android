@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/rapor_viewmodel.dart';
@@ -105,7 +106,10 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
       } catch (e) {
         if (mounted) {
           setState(() {
-            _pdfError = 'Gagal membuat dokumen PDF: $e';
+            _pdfError = userFriendlyError(
+              e,
+              fallback: 'Dokumen rapor belum dapat dibuat. Silakan coba lagi.',
+            );
             _isGeneratingPdf = false;
           });
         }

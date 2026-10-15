@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/assignment_model.dart';
 import '../repositories/assignment_repository.dart';
 import '../services/assignment_service.dart';
@@ -17,7 +18,8 @@ class AssignmentViewModel extends ChangeNotifier {
   bool get isRefreshing => _isRefreshing;
 
   String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage =>
+      _errorMessage == null ? null : userFriendlyError(_errorMessage!);
 
   List<AssignmentItem> _items = [];
   List<AssignmentItem> get items => _items;

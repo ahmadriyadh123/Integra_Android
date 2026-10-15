@@ -47,7 +47,43 @@ AttendanceRecord _record() => AttendanceRecord(
   date: DateTime(2026, 10, 1),
 );
 
+AttendanceRecord _olderRecord() => AttendanceRecord(
+  id: 11,
+  studentName: 'Siswa',
+  kelas: 'Kelas 1',
+  rombel: 'A',
+  hadir: 1,
+  sakit: 0,
+  izin: 0,
+  alpha: 0,
+  status: 'hadir',
+  remark: '',
+  date: DateTime(DateTime.now().year, 1, 1),
+);
+
 void main() {
+  test(
+    'defaults to the current month when attendance has older records',
+    () async {
+      final repository = _DelayedAttendanceRepository()
+        ..cachedRecords = [_olderRecord()]
+        ..refreshResult = Future.value([_olderRecord()]);
+      final viewModel = AttendanceViewModel(repository: repository);
+
+      await viewModel.fetchAttendance('token');
+
+      expect(
+        viewModel.activeMonthLabel,
+        viewModel.monthLabelFor(DateTime.now()),
+      );
+      expect(
+        viewModel.availableMonths,
+        contains(viewModel.monthLabelFor(DateTime.now())),
+      );
+      viewModel.dispose();
+    },
+  );
+
   test(
     'shows cached attendance before the network refresh completes',
     () async {

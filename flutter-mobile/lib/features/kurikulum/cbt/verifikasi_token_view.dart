@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel/cbt_viewmodel.dart';
 import 'widgets/token/token_info_banner.dart';
@@ -89,7 +90,10 @@ class _VerifikasiTokenViewState extends State<VerifikasiTokenView> {
       }
     } catch (e) {
       if (mounted) {
-        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        final errorMsg = userFriendlyError(
+          e,
+          fallback: 'Token ujian belum dapat diperiksa. Silakan coba lagi.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );

@@ -113,12 +113,17 @@ class ElearningService:
         raw_courses = self.repo.get_published_courses(
             uid=uid, password=password, partner_id=partner_id
         )
+        slide_counts = self.repo.get_published_slide_counts(
+            uid,
+            password,
+            [int(course['id']) for course in raw_courses if course.get('id')],
+        )
         progress_by_course = (
             self.repo.get_progress_by_course(uid, password, partner_id)
             if partner_id is not None
             else {}
         )
-        return self._map_courses(raw_courses, progress_by_course)
+        return self._map_courses(raw_courses, progress_by_course, slide_counts)
 
     def get_courses_sync(
         self,
@@ -154,7 +159,16 @@ class ElearningService:
                 if partner_id is not None
                 else {}
             )
-            items = self._map_courses(raw_courses, progress_by_course)
+            slide_counts = self.repo.get_published_slide_counts(
+                uid,
+                password,
+                [int(course['id']) for course in raw_courses if course.get('id')],
+            )
+            items = self._map_courses(
+                raw_courses,
+                progress_by_course,
+                slide_counts,
+            )
 
         return {
             'items': items,
@@ -167,10 +181,15 @@ class ElearningService:
         self,
         raw_courses: List[Dict[str, Any]],
         progress_by_course: Dict[int, set[int]],
+        slide_counts: Optional[Dict[int, int]] = None,
     ) -> List[Dict[str, Any]]:
         result = []
         for c in raw_courses:
-            total_slides = int(c.get("total_slides") or 0)
+            total_slides = (
+                slide_counts.get(int(c["id"]), 0)
+                if slide_counts is not None
+                else int(c.get("total_slides") or 0)
+            )
             completed_slides = len(progress_by_course.get(int(c["id"]), set()))
             result.append({
                 "id": c.get("id"),

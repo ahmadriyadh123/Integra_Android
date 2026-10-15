@@ -19,6 +19,7 @@ class QuickMenuItem {
   final Widget? destination;
   final int? tabIndex;
   final String? submenu;
+  final String? unavailableMessage;
 
   QuickMenuItem({
     required this.title,
@@ -27,6 +28,7 @@ class QuickMenuItem {
     this.destination,
     this.tabIndex,
     this.submenu,
+    this.unavailableMessage,
   });
 }
 
@@ -103,6 +105,13 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
   }
 
   void _handleTap(BuildContext context, QuickMenuItem menu) {
+    if (menu.unavailableMessage != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(menu.unavailableMessage!)));
+      return;
+    }
+
     if (menu.submenu != null) {
       _toggleSubmenu(menu.submenu!);
       return;
@@ -200,7 +209,13 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
                       return OutlinedButton.icon(
                         onPressed: () => _handleTap(context, item),
                         icon: Icon(item.icon, size: 17, color: color),
-                        label: Text(item.title),
+                        label: Text(
+                          item.unavailableMessage == null
+                              ? item.title
+                              : '${item.title}\nBelum tersedia',
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF475569),
                           backgroundColor: Colors.white,
@@ -335,7 +350,7 @@ class _HomeQuickMenuState extends State<HomeQuickMenu> {
             title: 'IEP',
             icon: Icons.accessibility_new_outlined,
             color: const Color(0xFF0D9488),
-            destination: RaporListViewPage(authToken: widget.authToken),
+            unavailableMessage: 'Fitur IEP belum tersedia.',
           ),
         ]),
         _submenu('kurikulum', 'KURIKULUM', Icons.menu_book_outlined,

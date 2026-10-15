@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/user_friendly_error.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -83,10 +84,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     final savedIds = <int>{};
     for (final slide in detail.slides) {
       if (slide.isQuiz) continue;
-      if (await _vm.repository.getOfflineMaterial(
-            widget.authToken,
-            slide.id,
-          ) !=
+      if (await _vm.repository.getOfflineMaterial(widget.authToken, slide.id) !=
           null) {
         savedIds.add(slide.id);
       }
@@ -106,9 +104,9 @@ class _DetailCourseViewState extends State<DetailCourseView> {
   Future<void> _refreshCourseDetail() async {
     await _loadCourseDetail(forceRefresh: true);
     if (!mounted || _vm.detailError == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_vm.detailError!)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(_vm.detailError!)));
   }
 
   Future<void> _openUrl(
@@ -154,7 +152,12 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         );
       } catch (e) {
         if (!mounted) return;
-        _showSnack(e.toString().replaceAll('Exception: ', ''));
+        _showSnack(
+          userFriendlyError(
+            e,
+            fallback: 'Materi belum dapat dibuka. Silakan coba lagi.',
+          ),
+        );
         return;
       }
       if (!mounted) return;
@@ -307,8 +310,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     } catch (error) {
       if (!mounted) return;
       _showSnack(
-        'Gagal menyimpan materi: '
-        '${error.toString().replaceAll('Exception: ', '')}',
+        'Gagal menyimpan materi: ${userFriendlyError(error, fallback: 'Materi belum dapat disimpan. Silakan coba lagi.')}',
       );
     } finally {
       if (mounted) setState(() => _downloadingSlideIds.remove(slide.id));
@@ -327,8 +329,9 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         caseSensitive: false,
       ).firstMatch(contentDisposition);
       final name = filenameMatch?.group(1)?.replaceAll('"', '').trim();
-      final filenameExtension =
-          name != null && name.contains('.') ? name.split('.').last : '';
+      final filenameExtension = name != null && name.contains('.')
+          ? name.split('.').last
+          : '';
       if (RegExp(r'^[A-Za-z0-9]{1,8}$').hasMatch(filenameExtension)) {
         return filenameExtension.toLowerCase();
       }
@@ -376,8 +379,7 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     } catch (error) {
       if (!mounted) return;
       _showSnack(
-        'Materi dibuka, tetapi progres belum tersimpan: '
-        '${error.toString().replaceAll('Exception: ', '')}',
+        'Materi dibuka, tetapi progres belum tersimpan: ${userFriendlyError(error, fallback: 'Progres belajar belum dapat disimpan. Silakan coba lagi.')}',
       );
     }
   }
@@ -503,38 +505,35 @@ class _DetailCourseViewState extends State<DetailCourseView> {
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height * 0.7,
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.cloud_off_rounded,
-                  size: 56,
-                  color: Color(0xFFCBD5E1),
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 56,
+                color: Color(0xFFCBD5E1),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Gagal Memuat Detail',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _textDark,
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Gagal Memuat Detail',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  vm.detailError!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF475569),
-                  ),
-                ),
-              ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                vm.detailError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              ),
+            ],
           ),
         ),
       ),
@@ -561,243 +560,234 @@ class _DetailCourseViewState extends State<DetailCourseView> {
           SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CourseHeaderBanner(
-                    title: detail.title,
-                    subtitle: detail.description.isNotEmpty
-                        ? detail.description
-                        : null,
-                    durasiMenit: detail.totalSlides,
-                    onBackTap: () => Navigator.pop(context),
-                    showPlayButton: firstVideoSlide != null,
-                    onPlayTap: firstVideoSlide == null
-                        ? null
-                        : () => _openUrl(
-                            firstVideoSlide.downloadUrl,
-                            isScorm: false,
-                            markCompletedOnOpen: true,
-                            slideId: firstVideoSlide.id,
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Info guru
-                        TeacherInfoCard(
-                          teacherName: detail.teacherName,
-                          onChatTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CourseDiscussionView(
-                                courseId: detail.id,
-                                courseTitle: detail.title,
-                                authToken: widget.authToken,
-                                repository: vm.repository,
-                              ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CourseHeaderBanner(
+                  title: detail.title,
+                  subtitle: detail.description.isNotEmpty
+                      ? detail.description
+                      : null,
+                  durasiMenit: detail.totalSlides,
+                  onBackTap: () => Navigator.pop(context),
+                  showPlayButton: firstVideoSlide != null,
+                  onPlayTap: firstVideoSlide == null
+                      ? null
+                      : () => _openUrl(
+                          firstVideoSlide.downloadUrl,
+                          isScorm: false,
+                          markCompletedOnOpen: true,
+                          slideId: firstVideoSlide.id,
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Info guru
+                      TeacherInfoCard(
+                        teacherName: detail.teacherName,
+                        onChatTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CourseDiscussionView(
+                              courseId: detail.id,
+                              courseTitle: detail.title,
+                              authToken: widget.authToken,
+                              repository: vm.repository,
                             ),
                           ),
                         ),
+                      ),
 
-                        // Deskripsi (jika ada)
-                        if (detail.description.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFFF1F5F9),
-                              ),
-                            ),
-                            child: Text(
-                              detail.description,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF475569),
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 24),
-
-                        _buildProgress(detail),
-
-                        const SizedBox(height: 24),
-
-                        // Header daftar materi
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(
-                                  Icons.import_contacts_rounded,
-                                  size: 18,
-                                  color: _green,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Daftar Materi',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: _textDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                // Badge "Memperbarui..." saat refresh background
-                                if (vm.isRefreshingDetail) ...[
-                                  const SizedBox(
-                                    width: 10,
-                                    height: 10,
-                                    child: CircularProgressIndicator(
-                                      color: _green,
-                                      strokeWidth: 1.5,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  const Text(
-                                    'Memperbarui...',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: _green,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                                Text(
-                                  '${slides.length} Materi',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: _textMuted,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      // Deskripsi (jika ada)
+                      if (detail.description.isNotEmpty) ...[
                         const SizedBox(height: 16),
-
-                        // Timeline slide
-                        if (slides.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: Text(
-                                'Belum ada materi tersedia.',
-                                style: TextStyle(color: _textMuted),
-                              ),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFF1F5F9)),
+                          ),
+                          child: Text(
+                            detail.description,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF475569),
+                              height: 1.5,
                             ),
-                          )
-                        else
-                          Stack(
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      _buildProgress(detail),
+
+                      const SizedBox(height: 24),
+
+                      // Header daftar materi
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
                             children: [
-                              Positioned(
-                                left: 15,
-                                top: 20,
-                                bottom: 20,
-                                child: Container(
-                                  width: 2,
-                                  color: Colors.grey.shade200,
-                                ),
+                              Icon(
+                                Icons.import_contacts_rounded,
+                                size: 18,
+                                color: _green,
                               ),
-                              Column(
-                                children: List.generate(slides.length, (i) {
-                                  final slide = slides[i];
-                                  final style = _styleFor(slide.materialType);
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom: i < slides.length - 1 ? 16 : 0,
-                                    ),
-                                    child: CurriculumTimelineItem(
-                                      stepNumber: '${i + 1}',
-                                      title: '${i + 1}. ${slide.title}',
-                                      subtitle: _subtitleFor(slide),
-                                      icon: style.icon,
-                                      iconBgColor: style.iconBg,
-                                      iconTextColor: style.iconColor,
-                                      badgeText: style.badgeText,
-                                      badgeColor: style.badgeColor,
-                                      isCompleted: slide.isCompleted,
-                                      onTap: () => _openUrl(
-                                        slide.downloadUrl,
-                                        isScorm: slide.isScorm,
-                                        markCompletedOnOpen:
-                                            slide.isVideo || slide.isPdf,
-                                        slideId: slide.id,
-                                      ),
-                                      trailing: slide.isQuiz
-                                          ? const Tooltip(
-                                              message:
-                                                  'Kuis offline belum tersedia',
-                                              child: Icon(
-                                                Icons.cloud_outlined,
-                                                size: 18,
-                                                color: _textMuted,
-                                              ),
-                                            )
-                                          : _downloadingSlideIds.contains(
-                                              slide.id,
-                                            )
-                                          ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child:
-                                                  CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    color: _green,
-                                                  ),
-                                            )
-                                          : IconButton(
-                                              tooltip:
-                                                  _offlineSlideIds.contains(
-                                                    slide.id,
-                                                  )
-                                                  ? 'Hapus dari offline'
-                                                  : 'Simpan offline',
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              onPressed: () =>
-                                                  _toggleOfflineMaterial(
-                                                    slide,
-                                                  ),
-                                              icon: Icon(
-                                                _offlineSlideIds.contains(
-                                                  slide.id,
-                                                )
-                                                    ? Icons
-                                                          .offline_pin_rounded
-                                                    : Icons
-                                                          .download_for_offline_outlined,
-                                                color: _green,
-                                                size: 21,
-                                              ),
-                                            ),
-                                    ),
-                                  );
-                                }),
+                              SizedBox(width: 8),
+                              Text(
+                                'Daftar Materi',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textDark,
+                                ),
                               ),
                             ],
                           ),
+                          Row(
+                            children: [
+                              // Badge "Memperbarui..." saat refresh background
+                              if (vm.isRefreshingDetail) ...[
+                                const SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(
+                                    color: _green,
+                                    strokeWidth: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'Memperbarui...',
+                                  style: TextStyle(fontSize: 10, color: _green),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Text(
+                                '${slides.length} Materi',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
-                        const SizedBox(height: 80),
-                      ],
-                    ),
+                      // Timeline slide
+                      if (slides.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'Belum ada materi tersedia.',
+                              style: TextStyle(color: _textMuted),
+                            ),
+                          ),
+                        )
+                      else
+                        Stack(
+                          children: [
+                            Positioned(
+                              left: 15,
+                              top: 20,
+                              bottom: 20,
+                              child: Container(
+                                width: 2,
+                                color: Colors.grey.shade200,
+                              ),
+                            ),
+                            Column(
+                              children: List.generate(slides.length, (i) {
+                                final slide = slides[i];
+                                final style = _styleFor(slide.materialType);
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: i < slides.length - 1 ? 16 : 0,
+                                  ),
+                                  child: CurriculumTimelineItem(
+                                    stepNumber: '${i + 1}',
+                                    title: '${i + 1}. ${slide.title}',
+                                    subtitle: _subtitleFor(slide),
+                                    icon: style.icon,
+                                    iconBgColor: style.iconBg,
+                                    iconTextColor: style.iconColor,
+                                    badgeText: style.badgeText,
+                                    badgeColor: style.badgeColor,
+                                    isCompleted: slide.isCompleted,
+                                    onTap: () => _openUrl(
+                                      slide.downloadUrl,
+                                      isScorm: slide.isScorm,
+                                      markCompletedOnOpen:
+                                          slide.isVideo || slide.isPdf,
+                                      slideId: slide.id,
+                                    ),
+                                    trailing: slide.isQuiz
+                                        ? const Tooltip(
+                                            message:
+                                                'Kuis offline belum tersedia',
+                                            child: Icon(
+                                              Icons.cloud_outlined,
+                                              size: 18,
+                                              color: _textMuted,
+                                            ),
+                                          )
+                                        : _downloadingSlideIds.contains(
+                                            slide.id,
+                                          )
+                                        ? const SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: _green,
+                                            ),
+                                          )
+                                        : IconButton(
+                                            tooltip:
+                                                _offlineSlideIds.contains(
+                                                  slide.id,
+                                                )
+                                                ? 'Hapus dari offline'
+                                                : 'Simpan offline',
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            onPressed: () =>
+                                                _toggleOfflineMaterial(slide),
+                                            icon: Icon(
+                                              _offlineSlideIds.contains(
+                                                    slide.id,
+                                                  )
+                                                  ? Icons.offline_pin_rounded
+                                                  : Icons
+                                                        .download_for_offline_outlined,
+                                              color: _green,
+                                              size: 21,
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
+
+                      const SizedBox(height: 80),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
 
           // Bottom CTA
           if (firstPlayableSlide != null)
