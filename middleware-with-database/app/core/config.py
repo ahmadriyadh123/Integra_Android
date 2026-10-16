@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     APP_ENV: str = "development"
     CLIENT_API_BASE_URL: str = "https://kp-sekolah.asetkoptii.com/mobile-api/api/v1"
+    REGISTRY_ADMIN_TOKEN: str = ""
 
     @property
     def DB_HOST(self) -> str:

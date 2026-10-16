@@ -4,7 +4,7 @@ from odoo.tests import TransactionCase
 
 class TestSchoolTenant(TransactionCase):
     def test_create_normalizes_code_and_text(self):
-        tenant = self.env["integra.school.tenant"].create(
+        tenant = self.env["school.tenant"].create(
             {
                 "school_code": " sdn-001 ",
                 "school_name": " SD Negeri 1 ",
@@ -25,7 +25,7 @@ class TestSchoolTenant(TransactionCase):
             "https://odoo.example.test/?database=other",
         ):
             with self.subTest(url=invalid_url), self.assertRaises(ValidationError):
-                self.env["integra.school.tenant"].create(
+                self.env["school.tenant"].create(
                     {
                         "school_code": "SDN-002",
                         "school_name": "SD Negeri 2",
@@ -41,9 +41,9 @@ class TestSchoolTenant(TransactionCase):
             "odoo_url": "https://odoo.example.test",
             "odoo_db": "sekolah_db_3",
         }
-        self.env["integra.school.tenant"].create(values)
+        self.env["school.tenant"].create(values)
 
         with self.assertRaises(ValidationError):
-            self.env["integra.school.tenant"].create(
+            self.env["school.tenant"].create(
                 dict(values, school_code="SDN-004", school_name="SD Negeri 4")
             )

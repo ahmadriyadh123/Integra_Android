@@ -1,25 +1,31 @@
 <odoo>
-    <record id="view_integra_school_tenant_tree" model="ir.ui.view">
-        <field name="name">integra.school.tenant.tree</field>
-        <field name="model">integra.school.tenant</field>
+    <record id="view_school_tenant_tree" model="ir.ui.view">
+        <field name="name">school.tenant.tree</field>
+        <field name="model">school.tenant</field>
         <field name="arch" type="xml">
-            <tree string="Sekolah" sample="1">
+            <list string="Sekolah" sample="1">
                 <field name="school_code"/>
                 <field name="school_name"/>
                 <field name="odoo_url" widget="url"/>
                 <field name="odoo_db"/>
                 <field name="active"/>
+                <field name="registry_sync_status"/>
                 <button name="action_check_connection"
                         type="object"
                         string="Periksa koneksi"
                         icon="fa-plug"/>
-            </tree>
+                    <button name="action_sync_registry"
+                        type="object"
+                        string="Sinkronkan registry"
+                        class="oe_highlight"
+                        icon="fa-refresh"/>
+            </list>
         </field>
     </record>
 
-    <record id="view_integra_school_tenant_form" model="ir.ui.view">
-        <field name="name">integra.school.tenant.form</field>
-        <field name="model">integra.school.tenant</field>
+    <record id="view_school_tenant_form" model="ir.ui.view">
+        <field name="name">school.tenant.form</field>
+        <field name="model">school.tenant</field>
         <field name="arch" type="xml">
             <form string="Sekolah">
                 <header>
@@ -28,6 +34,10 @@
                             string="Periksa koneksi Odoo"
                             class="oe_highlight"
                             icon="fa-plug"/>
+                    <button name="action_sync_registry"
+                            type="object"
+                            string="Sinkronkan registry"
+                            icon="fa-refresh"/>
                     <field name="active" widget="boolean_button"
                            options="{'terminology': 'archive'}"/>
                 </header>
@@ -49,16 +59,26 @@
                         <group string="Koneksi Odoo">
                             <field name="odoo_url" widget="url"/>
                             <field name="odoo_db"/>
+                            <field name="odoo_db_host"/>
+                            <field name="odoo_db_port"/>
+                            <field name="user_db"/>
+                            <field name="secret_ref_db"/>
                         </group>
+                    </group>
+                    <group string="Status registry">
+                        <field name="registry_id"/>
+                        <field name="registry_sync_status"/>
+                        <field name="registry_synced_at"/>
+                        <field name="registry_sync_message"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <record id="view_integra_school_tenant_search" model="ir.ui.view">
-        <field name="name">integra.school.tenant.search</field>
-        <field name="model">integra.school.tenant</field>
+    <record id="view_school_tenant_search" model="ir.ui.view">
+        <field name="name">school.tenant.search</field>
+        <field name="model">school.tenant</field>
         <field name="arch" type="xml">
             <search string="Cari sekolah">
                 <field name="school_code"/>
@@ -68,30 +88,28 @@
                         domain="[('active', '=', True)]"/>
                 <filter name="inactive" string="Diarsipkan"
                         domain="[('active', '=', False)]"/>
-                <group expand="0" string="Kelompokkan berdasarkan">
-                    <filter name="group_active" string="Status"
-                            context="{'group_by': 'active'}"/>
-                </group>
             </search>
         </field>
     </record>
 
-    <record id="action_integra_school_tenant" model="ir.actions.act_window">
+    <record id="action_school_tenant" model="ir.actions.act_window">
         <field name="name">Daftar sekolah</field>
-        <field name="res_model">integra.school.tenant</field>
-        <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_integra_school_tenant_search"/>
+        <field name="res_model">school.tenant</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_school_tenant_search"/>
         <field name="context">{'search_default_active': 1}</field>
     </record>
 
-    <menuitem id="menu_integra_school_admin_root"
+    <menuitem id="menu_school_admin_root"
               name="School Admin"
               sequence="35"
+              web_icon="base,static/description/modules.png"
               groups="base.group_system"/>
-    <menuitem id="menu_integra_school_tenant"
+
+    <menuitem id="menu_school_tenant"
               name="Daftar sekolah"
-              parent="menu_integra_school_admin_root"
-              action="action_integra_school_tenant"
+              parent="menu_school_admin_root"
+              action="action_school_tenant"
               sequence="10"
               groups="base.group_system"/>
 </odoo>

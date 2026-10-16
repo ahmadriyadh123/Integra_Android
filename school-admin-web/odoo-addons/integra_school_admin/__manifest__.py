@@ -1,7 +1,7 @@
 {
     "name": "Integra School Admin",
     "summary": "Kelola direktori tenant sekolah dan koneksi Odoo",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "category": "Administration",
     "license": "LGPL-3",
     "author": "Integra",

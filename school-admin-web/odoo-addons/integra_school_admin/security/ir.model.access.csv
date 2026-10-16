@@ -1,4 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_integra_school_tenant_admin,integra.school.tenant administrator,model_integra_school_tenant,base.group_system,1,1,1,1
-access_integra_school_model_config_admin,integra.school.model.config administrator,model_integra_school_model_config,base.group_system,1,1,1,1
-access_integra_school_model_config_relation_admin,integra.school.model.config.relation administrator,model_integra_school_model_config_relation,base.group_system,1,1,1,1
+access_school_tenant_admin,school.tenant administrator,model_school_tenant,base.group_system,1,1,1,1

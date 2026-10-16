@@ -11,6 +11,7 @@ from app.features.buku_komunikasi.router import router as buku_komunikasi_router
 from app.features.cbt.router import router as cbt_router
 from app.features.e_rapor.router import router as e_rapor_router
 from app.features.assignment.router import router as assignment_router
+from app.features.admin.router import router as admin_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -25,3 +26,4 @@ api_router.include_router(buku_komunikasi_router)
 api_router.include_router(cbt_router)
 api_router.include_router(e_rapor_router)
 api_router.include_router(assignment_router)
+api_router.include_router(admin_router)

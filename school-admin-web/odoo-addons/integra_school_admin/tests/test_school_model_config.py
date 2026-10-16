@@ -18,7 +18,7 @@ class TestSchoolModelConfig(TransactionCase):
             limit=1,
         )
 
-        config = self.env["integra.school.model.config"].create(
+        config = self.env["school.model.config"].create(
             {
                 "name": "Profil akun",
                 "model_id": model.id,
@@ -50,7 +50,7 @@ class TestSchoolModelConfig(TransactionCase):
         )
 
         with self.assertRaises(ValidationError):
-            self.env["integra.school.model.config"].create(
+            self.env["school.model.config"].create(
                 {
                     "name": "Konfigurasi tidak valid",
                     "model_id": users_model.id,
@@ -70,7 +70,7 @@ class TestSchoolModelConfig(TransactionCase):
         )
 
         with self.assertRaises(ValidationError):
-            self.env["integra.school.model.config"].create(
+            self.env["school.model.config"].create(
                 {
                     "name": "Konfigurasi relasi tidak valid",
                     "model_id": users_model.id,

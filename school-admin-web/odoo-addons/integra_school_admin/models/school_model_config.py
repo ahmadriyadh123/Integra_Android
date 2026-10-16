@@ -6,7 +6,7 @@ RELATIONAL_FIELD_TYPES = ("many2one", "one2many", "many2many")
 
 
 class SchoolModelConfig(models.Model):
-    _name = "integra.school.model.config"
+    _name = "school.model.config"
     _description = "Konfigurasi Model Sekolah"
     _rec_name = "name"
     _order = "name"
@@ -29,14 +29,14 @@ class SchoolModelConfig(models.Model):
     )
     field_ids = fields.Many2many(
         "ir.model.fields",
-        "integra_school_model_config_field_rel",
+        "school_model_config_field_rel",
         "config_id",
         "field_id",
         string="Field terpilih",
         domain="[('model_id', '=', model_id)]",
     )
     relation_ids = fields.One2many(
-        "integra.school.model.config.relation",
+        "school.model.config.relation",
         "config_id",
         string="Relasi",
     )
@@ -56,13 +56,13 @@ class SchoolModelConfig(models.Model):
 
 
 class SchoolModelConfigRelation(models.Model):
-    _name = "integra.school.model.config.relation"
+    _name = "school.model.config.relation"
     _description = "Relasi Konfigurasi Model Sekolah"
     _order = "sequence, id"
 
     sequence = fields.Integer(default=10)
     config_id = fields.Many2one(
-        "integra.school.model.config",
+        "school.model.config",
         string="Konfigurasi model",
         required=True,
         ondelete="cascade",
@@ -84,7 +84,7 @@ class SchoolModelConfigRelation(models.Model):
     )
     field_ids = fields.Many2many(
         "ir.model.fields",
-        "integra_school_model_config_relation_field_rel",
+        "school_model_config_relation_field_rel",
         "relation_config_id",
         "field_id",
         string="Field model tujuan",

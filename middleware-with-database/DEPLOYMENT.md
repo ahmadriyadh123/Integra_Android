@@ -253,14 +253,31 @@ Variabel backend utama:
 |---|---|
 | `ODOO_HOST` | Host PostgreSQL registry yang dapat dijangkau backend. Host PostgreSQL tenant diatur per baris pada `school_tenants.odoo_db_host`. |
 | `DB_PORT` | Port PostgreSQL, biasanya `5432`. |
-| `DB_USER` | Role database dengan izin minimum ke registry dan database tenant yang diperlukan. |
-| `DB_PASSWORD` | Password baru yang disimpan hanya di `.env`. |
+| `DB_USER` | Role database registry. Kredensial tenant dibaca dari `TENANT_SECRETS_FILE`. |
+| `DB_PASSWORD` | Password role registry, disimpan hanya di `.env`. |
 | `REGISTRY_DB_NAME` | Nama database registry yang benar dan sudah ada. `DB_NAME` merupakan alias kompatibilitas lama; jangan set keduanya ke nilai yang berbeda. |
+| `TENANT_SECRETS_FILE` | Path absolut ke JSON kredensial tenant yang dikelola admin server, misalnya `/etc/mwd/tenant-secrets.json`. |
 | `JWT_SECRET_KEY` | Secret acak minimal 32 karakter; buat langsung di server. Semua worker/instance harus memakai nilai yang sama dan stabil. Rotasi secret membatalkan access token yang masih aktif. |
 | `JWT_ALGORITHM` | Algoritma yang digunakan aplikasi, umumnya `HS256`. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Masa hidup access token; default 15 menit. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Masa hidup refresh token; default 30 hari dan diperpanjang saat rotasi. |
 | `APP_ENV` | Gunakan `production`. |
+
+Contoh `.env` untuk `middleware-with-database`:
+
+```env
+ODOO_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=<user-registry>
+DB_PASSWORD=<password-registry>
+REGISTRY_DB_NAME=<database-registry>
+TENANT_SECRETS_FILE=/etc/mwd/tenant-secrets.json
+```
+
+`DB_USER` dan `DB_PASSWORD` di atas hanya digunakan untuk koneksi registry.
+Jangan mengganti nilainya dengan kredensial tenant ketika menambahkan sekolah.
+Kredensial tenant disimpan pada file secret dan dipilih melalui
+`school_tenants.secret_ref_db`.
 | `ODOO_FILESTORE_PATH` | Root filestore bersama, bukan folder tenant tunggal. |
 
 Buat secret JWT tanpa mencetak nilai secret ke dokumen/chat:

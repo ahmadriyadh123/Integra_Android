@@ -15,7 +15,7 @@ GET /api/v1/auth/schools
 
 Kontrak registry:
 
-| Registry `school_tenants` | Model addon `integra.school.tenant` |
+| Registry `school_tenants` | Model addon `school.tenant` |
 | --- | --- |
 | `school_code` | `school_code` |
 | `school_name` | `school_name` |
@@ -28,6 +28,20 @@ Model addon berada pada database Odoo dan **bukan** tabel
 atau menyinkronkan otomatis tabel registry. Karena itu, perubahan data yang
 harus terlihat oleh aplikasi mobile tetap harus dilakukan pada database
 registry middleware.
+
+Versi ini menyediakan sinkronisasi eksplisit melalui endpoint admin backend
+`PUT /api/v1/admin/tenants/{school_code}`. Tombol **Sinkronkan registry**
+tersedia pada form dan daftar sekolah.
+Konfigurasikan parameter sistem Odoo berikut sebagai administrator:
+
+```text
+integra_school_admin.registry_api_url
+integra_school_admin.registry_admin_token
+```
+
+Token harus sama dengan `REGISTRY_ADMIN_TOKEN` pada backend dan tidak boleh
+disimpan di Git. Password database tenant tidak pernah dikirim; hanya
+`secret_ref_db` yang dikirim sebagai referensi ke file secret backend.
 
 Field `active` pada addon hanya merupakan pemetaan lokal dari
 `school_tenants.is_active`. Nama `active` dipertahankan agar kompatibel dengan

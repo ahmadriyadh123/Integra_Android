@@ -257,27 +257,54 @@ class ERaporService:
             raise FileNotFoundError(
                 f"Template Word tidak ditemukan di: {self.template_path}"
             )
-
         nis_nisn = [
             value for value in (detail.get("nis"), detail.get("nisn")) if value
         ]
+
+        # 1. Pastikan subjects tidak kosong, jika kosong sediakan 1 baris dummy
+        raw_subjects = detail.get("subjects") or []
+        formatted_subjects = [
+            {**subject, "no": index}
+            for index, subject in enumerate(raw_subjects, start=1)
+        ]
+        if not formatted_subjects:
+            formatted_subjects = [{
+                "no": "",
+                "subject_name": "",
+                "nilai_pengetahuan": "",
+                "nilai_keterampilan": "",
+                "nilai_akhir": "",
+                "predikat": "",
+                "catatan": ""
+            }]
+
+        # 2. Pastikan muatan_lokal tidak kosong, jika kosong sediakan 1 baris dummy
+        raw_mulok = detail.get("muatan_lokal") or []
+        formatted_mulok = [
+            {**subject, "no": index}
+            for index, subject in enumerate(raw_mulok, start=1)
+        ]
+        if not formatted_mulok:
+            formatted_mulok = [{
+                "no": "",
+                "subject_name": "",
+                "nilai_pengetahuan": "",
+                "nilai_keterampilan": "",
+                "nilai_akhir": "",
+                "predikat": "",
+                "catatan": ""
+            }]
+
         template_context = {
             **detail,
             "nis_nisn": " / ".join(nis_nisn),
-            "subjects": [
-                {**subject, "no": index}
-                for index, subject in enumerate(detail.get("subjects") or [], start=1)
-            ],
-            "muatan_lokal": [
-                {**subject, "no": index}
-                for index, subject in enumerate(
-                    detail.get("muatan_lokal") or [], start=1
-                )
-            ],
+            "subjects": formatted_subjects,
+            "muatan_lokal": formatted_mulok,
+            "mulok": formatted_mulok,  # Alias untuk mencocokkan jika template memanggil 'mulok'
         }
+
         document = DocxTemplate(str(self.template_path))
         document.render(template_context)
-
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)
             docx_path = output_dir / "rapor_output.docx"

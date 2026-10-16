@@ -19,7 +19,7 @@ class SchoolAdminController(http.Controller):
         if not isinstance(tenant_id, int) or tenant_id <= 0:
             raise UserError(_("Select a valid school tenant."))
 
-        tenant = request.env["integra.school.tenant"].browse(tenant_id).exists()
+        tenant = request.env["school.tenant"].browse(tenant_id).exists()
         if not tenant or not tenant.active:
             raise UserError(_("The selected school tenant is missing or archived."))
 

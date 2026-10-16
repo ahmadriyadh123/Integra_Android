@@ -1,6 +1,7 @@
 import xmlrpc.client
 from urllib.parse import urlsplit
 
+import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -23,7 +24,7 @@ class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
 
 
 class SchoolTenant(models.Model):
-    _name = "integra.school.tenant"
+    _name = "school.tenant"
     _description = "Sekolah"
     _rec_name = "school_name"
     _order = "school_name"
@@ -54,6 +55,23 @@ class SchoolTenant(models.Model):
             "field ini tidak mengubah database registry middleware."
         ),
     )
+    registry_id = fields.Integer(readonly=True, copy=False)
+    user_db = fields.Char(string="User database", size=120)
+    secret_ref_db = fields.Char(string="Referensi secret database", size=255)
+    odoo_db_host = fields.Char(string="Host PostgreSQL", size=255)
+    odoo_db_port = fields.Integer(string="Port PostgreSQL", default=5432)
+    registry_sync_status = fields.Selection(
+        [
+            ("pending", "Belum disinkronkan"),
+            ("success", "Tersinkron"),
+            ("failed", "Gagal"),
+        ],
+        default="pending",
+        readonly=True,
+        copy=False,
+    )
+    registry_sync_message = fields.Text(readonly=True, copy=False)
+    registry_synced_at = fields.Datetime(readonly=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -120,9 +138,6 @@ class SchoolTenant(models.Model):
                     "sticky": True,
                 },
             }
-        finally:
-            common.close()
-
         version = response.get("server_version") if isinstance(response, dict) else None
         message = (
             _("Server Odoo merespons dengan versi %s.") % version
@@ -135,6 +150,69 @@ class SchoolTenant(models.Model):
             "params": {
                 "title": _("Koneksi Odoo berhasil"),
                 "message": message,
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def action_sync_registry(self):
+        self.ensure_one()
+        parameters = self.env["ir.config_parameter"].sudo()
+        api_url = parameters.get_param(
+            "integra_school_admin.registry_api_url"
+        ) or "https://kp-sekolah.asetkoptii.com/mobile-api/api/v1"
+        token = parameters.get_param("integra_school_admin.registry_admin_token")
+        if not token:
+            raise ValidationError(
+                _(
+                    "Token registry belum dikonfigurasi. Isi parameter "
+                    "integra_school_admin.registry_admin_token."
+                )
+            )
+        payload = {
+            "school_code": self.school_code,
+            "school_name": self.school_name,
+            "odoo_url": self.odoo_url,
+            "odoo_db": self.odoo_db,
+            "is_active": self.active,
+            "user_db": self.user_db or None,
+            "secret_ref_db": self.secret_ref_db or None,
+            "odoo_db_host": self.odoo_db_host or "",
+            "odoo_db_port": self.odoo_db_port or 5432,
+        }
+        try:
+            response = requests.put(
+                f"{api_url.rstrip('/')}/admin/tenants/{self.school_code}",
+                json=payload,
+                headers={"X-Registry-Admin-Token": token},
+                timeout=CONNECTION_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except (OSError, requests.RequestException, ValueError) as error:
+            self.write(
+                {
+                    "registry_sync_status": "failed",
+                    "registry_sync_message": str(error),
+                    "registry_synced_at": fields.Datetime.now(),
+                }
+            )
+            raise ValidationError(_("Sinkronisasi registry gagal: %s") % error) from error
+        data = result if isinstance(result, dict) else {}
+        self.write(
+            {
+                "registry_id": data.get("id") or self.registry_id,
+                "registry_sync_status": "success",
+                "registry_sync_message": _("Berhasil disinkronkan ke registry."),
+                "registry_synced_at": fields.Datetime.now(),
+            }
+        )
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Sinkronisasi berhasil"),
+                "message": _("Data sekolah sudah diperbarui di registry backend."),
                 "type": "success",
                 "sticky": False,
             },
@@ -168,9 +246,6 @@ class SchoolTenant(models.Model):
             raise ValidationError(
                 _("Tidak dapat mengautentikasi ke Odoo tenant: %s") % error
             ) from error
-        finally:
-            common.close()
-
         if not uid:
             raise ValidationError(
                 _("Login atau password akun service ditolak oleh Odoo tenant.")
@@ -194,7 +269,7 @@ class SchoolTenant(models.Model):
 
         try:
             configs = search_read(
-                "integra.school.model.config",
+                "school.model.config",
                 [],
                 [
                     "id",
@@ -212,7 +287,7 @@ class SchoolTenant(models.Model):
             config_ids = [config["id"] for config in configs]
             relations = (
                 search_read(
-                    "integra.school.model.config.relation",
+                    "school.model.config.relation",
                     [("config_id", "in", config_ids)],
                     [
                         "id",
@@ -286,9 +361,6 @@ class SchoolTenant(models.Model):
             raise ValidationError(
                 _("Gagal membaca konfigurasi dari Odoo tenant: %s") % error
             ) from error
-        finally:
-            models_proxy.close()
-
         return {
             "configs": configs,
             "relations": relations,
