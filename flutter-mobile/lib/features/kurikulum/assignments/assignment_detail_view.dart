@@ -269,7 +269,7 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
     try {
       final result = await FilePicker.pickFiles(type: FileType.any);
       if (!mounted) return;
-      final selectedFiles = result?.files ?? [];
+      final selectedFiles = result ?? [];
       if (selectedFiles.isEmpty) return;
 
       final oversizedFile = selectedFiles
