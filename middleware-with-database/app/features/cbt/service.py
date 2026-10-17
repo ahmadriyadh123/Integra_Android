@@ -20,12 +20,64 @@ class CbtService:
         cleaned = re.sub(r'<[^>]*>', '', str(val))
         return html.unescape(cleaned).strip()
 
+    def _parse_datetime(self, value: Any) -> Optional[datetime]:
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            text_value = str(value).strip().replace("Z", "+00:00")
+            try:
+                parsed = datetime.fromisoformat(text_value)
+            except ValueError:
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        parsed = datetime.strptime(text_value.split(".")[0], fmt)
+                        break
+                    except ValueError:
+                        parsed = None
+                if parsed is None:
+                    return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    def _display_status(
+        self,
+        exam: Dict[str, Any],
+        completed_ids: set[int],
+    ) -> str:
+        raw_status = self._str(exam.get("status"), "draft").strip().lower()
+        if exam.get("id") in completed_ids or raw_status in {"selesai", "done", "closed"}:
+            return "Selesai"
+
+        start = self._parse_datetime(exam.get("tanggal_mulai"))
+        end = self._parse_datetime(exam.get("tanggal_selesai"))
+        now = datetime.now(timezone.utc)
+        if start and now < start:
+            return "Belum Dimulai"
+        if end and now > end:
+            return "Selesai"
+        if start and (not end or start <= now <= end):
+            return "Aktif"
+        if raw_status in {"aktif", "active", "published", "ongoing"}:
+            return "Aktif"
+        return self._str(exam.get("status"), "Belum Dimulai")
+
     async def get_exam_list(
         self,
         course_id: Optional[int] = None,
         student_id: Optional[int] = None
     ) -> Dict[str, Any]:
         raw = await self.repo.get_schedules(course_id=course_id, student_id=student_id)
+        completed_ids: set[int] = set()
+        if student_id is not None:
+            results = await self.repo.get_hasil_ujian(student_id=student_id)
+            completed_ids = {
+                int(result["jadwal_ujian_id"])
+                for result in results
+                if result.get("jadwal_ujian_id") is not None
+            }
         exams = []
         for e in raw:
             t_mulai  = self._str(e.get('tanggal_mulai'), '')
@@ -34,7 +86,8 @@ class CbtService:
             exams.append({
                 "id": e.get("id"),
                 "judul_ujian": self._str(e.get("name"), "Ujian CBT"),
-                "status": self._str(e.get("status"), "draft"),
+                "status": self._display_status(e, completed_ids),
+                "raw_status": self._str(e.get("status"), "draft"),
                 "mata_pelajaran": self._str(e.get("mata_pelajaran_name")),
                 "jenis_ujian": self._str(e.get("jenis_ujian_name")),
                 "tanggal_mulai": t_mulai,

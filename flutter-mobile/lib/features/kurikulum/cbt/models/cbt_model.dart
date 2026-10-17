@@ -23,6 +23,7 @@ class CbtExamSchedule {
   final int durationMinutes;
   final int questionCount;
   final String status;
+  final String rawStatus;
 
   const CbtExamSchedule({
     required this.id,
@@ -32,6 +33,7 @@ class CbtExamSchedule {
     required this.durationMinutes,
     required this.questionCount,
     required this.status,
+    required this.rawStatus,
   });
 
   factory CbtExamSchedule.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class CbtExamSchedule {
       durationMinutes: _parseId(json['durasi_menit']) ?? 0,
       questionCount: _parseId(json['jumlah_soal']) ?? 0,
       status: _stringValue(json['status']),
+      rawStatus: _stringValue(json['raw_status'], fallback: _stringValue(json['status'])),
     );
   }
 
@@ -61,6 +64,7 @@ class CbtExamSchedule {
     'durasi_menit': durationMinutes,
     'jumlah_soal': questionCount,
     'status': status,
+    'raw_status': rawStatus,
   };
 }
 

@@ -5,6 +5,7 @@ class CbtExamItemResponse(BaseModel):
     id: int
     judul_ujian: str
     status: str
+    raw_status: str = "-"
     mata_pelajaran: str
     jenis_ujian: Optional[str] = "-"
     tanggal_mulai: str
