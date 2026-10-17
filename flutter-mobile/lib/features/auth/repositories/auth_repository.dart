@@ -61,6 +61,13 @@ class AuthRepository {
         'Sesi lama tidak memiliki refresh token. Silakan login kembali.',
       );
     }
+    if (apiService.tenantApiConfig.schoolId.isEmpty) {
+      final tokenSchoolId = apiService.tenantApiConfig
+          .schoolIdFromToken(currentSession.accessToken);
+      if (tokenSchoolId != null) {
+        apiService.tenantApiConfig.schoolId = tokenSchoolId.toString();
+      }
+    }
     final data = await apiService.refreshToken(refreshToken);
     final accessToken = data['access_token'];
     final newRefreshToken = data['refresh_token'];

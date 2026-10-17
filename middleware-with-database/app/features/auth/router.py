@@ -21,7 +21,10 @@ from app.features.auth.schemas import (
 )
 from app.features.auth.schemas import ChangePasswordRequest
 from app.features.auth.repository import AuthRepository
-from app.features.auth.refresh_tokens import RefreshTokenRepository
+from app.features.auth.refresh_tokens import (
+    RefreshTokenRepository,
+    RefreshTokenTenantMismatchError,
+)
 from app.features.auth.service import AuthService
 
 logger = logging.getLogger(__name__)
@@ -133,11 +136,18 @@ async def refresh_token(
     tenant: SchoolTenant = Depends(get_current_tenant),
 ):
     refresh_repository = RefreshTokenRepository()
-    rotated = await refresh_repository.rotate(
-        registry_db,
-        token=payload.refresh_token,
-        tenant_id=tenant.id,
-    )
+    try:
+        rotated = await refresh_repository.rotate(
+            registry_db,
+            token=payload.refresh_token,
+            tenant_id=tenant.id,
+        )
+    except RefreshTokenTenantMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
     if rotated is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

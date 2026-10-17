@@ -10,6 +10,11 @@ from app.core.config import settings
 from app.core.models import RefreshToken
 
 
+class RefreshTokenTenantMismatchError(Exception):
+    """Raised when a refresh token belongs to a different tenant/school."""
+    pass
+
+
 class RefreshTokenRepository:
     @staticmethod
     def _hash(token: str) -> str:
@@ -57,7 +62,6 @@ class RefreshTokenRepository:
             select(RefreshToken)
             .where(
                 RefreshToken.token_hash == self._hash(token),
-                RefreshToken.tenant_id == tenant_id,
             )
             .with_for_update()
         )
@@ -66,6 +70,13 @@ class RefreshTokenRepository:
         if record is None or record.revoked_at is not None:
             await db.rollback()
             return None
+
+        if record.tenant_id != tenant_id:
+            await db.rollback()
+            raise RefreshTokenTenantMismatchError(
+                "Akun Anda tidak sesuai dengan sekolah yang dipilih. "
+                "Silakan pilih sekolah yang benar atau login kembali."
+            )
 
         expires_at = record.expires_at
         if expires_at.tzinfo is None:

@@ -3,6 +3,17 @@ import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/buku_komunikasi_model.dart';
 import '../repositories/buku_komunikasi_repository.dart';
 
+// Penanda apakah error berasal dari sesi yang tidak valid / token berakhir.
+bool _isSessionError(String message) {
+  final normalized = message.toLowerCase();
+  return normalized.contains('sesi') ||
+      normalized.contains('tidak valid') ||
+      normalized.contains('berakhir') ||
+      normalized.contains('login kembali') ||
+      normalized.contains('unauthorized') ||
+      normalized.contains('401');
+}
+
 class BukuKomunikasiViewModel extends ChangeNotifier {
   final BukuKomunikasiRepository repository;
 
@@ -12,8 +23,15 @@ class BukuKomunikasiViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
+
+  /// Pesan error yang sudah difilter agar aman ditampilkan ke user.
   String? get errorMessage =>
       _errorMessage == null ? null : userFriendlyError(_errorMessage!);
+
+  /// True jika error terakhir disebabkan oleh sesi yang berakhir / token tidak
+  /// valid — View dapat menggunakan ini untuk menampilkan pesan/aksi khusus.
+  bool get isSessionExpired =>
+      _errorMessage != null && _isSessionError(_errorMessage!);
 
   BukuKomunikasiDetail? _detail;
   BukuKomunikasiDetail? get detail => _detail;

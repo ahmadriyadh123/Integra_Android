@@ -91,3 +91,29 @@ async def test_refresh_route_rejects_a_replayed_refresh_token(monkeypatch):
         )
 
     assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_route_returns_403_on_tenant_mismatch(monkeypatch):
+    from app.features.auth.refresh_tokens import RefreshTokenTenantMismatchError
+
+    monkeypatch.setattr(
+        RefreshTokenRepository,
+        "rotate",
+        AsyncMock(
+            side_effect=RefreshTokenTenantMismatchError(
+                "Akun Anda tidak sesuai dengan sekolah yang dipilih. Silakan pilih sekolah yang benar atau login kembali."
+            )
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await auth_router.refresh_token(
+            RefreshRequest(refresh_token="mismatched-token"),
+            db=AsyncMock(),
+            registry_db=AsyncMock(),
+            tenant=SimpleNamespace(id=3),
+        )
+
+    assert error.value.status_code == 403
+    assert "tidak sesuai dengan sekolah yang dipilih" in error.value.detail

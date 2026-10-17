@@ -13,6 +13,13 @@ class _TokenPair {
   final String refreshToken;
 }
 
+class _RefreshResult {
+  const _RefreshResult({this.tokens, this.errorResponse});
+
+  final _TokenPair? tokens;
+  final http.Response? errorResponse;
+}
+
 class AuthenticatedHttpClient extends http.BaseClient {
   AuthenticatedHttpClient({
     required String baseUrl,
@@ -28,7 +35,7 @@ class AuthenticatedHttpClient extends http.BaseClient {
   final TenantApiConfig _tenantApiConfig;
   final AuthLocalStorage _authStorage;
   final http.Client _innerClient;
-  Future<_TokenPair?>? _refreshInFlight;
+  Future<_RefreshResult?>? _refreshInFlight;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -54,8 +61,19 @@ class AuthenticatedHttpClient extends http.BaseClient {
         return response;
       }
 
+      // Multipart/streamed body sudah dikonsumsi — tidak bisa di-replay.
+      // Lakukan refresh token agar request ulang dari caller langsung berhasil.
       final rejectedResponse = await http.Response.fromStream(response);
-      await _refreshTokens(initialTokens.accessToken);
+      final refreshOutcome = await _refreshTokens(initialTokens.accessToken);
+      final rotatedTokens = refreshOutcome?.tokens;
+      if (rotatedTokens == null) {
+        // Refresh gagal: kembalikan error response dari refresh, atau 401 asli.
+        return _asStreamedResponse(
+          refreshOutcome?.errorResponse ?? rejectedResponse,
+        );
+      }
+      // Refresh berhasil: token baru tersimpan di storage.
+      // Kembalikan 401 asli agar caller tahu perlu retry — token sudah valid.
       return _asStreamedResponse(rejectedResponse);
     }
 
@@ -69,9 +87,12 @@ class AuthenticatedHttpClient extends http.BaseClient {
     }
 
     final rejectedResponse = await http.Response.fromStream(response);
-    final rotatedTokens = await _refreshTokens(initialTokens.accessToken);
+    final refreshOutcome = await _refreshTokens(initialTokens.accessToken);
+    final rotatedTokens = refreshOutcome?.tokens;
     if (rotatedTokens == null) {
-      return _asStreamedResponse(rejectedResponse);
+      return _asStreamedResponse(
+        refreshOutcome?.errorResponse ?? rejectedResponse,
+      );
     }
 
     headers['Authorization'] = 'Bearer ${rotatedTokens.accessToken}';
@@ -112,7 +133,7 @@ class AuthenticatedHttpClient extends http.BaseClient {
     return _TokenPair(accessToken, refreshToken);
   }
 
-  Future<_TokenPair?> _refreshTokens(String rejectedAccessToken) {
+  Future<_RefreshResult?> _refreshTokens(String rejectedAccessToken) {
     final pending = _refreshInFlight;
     if (pending != null) return pending;
 
@@ -123,10 +144,20 @@ class AuthenticatedHttpClient extends http.BaseClient {
     });
   }
 
-  Future<_TokenPair?> _rotateTokens(String rejectedAccessToken) async {
+  Future<_RefreshResult?> _rotateTokens(String rejectedAccessToken) async {
     final current = await _loadTokens();
     if (current == null) return null;
-    if (current.accessToken != rejectedAccessToken) return current;
+    if (current.accessToken != rejectedAccessToken) {
+      return _RefreshResult(tokens: current);
+    }
+
+    if (_tenantApiConfig.schoolId.isEmpty) {
+      final tokenSchoolId =
+          _tenantApiConfig.schoolIdFromToken(current.accessToken);
+      if (tokenSchoolId != null) {
+        _tenantApiConfig.schoolId = tokenSchoolId.toString();
+      }
+    }
 
     final response = await _innerClient.post(
       Uri.parse('$_baseUrl/auth/refresh'),
@@ -137,13 +168,21 @@ class AuthenticatedHttpClient extends http.BaseClient {
       },
       body: jsonEncode({'refresh_token': current.refreshToken}),
     );
-    if (response.statusCode == 401 ||
-        response.statusCode == 400 ||
-        response.statusCode == 403) {
+    if (response.statusCode == 401) {
       await _expireSession();
-      return null;
+      return _RefreshResult(errorResponse: response);
     }
-    if (response.statusCode != 200) return null;
+    if (response.statusCode == 403 ||
+        response.statusCode == 404 ||
+        response.statusCode == 422 ||
+        response.statusCode >= 500) {
+      // Refresh gagal karena masalah konfigurasi tenant atau server error;
+      // jangan hapus sesi lokal agar tidak memaksa logout.
+      return _RefreshResult(errorResponse: response);
+    }
+    if (response.statusCode != 200) {
+      return _RefreshResult(errorResponse: response);
+    }
 
     final decoded = jsonDecode(response.body);
     if (decoded is! Map || decoded['success'] != true) {
@@ -166,7 +205,7 @@ class AuthenticatedHttpClient extends http.BaseClient {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     );
-    return tokens;
+    return _RefreshResult(tokens: tokens);
   }
 
   Future<http.StreamedResponse> _send(

@@ -241,9 +241,13 @@ class AuthService {
         data is Map) {
       return Map<String, dynamic>.from(data);
     }
-    if (response.statusCode == 401 ||
-        response.statusCode == 400 ||
-        response.statusCode == 403) {
+    if (response.statusCode == 403) {
+      throw TenantTokenMismatchException(
+        decoded['detail']?.toString() ??
+            'Akun Anda tidak sesuai dengan sekolah yang dipilih. Silakan periksa konfigurasi tenant.',
+      );
+    }
+    if (response.statusCode == 401 || response.statusCode == 400) {
       throw AuthSessionInvalidException(
         decoded['detail']?.toString() ??
             'Sesi login telah berakhir. Silakan login kembali.',

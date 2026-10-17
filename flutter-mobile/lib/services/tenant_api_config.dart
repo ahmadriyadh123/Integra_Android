@@ -68,9 +68,9 @@ class TenantApiConfig {
 }
 
 class TenantTokenMismatchException extends FormatException {
-  const TenantTokenMismatchException()
-    : super(
+  const TenantTokenMismatchException([
+    String message =
         'Token dari server tidak valid atau tidak sesuai dengan sekolah yang dipilih. '
         'Silakan periksa konfigurasi tenant atau login kembali.',
-      );
+  ]) : super(message);
 }

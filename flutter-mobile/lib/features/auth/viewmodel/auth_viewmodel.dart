@@ -201,7 +201,8 @@ class AuthViewModel extends ChangeNotifier {
         await _clearInvalidStoredSession(error.message);
         return false;
       } on TenantTokenMismatchException catch (refreshError) {
-        await _clearInvalidStoredSession(refreshError.message);
+        _errorMessage = refreshError.message;
+        notifyListeners();
         return false;
       } on AuthNetworkException {
         return true;
@@ -219,7 +220,8 @@ class AuthViewModel extends ChangeNotifier {
       await _clearInvalidStoredSession(error.message);
       return false;
     } on TenantTokenMismatchException catch (error) {
-      await _clearInvalidStoredSession(error.message);
+      _errorMessage = error.message;
+      notifyListeners();
       return false;
     } on AuthNetworkException {
       return true;

@@ -212,7 +212,7 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text(_formatFileSize(entry.value.size)),
+                subtitle: Text(_formatFileSize(entry.value.lengthSync() ?? 0)),
                 trailing: IconButton(
                   tooltip: 'Hapus berkas',
                   onPressed: _isUploading
@@ -273,7 +273,7 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
       if (selectedFiles.isEmpty) return;
 
       final oversizedFile = selectedFiles
-          .where((file) => file.size > _maxFileSize)
+          .where((file) => (file.lengthSync() ?? 0) > _maxFileSize)
           .firstOrNull;
       if (oversizedFile != null) {
         throw Exception('${oversizedFile.name} melebihi batas ukuran 20 MiB.');
@@ -298,14 +298,6 @@ class _AssignmentDetailViewState extends State<AssignmentDetailView> {
   }
 
   Future<AssignmentFileUpload> _prepareUpload(PlatformFile file) async {
-    if (file.size > 0) {
-      return AssignmentFileUpload(
-        stream: file.readAsByteStream(),
-        size: file.size,
-        fileName: file.name,
-      );
-    }
-
     final bytes = await file.readAsBytes();
     if (bytes.isEmpty) {
       throw Exception('${file.name} kosong atau tidak dapat dibaca.');

@@ -114,3 +114,30 @@ async def test_rotate_revokes_expired_token_without_issuing_another():
     assert record.revoked_at is not None
     db.add.assert_not_called()
     db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_rotate_raises_tenant_mismatch_error():
+    from app.features.auth.refresh_tokens import RefreshTokenTenantMismatchError
+
+    record = RefreshToken(
+        token_hash=RefreshTokenRepository._hash("other-tenant-token"),
+        tenant_id=5,
+        user_id=42,
+        claims={"uid": 42, "school_id": 5},
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    db = Mock()
+    db.rollback = AsyncMock()
+    db.execute = AsyncMock(
+        return_value=Mock(scalar_one_or_none=Mock(return_value=record))
+    )
+
+    with pytest.raises(RefreshTokenTenantMismatchError):
+        await RefreshTokenRepository().rotate(
+            db,
+            token="other-tenant-token",
+            tenant_id=3,
+        )
+
+    db.rollback.assert_awaited_once()

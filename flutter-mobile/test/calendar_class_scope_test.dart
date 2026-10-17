@@ -13,24 +13,38 @@ String _token({
   required int userId,
   required int courseId,
 }) {
-  final payload = base64Url
-      .encode(
-        utf8.encode(
-          jsonEncode({
-            'school_id': schoolId,
-            'uid': userId,
-            'course_id': courseId,
-          }),
-        ),
-      )
-      .replaceAll('=', '');
-  return 'header.$payload.signature';
+  String encode(Map<String, dynamic> value) =>
+      base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+  return '${encode({'alg': 'HS256'})}.${encode({'school_id': schoolId, 'uid': userId, 'course_id': courseId})}.${encode({'sig': 'test'})}';
 }
 
 class _CalendarService extends CalendarService {
-  _CalendarService() : super(baseUrl: '', tenantApiConfig: TenantApiConfig());
+  _CalendarService()
+      : super(baseUrl: '', tenantApiConfig: TenantApiConfig(schoolId: '4'));
 
   int requests = 0;
+
+  @override
+  Future<Map<String, dynamic>> syncCalendars(
+    String token, {
+    String? cursor,
+  }) async {
+    if (cursor != null) {
+      return {
+        'items': <Map<String, dynamic>>[],
+        'removed_ids': <int>[],
+        'next_cursor': cursor,
+        'full_sync': false,
+      };
+    }
+    final list = await fetchCalendars(token);
+    return {
+      'items': list['calendars'],
+      'removed_ids': <int>[],
+      'next_cursor': 'c1',
+      'full_sync': true,
+    };
+  }
 
   @override
   Future<Map<String, dynamic>> fetchCalendars(String token) async {

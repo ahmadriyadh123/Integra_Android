@@ -258,11 +258,69 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
                     minHeight: MediaQuery.of(context).size.height * 0.7,
                   ),
                   alignment: Alignment.center,
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    vm.errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        vm.isSessionExpired
+                            ? Icons.lock_outline_rounded
+                            : Icons.cloud_off_rounded,
+                        size: 56,
+                        color: vm.isSessionExpired
+                            ? Colors.orange
+                            : Colors.redAccent,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        vm.isSessionExpired
+                            ? 'Sesi login Anda sudah berakhir.'
+                            : 'Gagal memuat data.',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: darkSlate,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        vm.isSessionExpired
+                            ? 'Token diperbarui secara otomatis. Ketuk "Muat Ulang" untuk melanjutkan, atau kembali ke halaman login jika masalah berlanjut.'
+                            : vm.errorMessage!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryTeal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Muat Ulang'),
+                        onPressed: () {
+                          final token =
+                              context.read<AuthViewModel>().token;
+                          context
+                              .read<BukuKomunikasiViewModel>()
+                              .fetchBukuKomunikasi(token, forceRefresh: true);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               )

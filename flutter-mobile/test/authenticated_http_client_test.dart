@@ -198,4 +198,86 @@ void main() {
     expect(await storage.loadRefreshToken(), isNull);
     client.close();
   });
+
+  test(
+    'tenant mismatch (403) preserves local session without forcing logout',
+    () async {
+      final config = TenantApiConfig(schoolId: '1');
+      var expiredCallbacks = 0;
+      config.onSessionExpired = () async {
+        expiredCallbacks++;
+        await storage.clearStoredTokens();
+      };
+      final client = AuthenticatedHttpClient(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: config,
+        authStorage: storage,
+        innerClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/auth/refresh') {
+            return http.Response(
+              '{"detail":"Akun Anda tidak sesuai dengan sekolah yang dipilih."}',
+              403,
+            );
+          }
+          return http.Response('{"detail":"Sesi tidak valid"}', 401);
+        }),
+      );
+
+      final response = await client.get(
+        Uri.parse('https://example.com/api/v1/profile/me'),
+        headers: config.headers(token: _jwtForSchool(1)),
+      );
+
+      expect(response.statusCode, 403);
+      expect(
+        response.body,
+        contains('Akun Anda tidak sesuai dengan sekolah yang dipilih'),
+      );
+      expect(expiredCallbacks, 0);
+      expect(await storage.loadAuth(), isNotNull);
+      expect(await storage.loadRefreshToken(), isNotNull);
+      client.close();
+    },
+  );
+
+  test(
+    'tenant database failure (503) preserves session and surfaces service error',
+    () async {
+      final config = TenantApiConfig(schoolId: '1');
+      var expiredCallbacks = 0;
+      config.onSessionExpired = () async {
+        expiredCallbacks++;
+        await storage.clearStoredTokens();
+      };
+      final client = AuthenticatedHttpClient(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: config,
+        authStorage: storage,
+        innerClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/auth/refresh') {
+            return http.Response(
+              '{"detail":"Konfigurasi layanan sekolah belum lengkap."}',
+              503,
+            );
+          }
+          return http.Response('{"detail":"Sesi tidak valid"}', 401);
+        }),
+      );
+
+      final response = await client.get(
+        Uri.parse('https://example.com/api/v1/profile/me'),
+        headers: config.headers(token: _jwtForSchool(1)),
+      );
+
+      expect(response.statusCode, 503);
+      expect(
+        response.body,
+        contains('Konfigurasi layanan sekolah belum lengkap'),
+      );
+      expect(expiredCallbacks, 0);
+      expect(await storage.loadAuth(), isNotNull);
+      expect(await storage.loadRefreshToken(), isNotNull);
+      client.close();
+    },
+  );
 }
