@@ -55,6 +55,9 @@ mekanisme arsip standar Odoo.
 4. Pastikan pengguna pengelola termasuk grup **Administration/Settings**
    (`base.group_system`).
 
+Panduan lengkap untuk instalasi pada Odoo pusat tersedia pada
+[PANDUAN-ODOO-PUSAT.md](./PANDUAN-ODOO-PUSAT.md).
+
 Menu yang tersedia:
 
 ```text

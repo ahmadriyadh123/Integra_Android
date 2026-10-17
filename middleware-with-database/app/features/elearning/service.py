@@ -1,4 +1,5 @@
 import base64
+import html
 import io
 import logging
 import re
@@ -68,6 +69,36 @@ class ElearningService:
         if not raw or raw is False:
             return ''
         return re.sub(r'<[^>]+>', '', str(raw)).strip()
+
+    def _message_text(self, raw: Any) -> str:
+        if not raw or raw is False:
+            return ''
+        text = re.sub(r'<br\s*/?>|</p>|</div>', '\n', str(raw), flags=re.IGNORECASE)
+        return html.unescape(re.sub(r'<[^>]+>', '', text)).strip()
+
+    async def get_course_messages(
+        self,
+        course_id: int,
+        partner_id: Optional[int] = None,
+    ) -> Optional[List[Dict[str, Any]]]:
+        messages = await self.repo.get_course_messages(course_id=course_id)
+        if messages is None:
+            return None
+
+        result = []
+        for message in reversed(messages):
+            author_id = message.get("author_id")
+            result.append({
+                "id": int(message.get("id") or 0),
+                "author_name": str(message.get("author_name") or "-"),
+                "body": self._message_text(message.get("body")),
+                "created_at": str(message.get("date") or ""),
+                "is_own": (
+                    partner_id is not None
+                    and str(author_id) == str(partner_id)
+                ),
+            })
+        return result
 
     def _map_slide_type(self, slide_category: str, slide_type: str) -> str:
         """Normalkan tipe materi ke kategori yang dikenali Flutter."""

@@ -110,6 +110,35 @@ class ElearningRepository:
         row = result.mappings().first()
         return dict(row) if row else None
 
+    async def get_course_messages(
+        self,
+        course_id: int,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, Any]]]:
+        if not await self.get_course_by_id(course_id):
+            return None
+
+        query = text("""
+            SELECT
+                m.id,
+                m.author_id,
+                COALESCE(p.name, '-') AS author_name,
+                m.body,
+                m.date
+            FROM mail_message m
+            LEFT JOIN res_partner p ON p.id = m.author_id
+            WHERE m.model = 'slide.channel'
+              AND m.res_id = :course_id
+              AND m.message_type = 'comment'
+            ORDER BY m.date DESC NULLS LAST, m.id DESC
+            LIMIT :limit;
+        """)
+        result = await self.db.execute(
+            query,
+            {"course_id": course_id, "limit": limit},
+        )
+        return [dict(row) for row in result.mappings().all()]
+
     async def get_slides_by_course_id(
         self,
         course_id: int,

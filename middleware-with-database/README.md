@@ -31,7 +31,11 @@ Salin `.env.example` menjadi `.env`, lalu atur kredensial PostgreSQL dan secret
 JWT. `REGISTRY_DB_NAME` adalah database pusat yang harus dibuat sebelum backend
 dijalankan. Role PostgreSQL pada environment digunakan untuk registry dan koneksi
 tenant; untuk kredensial tenant yang berbeda, atur `TENANT_SECRETS_FILE` ke file
-JSON yang hanya dapat dibaca service backend. Pastikan host tenant dapat
+JSON yang hanya dapat dibaca service backend. Jika service berjalan sebagai
+`devmobile`, gunakan lokasi privat milik akun tersebut (contoh untuk testing:
+`/home/devmobile/tenant-secrets-testing.json`) dan permission
+`600`. Jangan gunakan file testing untuk service produksi.
+Pastikan host tenant dapat
 dijangkau dari server middleware, firewall dan `pg_hba.conf` mengizinkan koneksi,
 serta role tersebut memiliki izin ke database sekolah.
 Jika file Odoo memakai filestore, `ODOO_FILESTORE_PATH` harus menunjuk ke root

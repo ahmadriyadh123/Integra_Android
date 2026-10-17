@@ -8,6 +8,7 @@ from app.core.dependencies import get_db, get_current_user_credentials
 from app.features.elearning.schemas import (
     APIResponseCourseList,
     APIResponseCourseDetail,
+    APIResponseCourseMessages,
     CompleteSlideRequest,
 )
 from app.features.elearning.repository import ElearningRepository
@@ -103,6 +104,44 @@ async def get_course_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Materi kursus belum dapat dimuat. Silakan coba lagi.",
+        ) from e
+
+@router.get(
+    "/courses/{course_id}/messages",
+    response_model=APIResponseCourseMessages,
+)
+async def get_course_messages(
+    course_id: int,
+    creds: dict = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        service = ElearningService(ElearningRepository(db))
+        data = await service.get_course_messages(
+            course_id=course_id,
+            partner_id=creds.get("partner_id"),
+        )
+        if data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Kursus E-Learning tidak ditemukan.",
+            )
+        return APIResponseCourseMessages(
+            success=True,
+            message="Berhasil mengambil diskusi kursus.",
+            data=data,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            "[elearning/courses/%s/messages] Error uid=%s",
+            course_id,
+            creds.get("uid"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Diskusi kursus belum dapat dimuat. Silakan coba lagi.",
         ) from e
 
 

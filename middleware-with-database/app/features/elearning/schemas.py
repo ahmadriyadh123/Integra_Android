@@ -38,6 +38,18 @@ class APIResponseCourseDetail(BaseModel):
     message: str
     data: Optional[CourseDetailResponse] = None
 
+class CourseMessageResponse(BaseModel):
+    id: int
+    author_name: str
+    body: str
+    created_at: str
+    is_own: bool = False
+
+class APIResponseCourseMessages(BaseModel):
+    success: bool
+    message: str
+    data: List[CourseMessageResponse]
+
 class CompleteSlideRequest(BaseModel):
     source: Literal["opened", "scorm"]
     completion_status: Optional[str] = Field(default=None, max_length=32)

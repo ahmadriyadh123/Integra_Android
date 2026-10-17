@@ -256,12 +256,13 @@ Variabel backend utama:
 | `DB_USER` | Role database registry. Kredensial tenant dibaca dari `TENANT_SECRETS_FILE`. |
 | `DB_PASSWORD` | Password role registry, disimpan hanya di `.env`. |
 | `REGISTRY_DB_NAME` | Nama database registry yang benar dan sudah ada. `DB_NAME` merupakan alias kompatibilitas lama; jangan set keduanya ke nilai yang berbeda. |
-| `TENANT_SECRETS_FILE` | Path absolut ke JSON kredensial tenant yang dikelola admin server, misalnya `/etc/mwd/tenant-secrets.json`. |
+| `TENANT_SECRETS_FILE` | Path absolut ke JSON kredensial tenant. Untuk unit user `devmobile`, gunakan `/home/devmobile/.config/mwd/tenant-secrets.json`; file harus dimiliki `devmobile` dengan mode `600`. |
 | `JWT_SECRET_KEY` | Secret acak minimal 32 karakter; buat langsung di server. Semua worker/instance harus memakai nilai yang sama dan stabil. Rotasi secret membatalkan access token yang masih aktif. |
 | `JWT_ALGORITHM` | Algoritma yang digunakan aplikasi, umumnya `HS256`. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Masa hidup access token; default 15 menit. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Masa hidup refresh token; default 30 hari dan diperpanjang saat rotasi. |
 | `APP_ENV` | Gunakan `production`. |
+| `ODOO_FILESTORE_PATH` | Root filestore bersama, bukan folder tenant tunggal. |
 
 Contoh `.env` untuk `middleware-with-database`:
 
@@ -271,14 +272,85 @@ DB_PORT=5432
 DB_USER=<user-registry>
 DB_PASSWORD=<password-registry>
 REGISTRY_DB_NAME=<database-registry>
-TENANT_SECRETS_FILE=/etc/mwd/tenant-secrets.json
+TENANT_SECRETS_FILE=/home/devmobile/.config/mwd/tenant-secrets.json
 ```
 
 `DB_USER` dan `DB_PASSWORD` di atas hanya digunakan untuk koneksi registry.
 Jangan mengganti nilainya dengan kredensial tenant ketika menambahkan sekolah.
 Kredensial tenant disimpan pada file secret dan dipilih melalui
 `school_tenants.secret_ref_db`.
-| `ODOO_FILESTORE_PATH` | Root filestore bersama, bukan folder tenant tunggal. |
+
+Buat file secret sebagai `devmobile`, bukan di `/etc/mwd`. Cara ini mencegah
+error `PermissionError: [Errno 13]` saat Uvicorn berjalan sebagai user tersebut:
+
+```bash
+install -d -m 700 -o devmobile -g devmobile /home/devmobile/.config/mwd
+install -m 600 -o devmobile -g devmobile /dev/null \
+  /home/devmobile/.config/mwd/tenant-secrets.json
+sudo -u devmobile sh -c 'umask 077; printf "%s\n" \
+  "{\"tenant/bogor/postgresql\":{\"username\":\"<user-tenant>\",\"password\":\"<password-tenant>\"}}" \
+  > /home/devmobile/.config/mwd/tenant-secrets.json'
+chown devmobile:devmobile /home/devmobile/.config/mwd/tenant-secrets.json
+chmod 600 /home/devmobile/.config/mwd/tenant-secrets.json
+```
+
+Untuk menambahkan tenant baru, gabungkan entry baru ke JSON yang sudah ada;
+jangan menimpa entry tenant lain. Setelah `TENANT_SECRETS_FILE` di `.env`
+diubah ke path baru, validasi akses dan restart service:
+
+```bash
+sudo -u devmobile test -r /home/devmobile/.config/mwd/tenant-secrets.json
+stat -c '%U:%G %a %n' /home/devmobile/.config/mwd/tenant-secrets.json
+systemctl --user restart mwd-api
+journalctl --user -u mwd-api -n 50 --no-pager
+```
+
+Jangan menampilkan isi file secret dengan `cat`, memasukkannya ke GitHub
+Secrets yang tidak diperlukan, atau menaruh password tenant di registry.
+
+### Secret khusus server testing
+
+Untuk server testing aplikasi, gunakan file terpisah dari produksi langsung di
+home directory `/home/devmobile`. Service aktif memakai source
+`/srv/developer/mwd`; file `/home/devmobile/mwd-active-backend` bukan direktori
+aplikasi dan tidak boleh dipakai sebagai parent path secret:
+
+```bash
+test -d "$HOME" &&
+test -w "$HOME" ||
+  { echo "Home directory tidak dapat ditulis oleh user aktif."; exit 1; }
+
+umask 077
+printf "%s\n" \
+  "{\"tenant/testing/postgresql\":{\"username\":\"<user-testing>\",\"password\":\"<password-testing>\"}}" \
+  > "$HOME/tenant-secrets-testing.json"
+chmod 600 "$HOME/tenant-secrets-testing.json"
+```
+
+Jalankan perintah tersebut setelah login sebagai `devmobile`; jangan gunakan
+`sudo`. Karena file dibuat oleh user aktif, owner dan group otomatis menjadi
+`devmobile`. Jika direktori atau file sudah ada tetapi dimiliki `root`, user
+`devmobile` tidak dapat memperbaikinya sendiri; minta administrator menjalankan
+`chown` satu kali atau gunakan direktori lain yang memang dapat ditulis.
+
+Konfigurasi environment service testing harus menunjuk ke file tersebut:
+
+```env
+TENANT_SECRETS_FILE=/home/devmobile/tenant-secrets-testing.json
+APP_ENV=testing
+```
+
+Entry `tenant/testing/postgresql` hanya contoh. Ganti dengan `secret_ref_db`
+dan kredensial database testing yang benar. Pastikan database testing tidak
+menggunakan password atau database produksi.
+
+Validasi tanpa mencetak isi secret:
+
+```bash
+test -r "$HOME/tenant-secrets-testing.json"
+stat -c '%U:%G %a %n' \
+  "$HOME/tenant-secrets-testing.json"
+```
 
 Buat secret JWT tanpa mencetak nilai secret ke dokumen/chat:
 
