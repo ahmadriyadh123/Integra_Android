@@ -172,7 +172,10 @@ workflow memakai file konfigurasi server yang sesuai. Jangan menyimpan `.env`
 atau rahasia di source Git. Workflow memasang konfigurasi terpilih sebagai
 `/srv/developer/mwd/.env`, yang dibaca systemd, menyimpan konfigurasi aktif
 sebelumnya dalam backup berizin ketat, dan memulihkannya jika health check
-server gagal.
+server gagal. `TENANT_SECRETS_FILE` dikelola di server: jika konfigurasi
+GitHub Actions tidak memuat variabel itu, workflow mempertahankan nilai dari
+`.env` aktif. Deployment gagal bila variabel tersebut belum pernah dikonfigurasi,
+sehingga service tidak diam-diam kembali ke path default yang salah.
 
 Konfigurasi `FAST_API_MIDDLEWARE_ENV` harus memuat `REGISTRY_DB_HOST`,
 `REGISTRY_DB_PORT`, `REGISTRY_DB_NAME`, `REGISTRY_DB_USER`,

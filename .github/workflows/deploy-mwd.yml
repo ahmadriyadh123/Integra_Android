@@ -250,10 +250,23 @@ jobs:
             exit 1
           fi
           had_previous_env=false
+          merged_env="$stage/.env.deploy"
           if [ -f "$app_dir/.env" ]; then
             cp -p "$app_dir/.env" "$backup_dir/env-before-$timestamp"
             chmod 600 "$backup_dir/env-before-$timestamp"
             had_previous_env=true
+          fi
+          cp "$env_file" "$merged_env"
+          if ! grep -q '^TENANT_SECRETS_FILE=' "$merged_env"; then
+            if [ -f "$app_dir/.env" ] &&
+              grep -q '^TENANT_SECRETS_FILE=' "$app_dir/.env"; then
+              grep '^TENANT_SECRETS_FILE=' "$app_dir/.env" >> "$merged_env"
+              echo "Preserving server-managed TENANT_SECRETS_FILE."
+            else
+              echo "TENANT_SECRETS_FILE is not configured."
+              echo "Add it to the backend environment before deployment."
+              exit 1
+            fi
           fi
           tar -czf "$backup" \
             --exclude=.env \
@@ -271,7 +284,7 @@ jobs:
               --exclude='/.env' \
               --exclude='/.venv/' \
               "$stage/" "$app_dir/"
-            install -m 600 "$env_file" "$app_dir/.env.next"
+            install -m 600 "$merged_env" "$app_dir/.env.next"
             mv -f "$app_dir/.env.next" "$app_dir/.env"
             "$app_dir/.venv/bin/pip" install -r "$app_dir/requirements.txt"
             "$app_dir/.venv/bin/pip" check
