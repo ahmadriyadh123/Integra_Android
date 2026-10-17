@@ -195,6 +195,21 @@ class ERaporService:
             score = line.get("sts")
         if score is None:
             score = line.get("total_nilai")
+        # Kolom sumber:
+        #   note  / cp_kompetensi → capaian_kompetensi (predikat singkat per mapel)
+        #   note2 / ct_kompetensi → catatan_kompetensi (deskripsi/narasi kompetensi)
+        capaian = (
+            line.get("capaian_kompetensi")
+            or line.get("note")
+            or line.get("cp_kompetensi")
+            or line.get("predikat")
+        )
+        catatan = (
+            line.get("catatan_kompetensi")
+            or line.get("note2")
+            or line.get("ct_kompetensi")
+            or line.get("catatan")
+        )
         return {
             "id": int(line.get("id") or index),
             "subject_id": int(subject_id) if subject_id is not None else None,
@@ -204,12 +219,10 @@ class ERaporService:
                 if line.get("nilai_pengetahuan") is not None
                 else score
             ),
-            "nilai_keterampilan": cls._number(
-                line.get("nilai_keterampilan")
-            ),
+            "nilai_keterampilan": cls._number(line.get("nilai_keterampilan")),
             "nilai_akhir": cls._number(score),
-            "predikat": cls._localized(line.get("predikat")),
-            "catatan": cls._localized(line.get("catatan"), ""),
+            "predikat": cls._localized(capaian),           # capaian kompetensi (note)
+            "catatan": cls._localized(catatan, ""),         # catatan kompetensi (note2)
         }
 
     async def get_rapor_pdf_bytes(
@@ -274,8 +287,8 @@ class ERaporService:
                 "nilai_pengetahuan": "",
                 "nilai_keterampilan": "",
                 "nilai_akhir": "",
-                "predikat": "",
-                "catatan": ""
+                "predikat": "",      # capaian kompetensi (note)
+                "catatan": ""        # catatan kompetensi (note2)
             }]
 
         # 2. Pastikan muatan_lokal tidak kosong, jika kosong sediakan 1 baris dummy
@@ -291,8 +304,8 @@ class ERaporService:
                 "nilai_pengetahuan": "",
                 "nilai_keterampilan": "",
                 "nilai_akhir": "",
-                "predikat": "",
-                "catatan": ""
+                "predikat": "",      # capaian kompetensi (note)
+                "catatan": ""        # catatan kompetensi (note2)
             }]
 
         template_context = {

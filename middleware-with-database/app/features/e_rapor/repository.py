@@ -173,7 +173,9 @@ class ERaporRepository:
         report_type = self._column(columns, "r", ("jenis_raport", "jenis_rapor"))
         phase = self._column(columns, "r", ("fase", "phase"))
         average = self._column(columns, "r", ("nilai_rata_rata", "rata_rata_nilai"))
-        notes = self._column(columns, "r", ("ct_kompetensi", "catatan_wali_kelas"))
+        notes = self._column(
+            columns, "r", ("ksmpln_saran", "ct_kompetensi", "catatan_wali_kelas")
+        )
         decision = self._column(
             columns, "r", ("keputusan_siswa", "status_keputusan")
         )
@@ -476,7 +478,7 @@ class ERaporRepository:
                     {extra_fields['school_address']} AS alamat_sekolah,
                     COALESCE(
                         {extra_fields['teacher']},
-                        NULLIF(r.walas::text, '')
+                        {'NULLIF(r.walas::text, \'\')' if 'walas' in columns else 'NULL'}
                     ) AS wali_kelas
                 FROM {config['report']} r
                 {teacher_join}
@@ -513,12 +515,17 @@ class ERaporRepository:
             "line",
             ("nilai_akhir", "sts", "total_nilai", "nilai"),
         )
-        knowledge = self._column(columns, "line", ("sts",))
-        skill = self._column(columns, "line", ("total_nilai",))
-        predicate = self._column(
+        # nilai_pengetahuan dan nilai_keterampilan hanya ada di skema lama;
+        # jika tidak ada, fallback ke nilai_akhir agar tidak kosong di response.
+        knowledge = self._column(columns, "line", ("sts", "nilai_akhir", "nilai"))
+        skill = self._column(columns, "line", ("total_nilai", "nilai_akhir", "nilai"))
+        # note  → capaian kompetensi (predikat singkat per mapel)
+        # note2 → catatan kompetensi (deskripsi lengkap)
+        # Fallback ke field cp_kompetensi/ct_kompetensi jika note/note2 tidak ada
+        capaian = self._column(
             columns, "line", ("note", "cp_kompetensi", "predikat")
         )
-        note = self._column(columns, "line", ("note2", "ct_kompetensi"))
+        catatan = self._column(columns, "line", ("note2", "ct_kompetensi"))
         query = text(f"""
             SELECT
                 line.id,
@@ -527,8 +534,8 @@ class ERaporRepository:
                 {score} AS nilai_akhir,
                 {knowledge} AS nilai_pengetahuan,
                 {skill} AS nilai_keterampilan,
-                {predicate} AS predikat,
-                {note} AS catatan
+                {capaian} AS capaian_kompetensi,
+                {catatan} AS catatan_kompetensi
             FROM {table} line
             LEFT JOIN op_subject subject ON subject.id = {subject_id}
             WHERE line.{parent} = :rapor_id
