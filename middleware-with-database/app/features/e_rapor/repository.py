@@ -470,6 +470,9 @@ class ERaporRepository:
             if "walas" in columns
             else ""
         )
+        walas_expr = (
+            "NULLIF(r.walas::text, '')" if "walas" in columns else "NULL"
+        )
         extras_result = await self.db.execute(
             text(f"""
                 SELECT
@@ -478,7 +481,7 @@ class ERaporRepository:
                     {extra_fields['school_address']} AS alamat_sekolah,
                     COALESCE(
                         {extra_fields['teacher']},
-                        {'NULLIF(r.walas::text, \'\')' if 'walas' in columns else 'NULL'}
+                        {walas_expr}
                     ) AS wali_kelas
                 FROM {config['report']} r
                 {teacher_join}
