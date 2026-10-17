@@ -16,19 +16,18 @@ class RaporListViewPage extends StatefulWidget {
 }
 
 class _RaporListViewPageState extends State<RaporListViewPage> {
-  static const Color primaryTeal = Color(0xFF059669);
-  static const Color warmAmber = Color(0xFFF59E0B);
-  static const Color darkSlate = Color(0xFF0F172A);
+  static const Color primaryTeal   = Color(0xFF059669);
+  static const Color darkSlate     = Color(0xFF0F172A);
   static const Color backgroundSlate = Color(0xFFF8FAFC);
-  static const Color textSlate = Color(0xFF475569);
-  static const Color borderSlate = Color(0xFFE2E8F0);
+  static const Color textSlate     = Color(0xFF475569);
+  static const Color borderSlate   = Color(0xFFE2E8F0);
+  static const Color mutedSlate    = Color(0xFF94A3B8);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<RaporViewModel>();
-      // Cukup panggil tanpa forceRefresh agar membaca cache Hive terlebih dahulu
       if (!vm.isLoading && vm.reports.isEmpty && vm.errorMessage == null) {
         vm.fetchReportList(widget.authToken);
       }
@@ -53,11 +52,29 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
     await vm.fetchReportList(widget.authToken, forceRefresh: true);
     if (mounted && vm.lastSyncError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui daftar: ${vm.lastSyncError}'),
-        ),
+        SnackBar(content: Text('Gagal memperbarui: ${vm.lastSyncError}')),
       );
     }
+  }
+
+  // Warna aksen berdasarkan jenis rapor
+  Color _accentColor(String reportType) {
+    final t = reportType.toLowerCase();
+    if (t.contains('akhir semester') || t.contains('sas')) {
+      return const Color(0xFF0EA5E9); // biru — akhir semester
+    }
+    if (t.contains('akhir tahun') || t.contains('sat')) {
+      return const Color(0xFF8B5CF6); // ungu — akhir tahun
+    }
+    return const Color(0xFFF59E0B); // amber — tengah semester (default)
+  }
+
+  String _shortReportType(String reportType) {
+    final t = reportType.toLowerCase();
+    if (t.contains('tengah')) return 'STS';
+    if (t.contains('akhir semester')) return 'SAS';
+    if (t.contains('akhir tahun')) return 'SAT';
+    return reportType;
   }
 
   @override
@@ -88,75 +105,189 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
             ? _buildError(vm)
             : vm.reports.isEmpty
             ? _buildEmpty()
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: vm.reports.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 14),
-                itemBuilder: (context, i) => _buildCard(context, vm.reports[i]),
-              ),
+            : _buildList(vm),
       ),
     );
   }
 
-  Widget _buildCard(BuildContext context, ReportCardHeader report) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD1FAE5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1006473B),
-            blurRadius: 14,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: Material(
-          color: Colors.white,
-          child: InkWell(
-            onTap: () => _openPdf(context, report),
-            child: Container(
-              decoration: const BoxDecoration(
-                border: Border(left: BorderSide(color: warmAmber, width: 5)),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  // ── Daftar ──────────────────────────────────────────────────────────────────
+
+  Widget _buildList(RaporViewModel vm) {
+    // Kelompokkan per tahun ajaran
+    final Map<String, List<ReportCardHeader>> grouped = {};
+    for (final r in vm.reports) {
+      (grouped[r.academicYear] ??= []).add(r);
+    }
+    final years = grouped.keys.toList();
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: years.length,
+      itemBuilder: (context, i) {
+        final year = years[i];
+        final items = grouped[year]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header grup tahun ajaran
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 20, bottom: 10),
+              child: Row(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _buildReportField(
-                          'Jenis Rapor',
-                          report.reportType,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildReportField('Tahun', report.academicYear),
-                      ),
-                    ],
+                  const Icon(Icons.calendar_today_rounded,
+                      size: 13, color: primaryTeal),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tahun Ajaran $year',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: primaryTeal,
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _buildReportField('Semester', report.semester),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildReportField('Kelas', report.className),
-                      ),
-                    ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(height: 1, color: const Color(0xFFD1FAE5)),
                   ),
                 ],
               ),
+            ),
+            // Item dalam grup
+            ...items.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final report = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: idx < items.length - 1 ? 10 : 0,
+                ),
+                child: _buildListTile(report),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildListTile(ReportCardHeader report) {
+    final accent = _accentColor(report.reportType);
+    final shortType = _shortReportType(report.reportType);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _openPdf(context, report),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderSlate),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // Aksen kiri + badge singkatan
+                Container(
+                  width: 56,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.08),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(13),
+                      bottomLeft: Radius.circular(13),
+                    ),
+                    border: Border(left: BorderSide(color: accent, width: 4)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    shortType,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                // Konten utama
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Jenis rapor + semester
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                report.reportType,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: darkSlate,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _SemesterBadge(semester: report.semester),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Kelas
+                        Row(
+                          children: [
+                            const Icon(Icons.class_rounded,
+                                size: 12, color: mutedSlate),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                report.className,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: textSlate,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Rata-rata nilai (jika ada)
+                        if (report.averageScore > 0) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.bar_chart_rounded,
+                                  size: 12, color: mutedSlate),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Rata-rata: ${report.averageScore.toStringAsFixed(1)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: textSlate,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                // Chevron
+                const Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: Icon(Icons.chevron_right_rounded,
+                      size: 20, color: mutedSlate),
+                ),
+              ],
             ),
           ),
         ),
@@ -164,30 +295,7 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
     );
   }
 
-  Widget _buildReportField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: textSlate,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: darkSlate,
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Error & Empty ────────────────────────────────────────────────────────────
 
   Widget _buildError(RaporViewModel vm) {
     return SingleChildScrollView(
@@ -201,17 +309,13 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              size: 56,
-              color: Color(0xFFCBD5E1),
-            ),
+            const Icon(Icons.cloud_off_rounded, size: 52, color: mutedSlate),
             const SizedBox(height: 16),
             const Text(
               'Gagal Memuat Data',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
                 color: darkSlate,
               ),
             ),
@@ -224,7 +328,7 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
             const SizedBox(height: 12),
             const Text(
               'Tarik ke bawah untuk memuat ulang',
-              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              style: TextStyle(fontSize: 11, color: mutedSlate),
             ),
           ],
         ),
@@ -244,13 +348,13 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
         child: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.assignment_outlined, size: 56, color: Color(0xFFCBD5E1)),
+            Icon(Icons.assignment_outlined, size: 52, color: mutedSlate),
             SizedBox(height: 16),
             Text(
               'Belum Ada E-Rapor',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
                 color: darkSlate,
               ),
             ),
@@ -261,6 +365,38 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
               style: TextStyle(fontSize: 13, color: textSlate),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Badge semester ─────────────────────────────────────────────────────────────
+
+class _SemesterBadge extends StatelessWidget {
+  final String semester;
+  const _SemesterBadge({required this.semester});
+
+  @override
+  Widget build(BuildContext context) {
+    final isGasal = semester.toLowerCase().contains('gasal') ||
+        semester.contains('1');
+    final color = isGasal
+        ? const Color(0xFF059669)
+        : const Color(0xFF0EA5E9);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        semester,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );

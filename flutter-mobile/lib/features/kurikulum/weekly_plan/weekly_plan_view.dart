@@ -248,7 +248,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   ),
                   icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                   label: const Text(
-                    'Lihat Weekly Plan',
+                    'Buka Dokumen',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: OutlinedButton.styleFrom(
