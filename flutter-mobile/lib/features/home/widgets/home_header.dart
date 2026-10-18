@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../notification/viewmodel/notification_viewmodel.dart';
 
 class HomeHeader extends StatelessWidget {
   final String studentName;
@@ -86,9 +88,47 @@ class HomeHeader extends StatelessWidget {
                 IconButton(
                   onPressed: onNotificationTap,
                   tooltip: 'Notifikasi',
-                  icon: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: darkSlate,
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.notifications_none_rounded,
+                        color: darkSlate,
+                      ),
+                      Consumer<NotificationViewModel>(
+                        builder: (context, vm, _) {
+                          if (vm.unreadCount == 0) {
+                            return const SizedBox.shrink();
+                          }
+                          return Positioned(
+                            right: -4,
+                            top: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                vm.unreadCount > 99
+                                    ? '99+'
+                                    : '${vm.unreadCount}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],

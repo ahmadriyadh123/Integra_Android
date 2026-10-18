@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
+import '../notification/notification_view.dart';
+import '../notification/viewmodel/notification_viewmodel.dart';
 import '../profile/viewmodel/profile_viewmodel.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_quick_menu.dart';
@@ -23,6 +25,17 @@ class HomeView extends StatelessWidget {
   static const Color backgroundSlate = Color(0xFFF8FAFC);
   static const Color textSlate = Color(0xFF475569);
 
+  void _loadNotifications(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<NotificationViewModel>();
+      vm.loadFromStorage().then((_) {
+        if (authToken.isNotEmpty) {
+          vm.fetchFromApi(authToken);
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthViewModel>().user;
@@ -40,6 +53,8 @@ class HomeView extends StatelessWidget {
         ? user!.className
         : '';
 
+    _loadNotifications(context);
+
     return Scaffold(
       backgroundColor: backgroundSlate,
       body: SafeArea(
@@ -48,8 +63,10 @@ class HomeView extends StatelessWidget {
           onRefresh: () async {
             final authViewModel = context.read<AuthViewModel>();
             final profileViewModel = context.read<ProfileViewModel>();
+            final notifViewModel = context.read<NotificationViewModel>();
             profileViewModel.setProfile(authViewModel.user);
             await profileViewModel.refreshProfile(authToken);
+            await notifViewModel.fetchFromApi(authToken);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -60,13 +77,12 @@ class HomeView extends StatelessWidget {
                   studentName: studentName,
                   className: className,
                   onNotificationTap: () {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        const SnackBar(
-                          content: Text('Notifikasi belum tersedia.'),
-                        ),
-                      );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationPage(),
+                      ),
+                    );
                   },
                 ),
                 Padding(
