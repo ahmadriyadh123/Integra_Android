@@ -48,6 +48,24 @@ class NotificationRepository:
     def _now_watermark() -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    @staticmethod
+    def _to_naive_utc(value: Any) -> Optional[datetime]:
+        """Normalisasi datetime ke tz-naive UTC (atau None).
+
+        Odoo menyimpan ``create_date``/``write_date`` sebagai
+        ``TIMESTAMP WITHOUT TIME ZONE`` (naive), namun query yang memakai
+        ``COALESCE(..., NOW())`` menghasilkan ``timestamptz`` (tz-aware) karena
+        ``NOW()`` bertipe aware dan PostgreSQL mempromosikan seluruh COALESCE
+        ke tipe itu. Tanpa normalisasi, nilai ``created_at`` antar kategori
+        jadi campuran aware/naive dan gagal dibandingkan saat sort
+        (``TypeError: can't compare offset-naive and offset-aware datetimes``).
+        """
+        if value is None or not isinstance(value, datetime):
+            return value
+        if value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
     # ── Cek tabel yang ada ──────────────────────────────────────────────────────
 
     async def _table_exists(self, table_name: str) -> bool:
@@ -344,6 +362,12 @@ class NotificationRepository:
         cbt = await self.check_cbt(student_id, since, course_id)
         for r in cbt:
             categories.append({**r, "kategori": "cbt"})
+
+        # Normalisasi created_at ke tz-naive UTC supaya konsisten dan bisa
+        # dibandingkan saat sort (sebelumnya campuran aware/naive karena
+        # COALESCE(..., NOW()) vs kolom TIMESTAMP WITHOUT TIME ZONE).
+        for item in categories:
+            item["created_at"] = self._to_naive_utc(item.get("created_at"))
 
         # Sort semua berdasarkan created_at DESC
         categories.sort(key=lambda x: x.get("created_at") or datetime.min, reverse=True)
