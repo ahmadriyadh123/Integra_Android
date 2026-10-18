@@ -168,25 +168,27 @@ class NotificationRepository:
     async def check_assignment(
         self, student_id: int, since: datetime, course_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        if not await self._table_exists("assignment_assignment"):
+        """Cek tugas baru untuk siswa berdasarkan relasi op_assignment."""
+        if not await self._table_exists("op_assignment"):
             return []
-        course_filter = "AND a.course_id = :course_id" if course_id else ""
-        query = text(f"""
+        query = text("""
             SELECT
-                a.id            AS ref_id,
-                a.name          AS judul,
-                'Tugas baru: ' || a.name || ' telah diberikan' AS isi,
-                a.create_date   AS created_at
-            FROM assignment_assignment a
-            WHERE a.active = TRUE
-              AND a.create_date >= :since
-              {course_filter}
-            ORDER BY a.create_date DESC
+                oa.id            AS ref_id,
+                ga.name          AS judul,
+                'Tugas baru: ' || ga.name || ' telah diberikan' AS isi,
+                COALESCE(oa.create_date, ga.create_date, NOW()) AS created_at
+            FROM op_assignment oa
+            JOIN grading_assignment ga ON ga.id = oa.grading_assignment_id
+            JOIN op_assignment_op_student_rel rel
+              ON rel.op_assignment_id = oa.id
+            WHERE rel.op_student_id = :student_id
+              AND oa.active = TRUE
+              AND oa.state != 'cancel'
+              AND COALESCE(oa.create_date, ga.create_date) >= :since
+            ORDER BY COALESCE(oa.create_date, ga.create_date) DESC
             LIMIT 20;
         """)
-        params: Dict[str, Any] = {"since": since}
-        if course_id:
-            params["course_id"] = course_id
+        params: Dict[str, Any] = {"student_id": student_id, "since": since}
         try:
             result = await self.db.execute(query, params)
             return [dict(row) for row in result.mappings().all()]
@@ -228,6 +230,49 @@ class NotificationRepository:
             logger.warning("[notification] gagal cek attendance: %s", exc)
             return []
 
+    async def check_cbt(
+        self, student_id: int, since: datetime, course_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Cek jadwal ujian CBT baru untuk kelas siswa."""
+        if not await self._table_exists("cbt_jadwal_ujian"):
+            return []
+        # Resolve course_id dari op_student.grade jika tidak diberikan
+        if course_id is None:
+            grade_result = await self.db.execute(
+                text("SELECT grade FROM op_student WHERE id = :sid LIMIT 1"),
+                {"sid": student_id},
+            )
+            grade_row = grade_result.mappings().first()
+            if not grade_row or not grade_row.get("grade"):
+                return []
+            course_id = int(grade_row["grade"])
+
+        query = text("""
+            SELECT
+                j.id             AS ref_id,
+                j.name           AS judul,
+                'Jadwal ujian baru: ' || j.name
+                    || ' pada ' || TO_CHAR(j.tanggal_mulai, 'DD Mon YYYY')
+                    AS isi,
+                COALESCE(j.create_date, j.tanggal_mulai) AS created_at
+            FROM cbt_jadwal_ujian j
+            JOIN cbt_jadwal_ujian_op_course_rel rel
+              ON rel.cbt_jadwal_ujian_id = j.id
+            WHERE j.active = TRUE
+              AND rel.op_course_id = :course_id
+              AND COALESCE(j.create_date, j.tanggal_mulai) >= :since
+            ORDER BY COALESCE(j.create_date, j.tanggal_mulai) DESC
+            LIMIT 20;
+        """)
+        try:
+            result = await self.db.execute(
+                query, {"course_id": course_id, "since": since}
+            )
+            return [dict(row) for row in result.mappings().all()]
+        except Exception as exc:
+            logger.warning("[notification] gagal cek cbt: %s", exc)
+            return []
+
     # ── Aggregate ───────────────────────────────────────────────────────────────
 
     async def get_notifications(
@@ -265,6 +310,10 @@ class NotificationRepository:
         attendance = await self.check_attendance(student_id, since)
         for r in attendance:
             categories.append({**r, "kategori": "attendance"})
+
+        cbt = await self.check_cbt(student_id, since, course_id)
+        for r in cbt:
+            categories.append({**r, "kategori": "cbt"})
 
         # Sort semua berdasarkan created_at DESC
         categories.sort(key=lambda x: x.get("created_at") or datetime.min, reverse=True)

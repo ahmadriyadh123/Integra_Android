@@ -24,8 +24,19 @@ class _NotificationPageState extends State<NotificationPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotificationViewModel>().loadFromStorage();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final vm = context.read<NotificationViewModel>();
+      await vm.loadFromStorage();
+      // Force full sync saat pertama buka halaman notifikasi
+      final token = context.read<AuthViewModel>().token;
+      if (token.isNotEmpty) {
+        await vm.fetchFromApi(token, forceFullSync: true);
+        if (mounted && vm.lastError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memuat: ${vm.lastError}')),
+          );
+        }
+      }
     });
   }
 
@@ -256,6 +267,7 @@ class _NotificationPageState extends State<NotificationPage> {
         NotificationType.assignment    => const Color(0xFFF59E0B),
         NotificationType.attendance    => const Color(0xFFEF4444),
         NotificationType.bukuKomunikasi => primaryTeal,
+        NotificationType.cbt          => const Color(0xFFEC4899),
         NotificationType.tagihan      => const Color(0xFF14B8A6),
         NotificationType.general      => primaryTeal,
       };
@@ -266,6 +278,7 @@ class _NotificationPageState extends State<NotificationPage> {
         NotificationType.assignment    => Icons.task_outlined,
         NotificationType.attendance    => Icons.fact_check_outlined,
         NotificationType.bukuKomunikasi => Icons.menu_book_outlined,
+        NotificationType.cbt          => Icons.quiz_outlined,
         NotificationType.tagihan      => Icons.receipt_outlined,
         NotificationType.general      => Icons.info_outline_rounded,
       };

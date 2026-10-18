@@ -27,6 +27,8 @@ class NotificationViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _lastCursor;
+  String? _lastError;
+  String? get lastError => _lastError;
   static const _cursorKey = 'app_notifications_cursor';
 
   // ── Local storage ────────────────────────────────────────────────────────────
@@ -45,14 +47,17 @@ class NotificationViewModel extends ChangeNotifier {
   // ── API fetch ─────────────────────────────────────────────────────────────────
 
   /// Fetch notifikasi baru dari backend, merge dengan yang sudah ada di local.
-  Future<void> fetchFromApi(String token) async {
+  /// Set [forceFullSync] true untuk abaikan cursor dan cek 30 hari terakhir.
+  Future<void> fetchFromApi(String token, {bool forceFullSync = false}) async {
     if (_service == null) return;
     _isLoading = true;
+    _lastError = null;
     notifyListeners();
     try {
+      final cursor = forceFullSync ? null : _lastCursor;
       final result = await _service!.fetchNotifications(
         token,
-        cursor: _lastCursor,
+        cursor: cursor,
       );
 
       // Merge: tambah hanya notifikasi yang ID-nya belum ada
@@ -78,8 +83,8 @@ class NotificationViewModel extends ChangeNotifier {
 
       // Simpan ke local storage
       await _storage.saveNotifications(_notifications);
-    } catch (_) {
-      // Gagal fetch dari API — tetap pakai data local, tidak throw
+    } catch (e) {
+      _lastError = e.toString().replaceAll('Exception: ', '');
     } finally {
       _isLoading = false;
       notifyListeners();

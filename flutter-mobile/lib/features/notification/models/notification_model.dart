@@ -5,6 +5,7 @@ enum NotificationType {
   assignment,
   attendance,
   bukuKomunikasi,
+  cbt,
   tagihan,
   general,
 }
@@ -16,6 +17,7 @@ extension NotificationTypeExt on NotificationType {
         NotificationType.assignment    => 'Tugas',
         NotificationType.attendance    => 'Kehadiran',
         NotificationType.bukuKomunikasi => 'Buku Komunikasi',
+        NotificationType.cbt          => 'Ujian CBT',
         NotificationType.tagihan       => 'Tagihan',
         NotificationType.general       => 'Umum',
       };
@@ -26,6 +28,7 @@ extension NotificationTypeExt on NotificationType {
         NotificationType.assignment    => 'assignment',
         NotificationType.attendance    => 'attendance',
         NotificationType.bukuKomunikasi => 'buku_komunikasi',
+        NotificationType.cbt           => 'cbt',
         NotificationType.tagihan       => 'tagihan',
         NotificationType.general       => 'general',
       };
