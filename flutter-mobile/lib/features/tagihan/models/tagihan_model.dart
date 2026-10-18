@@ -33,6 +33,7 @@ class InvoiceItem {
   final double residualAmount;
   final String paymentState;
   final String statusLabel;
+  final String? writeDate;
   final List<InvoiceLineItem> lines;
 
   InvoiceItem({
@@ -44,6 +45,7 @@ class InvoiceItem {
     required this.residualAmount,
     required this.paymentState,
     required this.statusLabel,
+    this.writeDate,
     required this.lines,
   });
 
@@ -58,6 +60,25 @@ class InvoiceItem {
     }
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'invoice_number': invoiceNumber,
+        'invoice_date': invoiceDate,
+        'due_date': dueDate,
+        'total_amount': totalAmount,
+        'residual_amount': residualAmount,
+        'payment_state': paymentState,
+        'status_label': statusLabel,
+        'write_date': writeDate,
+        'lines': lines.map((l) => {
+          'id': l.id,
+          'product_name': l.productName,
+          'quantity': l.quantity,
+          'price_unit': l.priceUnit,
+          'subtotal': l.subtotal,
+        }).toList(),
+      };
+
   factory InvoiceItem.fromJson(Map<String, dynamic> json) {
     final rawLines = json['lines'] as List<dynamic>? ?? [];
     return InvoiceItem(
@@ -69,6 +90,7 @@ class InvoiceItem {
       residualAmount: (json['residual_amount'] as num?)?.toDouble() ?? 0.0,
       paymentState: json['payment_state'] as String? ?? 'not_paid',
       statusLabel: json['status_label'] as String? ?? 'Belum Lunas',
+      writeDate: json['write_date'] as String?,
       lines: rawLines
           .map((e) => InvoiceLineItem.fromJson(e as Map<String, dynamic>))
           .toList(),

@@ -6,6 +6,7 @@ class BukuKomunikasiLocalStorage {
   static const String keyData = 'buku_komunikasi_data';
   static const String keyTimestamp = 'buku_komunikasi_ts';
   static const String keyPendingNotes = 'buku_komunikasi_pending_notes';
+  static const String _keyCursor = 'buku_komunikasi_cursor';
 
   // Waktu kedaluwarsa cache (TTL): 1 Jam
   static const Duration cacheTtl = Duration(hours: 1);
@@ -104,9 +105,40 @@ class BukuKomunikasiLocalStorage {
     await box.delete(_key(keyPendingNotes, scope));
   }
 
+  /// Hapus satu item dari pending queue berdasarkan index.
+  /// Digunakan oleh sync agar catatan yang berhasil dikirim langsung dihapus
+  /// tanpa mempengaruhi item lain yang mungkin belum terkirim.
+  Future<void> removePendingNoteAt(int index, {required String scope}) async {
+    final box = await _getBox();
+    final pendingKey = _key(keyPendingNotes, scope);
+    final pending = box.get(pendingKey);
+    if (pending is! List || index < 0 || index >= pending.length) return;
+    final updated = List<Map<String, dynamic>>.from(
+      pending.map((item) => Map<String, dynamic>.from(item as Map)),
+    )..removeAt(index);
+    if (updated.isEmpty) {
+      await box.delete(pendingKey);
+    } else {
+      await box.put(pendingKey, updated);
+    }
+  }
+
   /// Hapus seluruh cache data buku komunikasi.
   Future<void> clearCache({required String scope}) async {
     final box = await _getBox();
     await box.delete(_key(keyData, scope));
+  }
+
+  // ── Cursor untuk delta sync ──────────────────────────────────────────────
+
+  Future<String?> loadCursor({required String scope}) async {
+    final box = await _getBox();
+    final value = box.get(_key(_keyCursor, scope));
+    return value is String ? value : null;
+  }
+
+  Future<void> saveCursor(String cursor, {required String scope}) async {
+    final box = await _getBox();
+    await box.put(_key(_keyCursor, scope), cursor);
   }
 }

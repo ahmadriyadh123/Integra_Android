@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
@@ -6,6 +7,40 @@ from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
 class BukuKomunikasiService:
     def __init__(self, repo: BukuKomunikasiRepository):
         self.repo = repo
+
+    @staticmethod
+    def _parse_cursor(cursor: str) -> datetime:
+        try:
+            parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("Cursor buku komunikasi tidak valid.") from exc
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed - timedelta(minutes=2)
+
+    @staticmethod
+    def _now_watermark() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    @staticmethod
+    def _format_line(line: Dict[str, Any]) -> Dict[str, Any]:
+        wd = line.get("write_date")
+        return {
+            "id": line.get("id"),
+            "pekan_ke": line.get("pekan_ke") or 1,
+            "bulan": str(line.get("bulan") or "-"),
+            "senin": str(line.get("senin") or "-"),
+            "feedback_senin": str(line.get("feedback_senin") or "-"),
+            "selasa": str(line.get("selasa") or "-"),
+            "feedback_selasa": str(line.get("feedback_selasa") or "-"),
+            "rabu": str(line.get("rabu") or "-"),
+            "feedback_rabu": str(line.get("feedback_rabu") or "-"),
+            "kamis": str(line.get("kamis") or "-"),
+            "feedback_kamis": str(line.get("feedback_kamis") or "-"),
+            "jumat": str(line.get("jumat") or "-"),
+            "feedback_jumat": str(line.get("feedback_jumat") or "-"),
+            "write_date": wd.isoformat() if hasattr(wd, "isoformat") else str(wd or ""),
+        }
 
     async def get_buku_komunikasi(
         self, student_id: int, jenjang: str = "sd"
@@ -19,32 +54,60 @@ class BukuKomunikasiService:
         lines = await self.repo.get_buku_catatan_lines(
             bukpeng_id=header["id"], jenjang=jenjang
         )
-
-        formatted_lines = []
-        for line in lines:
-            formatted_lines.append({
-                "id": line.get("id"),
-                "pekan_ke": line.get("pekan_ke") or 1,
-                "bulan": str(line.get("bulan") or "-"),
-                "senin": str(line.get("senin") or "-"),
-                "feedback_senin": str(line.get("feedback_senin") or "-"),
-                "selasa": str(line.get("selasa") or "-"),
-                "feedback_selasa": str(line.get("feedback_selasa") or "-"),
-                "rabu": str(line.get("rabu") or "-"),
-                "feedback_rabu": str(line.get("feedback_rabu") or "-"),
-                "kamis": str(line.get("kamis") or "-"),
-                "feedback_kamis": str(line.get("feedback_kamis") or "-"),
-                "jumat": str(line.get("jumat") or "-"),
-                "feedback_jumat": str(line.get("feedback_jumat") or "-"),
-            })
-
         return {
             "id": header.get("id"),
             "student_name": str(header.get("student_name") or "-"),
             "kelas": str(header.get("kelas_name") or "-"),
             "tahun_ajaran": str(header.get("tahun_name") or "-"),
             "status": str(header.get("status") or "-"),
-            "lines": formatted_lines
+            "lines": [self._format_line(l) for l in lines],
+        }
+
+    async def sync_buku_komunikasi(
+        self,
+        student_id: int,
+        jenjang: str,
+        cursor: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Delta sync buku komunikasi.
+        - cursor=None → full sync (semua line)
+        - cursor=<iso> → delta (hanya line yang write_date >= cursor)
+        """
+        watermark = self._now_watermark()
+        header = await self.repo.get_buku_catatan_header(
+            student_id=student_id, jenjang=jenjang
+        )
+        if not header:
+            return None
+
+        bukpeng_id: int = header["id"]
+
+        if cursor is None:
+            lines = await self.repo.get_buku_catatan_lines(
+                bukpeng_id=bukpeng_id, jenjang=jenjang
+            )
+            return {
+                "header_id": bukpeng_id,
+                "items": [self._format_line(l) for l in lines],
+                "removed_ids": [],
+                "next_cursor": watermark,
+                "full_sync": True,
+            }
+
+        since = self._parse_cursor(cursor)
+        result = await self.repo.get_changed_lines(
+            bukpeng_id=bukpeng_id, jenjang=jenjang, since=since
+        )
+        changed = result["changed"]
+        all_ids = result["all_ids"]
+
+        return {
+            "header_id": bukpeng_id,
+            "items": [self._format_line(l) for l in changed],
+            "all_active_ids": all_ids,
+            "next_cursor": watermark,
+            "full_sync": False,
         }
 
     @staticmethod

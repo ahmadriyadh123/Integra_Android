@@ -20,17 +20,34 @@ class TagihanLocalStorage {
     return 'tagihan_summary_${scope}_${paymentState ?? 'all'}';
   }
 
+  String _getCursorKey(String scope) => 'tagihan_cursor_$scope';
+
   /// Menyimpan data ringkasan tagihan ke cache lokal Hive.
   Future<void> saveTagihanSummary(
     String? paymentState,
     Map<String, dynamic> data, {
     required String scope,
+    String? cursor,
   }) async {
     final box = await _getBox();
     await box.put(_getCacheKey(paymentState, scope), {
       'data': data,
       'saved_at': DateTime.now().millisecondsSinceEpoch,
     });
+    if (cursor != null) {
+      await box.put(_getCursorKey(scope), cursor);
+    }
+  }
+
+  Future<String?> loadCursor(String scope) async {
+    final box = await _getBox();
+    final value = box.get(_getCursorKey(scope));
+    return value is String ? value : null;
+  }
+
+  Future<void> saveCursor(String scope, String cursor) async {
+    final box = await _getBox();
+    await box.put(_getCursorKey(scope), cursor);
   }
 
   /// Membaca data ringkasan tagihan dari cache lokal Hive.

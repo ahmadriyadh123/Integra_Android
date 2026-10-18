@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'models/notification_model.dart';
 import 'viewmodel/notification_viewmodel.dart';
 import '../widgets/shared_header.dart';
+import '../auth/viewmodel/auth_viewmodel.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});

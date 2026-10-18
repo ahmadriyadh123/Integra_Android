@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/stale_while_revalidate.dart';
 import 'package:flutter_application_1/services/user_friendly_error.dart';
 import '../models/tagihan_model.dart';
 import '../repositories/tagihan_repository.dart';
 
-class TagihanViewModel extends ChangeNotifier {
+class TagihanViewModel extends ChangeNotifier with StaleWhileRevalidateMixin {
   final TagihanRepository repository;
 
   TagihanViewModel({required this.repository});
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  // isLoading dan isRefreshing disediakan oleh StaleWhileRevalidateMixin
 
   String? _errorMessage;
   String? get errorMessage =>
@@ -20,7 +20,6 @@ class TagihanViewModel extends ChangeNotifier {
 
   bool get hasData => _summary != null;
 
-  // Filter aktif: 'Semua', 'Belum Lunas', 'Lunas'
   String _selectedFilter = 'Semua';
   String get selectedFilter => _selectedFilter;
 
@@ -48,26 +47,24 @@ class TagihanViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchTagihan(String token, {bool forceRefresh = false}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      _summary = await repository.getTagihan(token, forceRefresh: forceRefresh);
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+  Future<void> fetchTagihan(String token, {bool forceRefresh = false}) =>
+      swr<TagihanSummary>(
+        hasStale: _summary != null,
+        forceRefresh: forceRefresh,
+        load: () => repository.loadCachedTagihan(token),
+        fetch: () => repository.getTagihan(token, forceRefresh: true),
+        onData: (data) {
+          _summary = data;
+          _errorMessage = null;
+        },
+        onError: (e) {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        },
+      );
 
   void reset() {
     _summary = null;
     _errorMessage = null;
-    _isLoading = false;
     _selectedFilter = 'Semua';
   }
 }

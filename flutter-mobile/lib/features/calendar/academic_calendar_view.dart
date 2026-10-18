@@ -30,8 +30,8 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<CalendarViewModel>();
-      if (!vm.isLoading) {
-        vm.fetchCalendars(widget.authToken, forceRefresh: true);
+      if (!vm.isLoading && !vm.hasData) {
+        vm.fetchCalendars(widget.authToken);
       }
     });
   }

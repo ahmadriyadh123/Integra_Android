@@ -86,8 +86,7 @@ class _TagihanPageState extends State<TagihanPage> {
           }
           return AppRefreshIndicator(
             color: primaryTeal,
-            onRefresh: () =>
-                vm.fetchTagihan(widget.authToken, forceRefresh: true),
+            onRefresh: () => vm.fetchTagihan(widget.authToken),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: vm.errorMessage != null

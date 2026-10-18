@@ -23,17 +23,26 @@ class NotificationRepository:
 
     @staticmethod
     def parse_cursor(cursor: Optional[str]) -> datetime:
+        """Parse cursor ISO timestamp menjadi datetime tz-naive (UTC).
+
+        Odoo menyimpan ``create_date``/``write_date`` sebagai
+        ``TIMESTAMP WITHOUT TIME ZONE`` (offset-naive). Jika kita mengirim
+        datetime tz-aware sebagai parameter query, asyncpg akan menolaknya
+        dengan ``DataError: can't subtract offset-naive and offset-aware
+        datetimes``. Karena itu selalu kembalikan datetime tz-naive.
+        """
         if cursor is None:
-            return datetime.now(timezone.utc) - timedelta(days=30)
-        try:
-            parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise ValueError("Cursor notifikasi tidak valid.") from exc
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc).replace(tzinfo=None) - timedelta(
-            minutes=2
-        )
+            parsed = datetime.now(timezone.utc) - timedelta(days=30)
+        else:
+            try:
+                parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("Cursor notifikasi tidak valid.") from exc
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.astimezone(timezone.utc) - timedelta(minutes=2)
+        # Selalu strip tzinfo agar sesuai dengan kolom TIMESTAMP WITHOUT TIME ZONE.
+        return parsed.replace(tzinfo=None)
 
     @staticmethod
     def _now_watermark() -> str:
@@ -48,6 +57,20 @@ class NotificationRepository:
         )
         row = result.mappings().first()
         return bool(row and row.get("t"))
+
+    async def _safe_rollback(self) -> None:
+        """Rollback session setelah error query.
+
+        Saat sebuah statement gagal di sisi server (mis. kolom tidak ditemukan),
+        PostgreSQL akan menandai transaksi sebagai aborted. Tanpa rollback,
+        query berikutnya pada session yang sama akan raise
+        ``InFailedSQLTransactionError`` dan merembet ke seluruh kategori.
+        Endpoint ini bersifat read-only sehingga rollback aman dilakukan.
+        """
+        try:
+            await self.db.rollback()
+        except Exception:  # noqa: BLE001 - best-effort cleanup
+            logger.debug("[notification] rollback setelah error gagal (diabaikan)")
 
     # ── Query per kategori ──────────────────────────────────────────────────────
 
@@ -77,6 +100,7 @@ class NotificationRepository:
             )
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek rapor: %s", exc)
             return []
 
@@ -104,6 +128,7 @@ class NotificationRepository:
             result = await self.db.execute(query, {"since": since})
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek weekly_plan: %s", exc)
             return []
 
@@ -132,6 +157,7 @@ class NotificationRepository:
             result = await self.db.execute(query, {"since": since})
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek weekly_plan status: %s", exc)
             return []
 
@@ -162,6 +188,7 @@ class NotificationRepository:
             )
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek buku_komunikasi: %s", exc)
             return []
 
@@ -193,6 +220,7 @@ class NotificationRepository:
             result = await self.db.execute(query, params)
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek assignment: %s", exc)
             return []
 
@@ -210,7 +238,7 @@ class NotificationRepository:
                         THEN 'Anda tercatat tidak hadir.'
                     WHEN al.sick = TRUE
                         THEN 'Anda tercatat sakit.'
-                    WHEN al.leave = TRUE
+                    WHEN al.excused = TRUE
                         THEN 'Anda tercatat izin.'
                     ELSE 'Status kehadiran diperbarui.'
                 END AS isi,
@@ -227,6 +255,7 @@ class NotificationRepository:
             )
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek attendance: %s", exc)
             return []
 
@@ -270,6 +299,7 @@ class NotificationRepository:
             )
             return [dict(row) for row in result.mappings().all()]
         except Exception as exc:
+            await self._safe_rollback()
             logger.warning("[notification] gagal cek cbt: %s", exc)
             return []
 

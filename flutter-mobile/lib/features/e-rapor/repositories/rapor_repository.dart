@@ -29,6 +29,32 @@ class RaporRepository {
     return RaporPdfGeneratorService.generateRaporPdf(detail, header, user);
   }
 
+  /// Baca daftar rapor dari cache saja (tanpa TTL check) — dipakai SWR phase 1.
+  Future<List<ReportCardHeader>?> loadCachedReportList(String token) async {
+    final scope = tokenCacheScope(token);
+    final snapshot = await localStorage.loadRaporListSnapshot(scope: scope);
+    final rawCached = snapshot?['items'];
+    if (rawCached is! List || rawCached.isEmpty) return null;
+    try {
+      return rawCached
+          .map((v) => ReportCardHeader.fromJson(Map<String, dynamic>.from(v as Map)))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Baca detail rapor dari cache saja — dipakai SWR phase 1.
+  Future<ReportCardDetail?> loadCachedReportDetail(String token, int raporId) async {
+    final cached = await localStorage.loadRaporDetail(raporId, scope: tokenCacheScope(token));
+    if (cached == null) return null;
+    try {
+      return ReportCardDetail.fromJson(Map<String, dynamic>.from(cached));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<ReportCardHeader>> getReportList(String token,
       {bool forceRefresh = false}) async {
     final scope = tokenCacheScope(token);

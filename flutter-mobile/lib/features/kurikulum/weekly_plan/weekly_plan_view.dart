@@ -25,7 +25,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
 
   Future<void> _onRefresh() async {
     final vm = context.read<WeeklyPlanViewModel>();
-    await vm.fetchList(widget.authToken, forceRefresh: true);
+    await vm.fetchList(widget.authToken);
     if (mounted && vm.lastSyncError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -41,7 +41,9 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final vm = context.read<WeeklyPlanViewModel>();
-      vm.fetchList(widget.authToken);
+      if (!vm.isLoading && !vm.hasData) {
+        vm.fetchList(widget.authToken);
+      }
     });
   }
 

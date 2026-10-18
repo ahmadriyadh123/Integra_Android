@@ -72,6 +72,32 @@ class BukuKomunikasiService {
     }
   }
 
+  /// Delta sync — hanya kirim cursor, terima data yang berubah.
+  Future<Map<String, dynamic>> syncBukuKomunikasi(
+    String token, {
+    String? cursor,
+  }) async {
+    final queryParams = <String, String>{};
+    if (cursor != null) queryParams['cursor'] = cursor;
+
+    final url = Uri.parse('$baseUrl/buku-komunikasi/sync')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+
+    try {
+      final response = await _get(url, token);
+      final json = jsonDecode(response.body);
+      if (response.statusCode == 200 && json['success'] == true) {
+        return json['data'] as Map<String, dynamic>;
+      }
+      throw Exception(
+        json['detail'] ?? json['message'] ?? 'Gagal sinkronisasi Buku Komunikasi',
+      );
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Terjadi kesalahan saat sinkronisasi Buku Komunikasi');
+    }
+  }
+
   Future<bool> submitDailyNote({
     required String token,
     required int lineId,

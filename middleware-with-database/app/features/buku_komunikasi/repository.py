@@ -80,7 +80,8 @@ class BukuKomunikasiRepository:
                 kamis,
                 feedback_kamis,
                 jumat,
-                feedback_jumat
+                feedback_jumat,
+                write_date
             FROM {table_name}
             WHERE {fk_field} = :bukpeng_id
             ORDER BY pekan_ke ASC, id ASC;
@@ -88,6 +89,59 @@ class BukuKomunikasiRepository:
 
         result = await self.db.execute(query, {"bukpeng_id": bukpeng_id})
         return [dict(row) for row in result.mappings().all()]
+
+    async def get_changed_lines(
+        self,
+        bukpeng_id: int,
+        jenjang: str,
+        since: "datetime",
+    ) -> Dict[str, Any]:
+        """
+        Delta sync: hanya kembalikan line yang write_date >= since.
+        Juga kembalikan semua ID aktif untuk deteksi removed di client.
+        """
+        from datetime import timezone
+        _, table_name, fk_field = self._table_names(jenjang)
+        since_utc = since.astimezone(timezone.utc).replace(tzinfo=None)
+
+        changed_query = text(f"""
+            SELECT
+                id,
+                pekan_ke,
+                bulan,
+                senin,
+                feedback_senin,
+                selasa,
+                feedback_selasa,
+                rabu,
+                feedback_rabu,
+                kamis,
+                feedback_kamis,
+                jumat,
+                feedback_jumat,
+                write_date
+            FROM {table_name}
+            WHERE {fk_field} = :bukpeng_id
+              AND write_date >= :since
+            ORDER BY pekan_ke ASC, id ASC;
+        """)
+        changed_result = await self.db.execute(
+            changed_query, {"bukpeng_id": bukpeng_id, "since": since_utc}
+        )
+        changed = [dict(row) for row in changed_result.mappings().all()]
+
+        # Semua ID aktif untuk client mendeteksi removed
+        all_ids_query = text(f"""
+            SELECT id FROM {table_name}
+            WHERE {fk_field} = :bukpeng_id
+            ORDER BY id;
+        """)
+        all_ids_result = await self.db.execute(
+            all_ids_query, {"bukpeng_id": bukpeng_id}
+        )
+        all_ids = [row["id"] for row in all_ids_result.mappings().all()]
+
+        return {"changed": changed, "all_ids": all_ids}
 
     async def update_daily_note(
         self,

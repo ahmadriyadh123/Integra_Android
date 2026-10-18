@@ -58,9 +58,28 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final token = context.read<AuthViewModel>().token;
-      context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(token);
+      final vm = context.read<BukuKomunikasiViewModel>();
+      // Fetch data (dari cache jika fresh)
+      await vm.fetchBukuKomunikasi(token);
+      // Mulai listener koneksi — akan auto-sync saat online
+      vm.startConnectivityListener(token);
+      // Coba sync pending sekarang jika ada
+      if (mounted && vm.hasPending) {
+        final synced = await vm.syncPendingNotes(token);
+        if (mounted && synced > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '$synced catatan tertunda berhasil dikirim.',
+              ),
+              backgroundColor: primaryTeal,
+            ),
+          );
+        }
+      }
     });
   }
 
@@ -69,6 +88,8 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
     for (var controller in _noteControllers.values) {
       controller.dispose();
     }
+    // Hentikan connectivity listener saat halaman ditutup
+    context.read<BukuKomunikasiViewModel>().stopConnectivityListener();
     super.dispose();
   }
 
@@ -243,14 +264,58 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
         color: primaryTeal,
         onRefresh: () async {
           final token = context.read<AuthViewModel>().token;
-          await context.read<BukuKomunikasiViewModel>().fetchBukuKomunikasi(
-            token,
-            forceRefresh: true,
-          );
+          final vm = context.read<BukuKomunikasiViewModel>();
+          // Kirim pending dulu, lalu refresh data
+          if (vm.hasPending) {
+            final synced = await vm.syncPendingNotes(token);
+            if (mounted && synced > 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$synced catatan tertunda berhasil dikirim.'),
+                  backgroundColor: primaryTeal,
+                ),
+              );
+              return; // fetchBukuKomunikasi sudah dipanggil di dalam sync
+            }
+          }
+          await vm.fetchBukuKomunikasi(token);
         },
-        child: vm.isLoading && detail == null
-            ? const Center(child: CircularProgressIndicator())
-            : vm.errorMessage != null && detail == null
+        child: Column(
+          children: [
+            // Banner pending notes
+            if (vm.hasPending || vm.isSyncing)
+              _PendingBanner(
+                pendingCount: vm.pendingCount,
+                isSyncing: vm.isSyncing,
+                onSync: () async {
+                  final token = context.read<AuthViewModel>().token;
+                  final synced = await vm.syncPendingNotes(token);
+                  if (mounted && synced > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '$synced catatan tertunda berhasil dikirim.',
+                        ),
+                        backgroundColor: primaryTeal,
+                      ),
+                    );
+                  } else if (mounted && synced == 0 && vm.hasPending) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Gagal mengirim. Periksa koneksi internet Anda.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                },
+              ),
+            // Konten utama
+            Expanded(
+              child: vm.isLoading && detail == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : vm.errorMessage != null && detail == null
             ? SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Container(
@@ -424,6 +489,88 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
                   ],
                 ),
               ),
+            ), // Expanded
+          ], // Column children
+        ), // Column
+      ),
+    );
+  }
+}
+
+// ── Banner catatan tertunda ────────────────────────────────────────────────────
+
+class _PendingBanner extends StatelessWidget {
+  final int pendingCount;
+  final bool isSyncing;
+  final VoidCallback onSync;
+
+  const _PendingBanner({
+    required this.pendingCount,
+    required this.isSyncing,
+    required this.onSync,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFF7ED), // amber-50
+          border: Border(
+            bottom: BorderSide(color: Color(0xFFFED7AA)), // amber-200
+          ),
+        ),
+        child: Row(
+          children: [
+            isSyncing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  )
+                : const Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 16,
+                    color: Color(0xFFF59E0B),
+                  ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isSyncing
+                    ? 'Mengirim catatan tertunda...'
+                    : '$pendingCount catatan menunggu koneksi internet.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF92400E), // amber-800
+                ),
+              ),
+            ),
+            if (!isSyncing)
+              GestureDetector(
+                onTap: onSync,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text(
+                    'Kirim Sekarang',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF59E0B),
+                      decoration: TextDecoration.underline,
+                      decorationColor: Color(0xFFF59E0B),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

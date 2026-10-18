@@ -49,7 +49,7 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
 
   Future<void> _onRefresh() async {
     final vm = context.read<RaporViewModel>();
-    await vm.fetchReportList(widget.authToken, forceRefresh: true);
+    await vm.fetchReportList(widget.authToken);
     if (mounted && vm.lastSyncError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memperbarui: ${vm.lastSyncError}')),

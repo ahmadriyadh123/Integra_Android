@@ -13,46 +13,107 @@ class TagihanRepository {
     required this.localStorage,
   });
 
-  /// Mengambil data ringkasan tagihan dengan strategi Cache-First dan fallback Offline.
+  /// Baca cache saja (tanpa TTL check) — dipakai SWR phase 1.
+  Future<TagihanSummary?> loadCachedTagihan(
+    String token, {
+    String? paymentState,
+  }) async {
+    final scope = tokenCacheScope(token);
+    final raw = await localStorage.loadTagihanSummary(paymentState, scope: scope);
+    if (raw == null) return null;
+    try {
+      return TagihanSummary.fromJson(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sync delta: hanya ambil yang berubah sejak cursor, merge ke cache lokal.
+  /// Jika cursor null → full sync.
   Future<TagihanSummary> getTagihan(
     String token, {
     String? paymentState,
     bool forceRefresh = false,
   }) async {
     final scope = tokenCacheScope(token);
-    final cachedData = await localStorage.loadTagihanSummary(
-      paymentState,
-      scope: scope,
-    );
 
+    // Baca cache lokal
+    final cached = await localStorage.loadTagihanSummary(paymentState, scope: scope);
+    final cursor = await localStorage.loadCursor(scope);
+
+    // Jika cache masih fresh dan tidak force, kembalikan cache
     if (!forceRefresh &&
-        cachedData != null &&
-        await localStorage.isTagihanSummaryFresh(
-          paymentState,
-          scope: scope,
-        )) {
+        cached != null &&
+        await localStorage.isTagihanSummaryFresh(paymentState, scope: scope)) {
       lastSyncError = null;
-      return TagihanSummary.fromJson(cachedData);
+      return TagihanSummary.fromJson(cached);
     }
 
-    // Summary endpoint mengembalikan seluruh snapshot, bukan delta cursor.
     try {
-      final data = await apiService.fetchTagihan(
+      // Gunakan cursor jika ada untuk delta sync
+      final syncResult = await apiService.syncTagihan(
         token,
-        paymentState: paymentState,
+        cursor: forceRefresh ? null : cursor,
       );
 
-      // Simpan response agar halaman tetap tersedia saat offline.
+      final nextCursor = syncResult['next_cursor'] as String?;
+      final isFullSync = syncResult['full_sync'] as bool? ?? cursor == null;
+      final rawItems = syncResult['items'] as List<dynamic>? ?? [];
+      final allActiveIds = (syncResult['all_active_ids'] as List<dynamic>?)
+          ?.map((e) => e as int)
+          .toSet();
+
+      // Bangun map dari cache lokal yang sudah ada
+      final mergedMap = <int, Map<String, dynamic>>{};
+
+      if (!isFullSync && cached != null) {
+        // Pertahankan data lama
+        final cachedInvoices = cached['invoices'] as List<dynamic>? ?? [];
+        for (final item in cachedInvoices) {
+          if (item is Map) {
+            final id = item['id'] as int?;
+            if (id != null) mergedMap[id] = Map<String, dynamic>.from(item);
+          }
+        }
+        // Hapus ID yang tidak lagi aktif di server
+        if (allActiveIds != null) {
+          mergedMap.removeWhere((id, _) => !allActiveIds.contains(id));
+        }
+      }
+
+      // Merge item baru/berubah
+      for (final item in rawItems) {
+        if (item is Map) {
+          final id = item['id'] as int?;
+          if (id != null) mergedMap[id] = Map<String, dynamic>.from(item);
+        }
+      }
+
+      // Hitung ulang total
+      double totalUnpaid = 0.0;
+      for (final item in mergedMap.values) {
+        final residual = (item['residual_amount'] as num?)?.toDouble() ?? 0.0;
+        totalUnpaid += residual;
+      }
+
+      final mergedData = {
+        'total_unpaid_amount': totalUnpaid,
+        'total_invoices': mergedMap.length,
+        'invoices': mergedMap.values.toList(),
+      };
+
+      // Simpan ke cache dengan cursor baru
       await localStorage.saveTagihanSummary(
         paymentState,
-        data,
+        mergedData,
         scope: scope,
+        cursor: nextCursor,
       );
       lastSyncError = null;
-      return TagihanSummary.fromJson(data);
+      return TagihanSummary.fromJson(mergedData);
     } catch (e) {
       lastSyncError = e.toString();
-      if (cachedData != null) return TagihanSummary.fromJson(cachedData);
+      if (cached != null) return TagihanSummary.fromJson(cached);
       rethrow;
     }
   }

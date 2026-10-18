@@ -14,6 +14,7 @@ class DailyNoteLine {
   final String feedbackKamis;
   final String jumat;
   final String feedbackJumat;
+  final String? writeDate;
 
   DailyNoteLine({
     required this.id,
@@ -29,7 +30,25 @@ class DailyNoteLine {
     required this.feedbackKamis,
     required this.jumat,
     required this.feedbackJumat,
+    this.writeDate,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'pekan_ke': pekanKe,
+        'bulan': bulan,
+        'senin': senin,
+        'feedback_senin': feedbackSenin,
+        'selasa': selasa,
+        'feedback_selasa': feedbackSelasa,
+        'rabu': rabu,
+        'feedback_rabu': feedbackRabu,
+        'kamis': kamis,
+        'feedback_kamis': feedbackKamis,
+        'jumat': jumat,
+        'feedback_jumat': feedbackJumat,
+        'write_date': writeDate,
+      };
 
   factory DailyNoteLine.fromJson(Map<String, dynamic> json) {
     return DailyNoteLine(
@@ -46,6 +65,7 @@ class DailyNoteLine {
       feedbackKamis: json['feedback_kamis'] as String? ?? '-',
       jumat: json['jumat'] as String? ?? '-',
       feedbackJumat: json['feedback_jumat'] as String? ?? '-',
+      writeDate: json['write_date'] as String?,
     );
   }
 }
@@ -66,6 +86,15 @@ class BukuKomunikasiDetail {
     required this.status,
     required this.lines,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'student_name': studentName,
+        'kelas': className,
+        'tahun_ajaran': academicYear,
+        'status': status,
+        'lines': lines.map((l) => l.toJson()).toList(),
+      };
 
   factory BukuKomunikasiDetail.fromJson(Map<String, dynamic> json) {
     return BukuKomunikasiDetail(

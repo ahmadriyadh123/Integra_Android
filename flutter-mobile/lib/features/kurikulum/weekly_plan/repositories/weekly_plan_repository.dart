@@ -12,6 +12,22 @@ class WeeklyPlanRepository {
 
   WeeklyPlanRepository({required this.apiService, required this.localStorage});
 
+  /// Baca daftar weekly plan dari cache saja — dipakai SWR phase 1.
+  Future<List<WeeklyPlanItem>?> loadCachedWeeklyPlanList(String token) async {
+    final scope = tokenCacheScope(token, includeCourse: true);
+    final snapshot = await localStorage.loadWeeklyPlanSnapshot(scope: scope);
+    final rawCached = snapshot?['items'];
+    if (rawCached is! List || rawCached.isEmpty) return null;
+    try {
+      return rawCached
+          .whereType<Map>()
+          .map((e) => WeeklyPlanItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<WeeklyPlanItem>> getWeeklyPlanList(
     String token, {
     bool forceRefresh = false,

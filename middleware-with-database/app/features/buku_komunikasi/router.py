@@ -1,13 +1,14 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user_credentials, get_db
 from app.features.buku_komunikasi.repository import BukuKomunikasiRepository
 from app.features.buku_komunikasi.schemas import (
     APIResponseBukuKomunikasi,
+    APIResponseBukuKomunikasiSync,
     UpdateFeedbackRequest,
     UpdateNoteRequest,
 )
@@ -69,6 +70,54 @@ async def get_buku_komunikasi(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Gagal mengambil buku komunikasi.",
+        ) from exc
+
+
+@router.get("/sync", response_model=APIResponseBukuKomunikasiSync)
+async def sync_buku_komunikasi(
+    cursor: Optional[str] = Query(
+        None,
+        description="Timestamp ISO terakhir sync. Null = full sync.",
+    ),
+    creds: Dict[str, Any] = Depends(get_current_user_credentials),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delta sync buku komunikasi.
+    - cursor=null  → full sync, kembalikan semua line
+    - cursor=<iso> → delta sync, kembalikan hanya line yang write_date >= cursor
+                     beserta all_active_ids agar client bisa deteksi removed
+    """
+    student_id = _student_id(creds)
+    try:
+        data = await _service(db).sync_buku_komunikasi(
+            student_id=student_id,
+            jenjang=creds.get("jenjang", "sd"),
+            cursor=cursor,
+        )
+        if not data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Data buku komunikasi tidak ditemukan untuk siswa ini.",
+            )
+        return APIResponseBukuKomunikasiSync(
+            success=True,
+            message="Berhasil sinkronisasi buku komunikasi",
+            data=data,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.exception(
+            "[buku-komunikasi/sync] Gagal sync uid=%s", creds.get("uid")
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Gagal sinkronisasi buku komunikasi.",
         ) from exc
 
 

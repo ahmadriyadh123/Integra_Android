@@ -14,6 +14,22 @@ class CalendarRepository {
     required this.localStorage,
   });
 
+  /// Baca daftar kalender dari cache saja — dipakai SWR phase 1.
+  Future<List<CalendarItem>?> loadCachedCalendars(String token) async {
+    final scope = cacheScopeForToken(token);
+    final snapshot = await localStorage.loadSnapshot(cacheScope: scope);
+    final rawCached = snapshot?['items'];
+    if (rawCached is! List || rawCached.isEmpty) return null;
+    try {
+      return rawCached
+          .whereType<Map>()
+          .map((e) => CalendarItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<CalendarItem>> getCalendars(
     String token, {
     bool forceRefresh = false,
