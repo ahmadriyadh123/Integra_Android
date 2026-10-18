@@ -180,24 +180,48 @@ class NotificationRepository:
             return []
 
     async def check_buku_komunikasi(
-        self, student_id: int, since: datetime
+        self, student_id: int, since: datetime, jenjang: str = "sd"
     ) -> List[Dict[str, Any]]:
-        if not await self._table_exists("raport_siswa_line"):
+        """Cek buku penghubung baru dari tabel ``bukpeng_{jenjang}_line``.
+
+        Query bergabung dengan tabel header ``bukpeng_{jenjang}`` untuk
+        memfilter berdasarkan ``student_id``.  Kolom yang dipakai untuk
+        menentukan "baru" adalah ``write_date`` di tabel line, karena
+        isian guru/ortu bisa muncul kapan saja setelah record dibuat.
+        """
+        # Validasi jenjang (sama dengan BukuKomunikasiRepository._table_names)
+        level = jenjang.strip().lower()
+        if level not in ("sd", "smp", "tk"):
+            level = "sd"
+
+        header_table = f"bukpeng_{level}"
+        line_table   = f"bukpeng_{level}_line"
+        fk_field     = f"bukpeng_{level}_id"
+
+        if not await self._table_exists(header_table):
             return []
-        query = text("""
+        if not await self._table_exists(line_table):
+            return []
+
+        query = text(f"""
             SELECT
-                line.id         AS ref_id,
-                subj.name       AS judul,
-                LEFT(line.note, 200) AS isi,
-                line.create_date AS created_at
-            FROM raport_siswa_line line
-            LEFT JOIN op_subject subj ON subj.id = line.subject_id
-            LEFT JOIN raport_siswa_sts r ON r.id = line.raport_id
-            WHERE r.student_id = :student_id
-              AND r.active = TRUE
-              AND line.create_date >= :since
-              AND line.raport_id IS NOT NULL
-            ORDER BY line.create_date DESC
+                line.id              AS ref_id,
+                'Buku Komunikasi Pekan ' || COALESCE(line.pekan_ke::text, '?')
+                    || COALESCE(' – ' || line.bulan, '')  AS judul,
+                LEFT(COALESCE(
+                    NULLIF(TRIM(line.senin),   ''),
+                    NULLIF(TRIM(line.selasa),  ''),
+                    NULLIF(TRIM(line.rabu),    ''),
+                    NULLIF(TRIM(line.kamis),   ''),
+                    NULLIF(TRIM(line.jumat),   ''),
+                    'Catatan baru telah diisi'
+                ), 200)                      AS isi,
+                line.write_date            AS created_at
+            FROM {line_table} line
+            JOIN {header_table} h ON h.id = line.{fk_field}
+            WHERE h.student_id = :student_id
+              AND line.write_date >= :since
+            ORDER BY line.write_date DESC
             LIMIT 20;
         """)
         try:
@@ -347,7 +371,7 @@ class NotificationRepository:
         for r in wp_status:
             categories.append({**r, "kategori": "weekly_plan"})
 
-        buku = await self.check_buku_komunikasi(student_id, since)
+        buku = await self.check_buku_komunikasi(student_id, since, jenjang)
         for r in buku:
             categories.append({**r, "kategori": "buku_komunikasi"})
 

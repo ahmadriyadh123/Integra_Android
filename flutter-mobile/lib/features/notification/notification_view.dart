@@ -6,6 +6,13 @@ import 'models/notification_model.dart';
 import 'viewmodel/notification_viewmodel.dart';
 import '../widgets/shared_header.dart';
 import '../auth/viewmodel/auth_viewmodel.dart';
+import '../e-rapor/rapor_list_view.dart';
+import '../kurikulum/weekly_plan/weekly_plan_view.dart';
+import '../kurikulum/assignments/assignment_list_view.dart';
+import '../kehadiran/view/attendance_view.dart';
+import '../kurikulum/buku-komunikasi/buku_komunikasi_view.dart';
+import '../kurikulum/cbt/cbt_list_view.dart';
+import '../tagihan/tagihan_view.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -113,6 +120,7 @@ class _NotificationPageState extends State<NotificationPage> {
         borderRadius: BorderRadius.circular(14),
         onTap: () {
           if (!notif.isRead) vm.markAsRead(notif.id);
+          _openTarget(context, notif);
         },
         child: Container(
           decoration: BoxDecoration(
@@ -261,6 +269,34 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  // ── Navigasi ke halaman tujuan ──────────────────────────────────────────────
+
+  /// Buka halaman tujuan sesuai kategori notifikasi.
+  /// Dipush ke nested navigator yang sama dengan NotificationPage sehingga
+  /// bottom nav tetap tampil dan tombol kembali kembali ke daftar notifikasi.
+  void _openTarget(BuildContext context, AppNotification notif) {
+    final token = context.read<AuthViewModel>().token;
+    final destination = _destinationFor(notif.type, token);
+    if (destination == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+    );
+  }
+
+  /// Mapping kategori notifikasi -> halaman tujuan.
+  /// `general` tidak punya tujuan (hanya ditandai sudah dibaca).
+  Widget? _destinationFor(NotificationType type, String token) => switch (type) {
+        NotificationType.rapor          => RaporListViewPage(authToken: token),
+        NotificationType.weeklyPlan    => WeeklyPlanScreen(authToken: token),
+        NotificationType.assignment    => AssignmentListView(authToken: token),
+        NotificationType.attendance    => AttendanceView(authToken: token),
+        NotificationType.bukuKomunikasi => const BukuKomunikasiPage(),
+        NotificationType.cbt          => const CbtListView(),
+        NotificationType.tagihan       => TagihanPage(authToken: token),
+        NotificationType.general      => null,
+      };
 
   Color _accentColor(NotificationType type) => switch (type) {
         NotificationType.rapor          => const Color(0xFF0EA5E9),
