@@ -122,6 +122,20 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         slideId,
       );
       if (!mounted) return;
+
+      // "Membuka = mengunduh": jika materi belum tersimpan offline dan bisa
+      // diunduh, unduh & simpan dulu, lalu buka berkas lokalnya. Bila gagal,
+      // alur di bawah akan tetap menjatuhkan ke buka online (URL).
+      if (offlineFile == null && !_downloadingSlideIds.contains(slideId)) {
+        final slide = _findSlide(slideId);
+        if (slide != null &&
+            !slide.isQuiz &&
+            slide.downloadUrl != null &&
+            slide.downloadUrl!.isNotEmpty) {
+          offlineFile = await _downloadAndSaveMaterial(slide, silent: true);
+          if (!mounted) return;
+        }
+      }
     }
 
     if ((url == null || url.isEmpty) && offlineFile == null) {
@@ -239,31 +253,35 @@ class _DetailCourseViewState extends State<DetailCourseView> {
     }
   }
 
-  Future<void> _toggleOfflineMaterial(SlideItem slide) async {
-    if (slide.isQuiz || _downloadingSlideIds.contains(slide.id)) return;
-    final repository = _vm.repository;
-    final saved = await repository.getOfflineMaterial(
-      widget.authToken,
-      slide.id,
-    );
-    if (saved != null) {
-      await repository.localStorage.removeOfflineMaterial(
-        slide.id,
-        cacheScope: repository.cacheScopeForToken(widget.authToken),
-      );
-      if (mounted) {
-        setState(() => _offlineSlideIds.remove(slide.id));
-        _showSnack('Materi dihapus dari penyimpanan offline.');
-      }
-      return;
+  /// Mencari slide berdasarkan id pada course detail yang sedang aktif.
+  SlideItem? _findSlide(int slideId) {
+    final slides = _vm.courseDetail?.slides ?? const <SlideItem>[];
+    for (final slide in slides) {
+      if (slide.id == slideId) return slide;
     }
+    return null;
+  }
 
+  /// Mengunduh & menyimpan materi ke penyimpanan offline.
+  ///
+  /// Dipakai oleh:
+  /// - tombol "Simpan offline" (`_toggleOfflineMaterial`) -> `silent: false`
+  /// - alur buka materi (`_openUrl`) -> `silent: true` sehingga membuka =
+  ///   mengunduh tanpa snackbar tambahan (spinner pada slide jadi indikator).
+  ///
+  /// Mengembalikan [File] hasil simpan bila sukses, atau `null` bila gagal /
+  /// materi tidak dapat diunduh / sedang mengunduh.
+  Future<File?> _downloadAndSaveMaterial(
+    SlideItem slide, {
+    bool silent = false,
+  }) async {
+    if (slide.isQuiz || _downloadingSlideIds.contains(slide.id)) return null;
     if (slide.downloadUrl == null || slide.downloadUrl!.isEmpty) {
-      _showSnack('Berkas materi ini tidak tersedia untuk diunduh.');
-      return;
+      if (!silent) _showSnack('Berkas materi ini tidak tersedia untuk diunduh.');
+      return null;
     }
-
-    setState(() => _downloadingSlideIds.add(slide.id));
+    final repository = _vm.repository;
+    if (mounted) setState(() => _downloadingSlideIds.add(slide.id));
     try {
       var contentUrl = slide.downloadUrl!;
       if (slide.isScorm) {
@@ -304,17 +322,47 @@ class _DetailCourseViewState extends State<DetailCourseView> {
         fileName: fileName,
         content: response.stream,
       );
-      if (!mounted) return;
-      setState(() => _offlineSlideIds.add(slide.id));
-      _showSnack('Materi berhasil disimpan untuk dibuka offline.');
-    } catch (error) {
-      if (!mounted) return;
-      _showSnack(
-        'Gagal menyimpan materi: ${userFriendlyError(error, fallback: 'Materi belum dapat disimpan. Silakan coba lagi.')}',
+      final saved = await repository.getOfflineMaterial(
+        widget.authToken,
+        slide.id,
       );
+      if (mounted && saved != null) {
+        setState(() => _offlineSlideIds.add(slide.id));
+      }
+      if (!silent) _showSnack('Materi berhasil disimpan untuk dibuka offline.');
+      return saved;
+    } catch (error) {
+      if (!silent && mounted) {
+        _showSnack(
+          'Gagal menyimpan materi: ${userFriendlyError(error, fallback: 'Materi belum dapat disimpan. Silakan coba lagi.')}',
+        );
+      }
+      return null;
     } finally {
       if (mounted) setState(() => _downloadingSlideIds.remove(slide.id));
     }
+  }
+
+  Future<void> _toggleOfflineMaterial(SlideItem slide) async {
+    if (slide.isQuiz || _downloadingSlideIds.contains(slide.id)) return;
+    final repository = _vm.repository;
+    final saved = await repository.getOfflineMaterial(
+      widget.authToken,
+      slide.id,
+    );
+    if (saved != null) {
+      await repository.localStorage.removeOfflineMaterial(
+        slide.id,
+        cacheScope: repository.cacheScopeForToken(widget.authToken),
+      );
+      if (mounted) {
+        setState(() => _offlineSlideIds.remove(slide.id));
+        _showSnack('Materi dihapus dari penyimpanan offline.');
+      }
+      return;
+    }
+    // Belum tersimpan -> unduh & simpan.
+    await _downloadAndSaveMaterial(slide);
   }
 
   String _materialExtension(

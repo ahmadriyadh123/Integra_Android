@@ -46,6 +46,12 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   String? _selectedWeek;
   String? _lastFormKey;
 
+  /// Reference viewmodel yang di-cache di didChangeDependencies agar aman
+  /// dipakai di dispose() — context.read di dispose() tidak aman karena
+  /// widget sudah deactivated (akan throw
+  /// "Looking up a deactivated widget's ancestor is unsafe").
+  BukuKomunikasiViewModel? _bukuKomunikasiVm;
+
   // Map of controllers for each day
   final Map<String, TextEditingController> _noteControllers = {
     'senin': TextEditingController(),
@@ -84,12 +90,21 @@ class _BukuKomunikasiPageState extends State<BukuKomunikasiPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache viewmodel saat widget masih aktif untuk dipakai di dispose().
+    _bukuKomunikasiVm ??= context.read<BukuKomunikasiViewModel>();
+  }
+
+  @override
   void dispose() {
     for (var controller in _noteControllers.values) {
       controller.dispose();
     }
-    // Hentikan connectivity listener saat halaman ditutup
-    context.read<BukuKomunikasiViewModel>().stopConnectivityListener();
+    // Hentikan connectivity listener saat halaman ditutup.
+    // Pakai reference yang di-cache, BUKAN context.read, karena widget
+    // sudah deactivated saat dispose() dijalankan.
+    _bukuKomunikasiVm?.stopConnectivityListener();
     super.dispose();
   }
 

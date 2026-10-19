@@ -27,6 +27,11 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   static const Color bgSlate = Color(0xFFF8FAFC);
   static const Color borderColor = Color(0xFFE2E8F0);
 
+  /// Reference viewmodel yang di-cache di didChangeDependencies agar aman
+  /// dipakai di dispose() — context.read di dispose() tidak aman karena
+  /// widget sudah deactivated.
+  WeeklyPlanViewModel? _weeklyPlanVm;
+
   Future<void> _refreshPdf() async {
     final vm = context.read<WeeklyPlanViewModel>();
     await vm.fetchPdfFile(
@@ -53,9 +58,18 @@ class _WeeklyPlanDetailScreenState extends State<WeeklyPlanDetailScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache viewmodel saat widget masih aktif untuk dipakai di dispose().
+    _weeklyPlanVm ??= context.read<WeeklyPlanViewModel>();
+  }
+
+  @override
   void dispose() {
-    // Membersihkan state PDF agar tidak membekas saat buka dokumen lain
-    context.read<WeeklyPlanViewModel>().clearPdfState();
+    // Membersihkan state PDF agar tidak membekas saat buka dokumen lain.
+    // Pakai reference yang di-cache, BUKAN context.read, karena widget
+    // sudah deactivated saat dispose() dijalankan.
+    _weeklyPlanVm?.clearPdfState();
     super.dispose();
   }
 
