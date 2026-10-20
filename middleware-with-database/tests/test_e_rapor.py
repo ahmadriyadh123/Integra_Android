@@ -166,7 +166,7 @@ async def test_erapor_pdf_fallback_renders_word_template_with_report_context(mon
     monkeypatch.setattr(service, "_get_libreoffice_cmd", lambda: "soffice")
     content, filename = await service.get_rapor_pdf_bytes(73, 41, "sd")
 
-    assert filename == "E-Rapor_Nama_Siswa_ID73.pdf"
+    assert filename == "e-rapor_Sumatif_Tengah_Semester_Nama_Siswa.pdf"
     assert content == b"%PDF-test"
     assert generated_context["nis_nisn"] == "NIS-1 / NISN-1"
     assert generated_context["subjects"][0]["no"] == 1
