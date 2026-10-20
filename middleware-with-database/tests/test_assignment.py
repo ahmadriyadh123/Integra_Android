@@ -114,6 +114,7 @@ async def test_assignment_listing_returns_student_scoped_assignments_and_files()
     assignment_query = str(db.execute.await_args_list[2].args[0])
     assert "oa.subject_id AS subject_id" in assignment_query
     assert "rel.op_student_id = :student_id" in assignment_query
+    assert "att.res_id = s.id" in assignment_query
     assert db.execute.await_args_list[2].args[1] == {"student_id": 12}
 
 

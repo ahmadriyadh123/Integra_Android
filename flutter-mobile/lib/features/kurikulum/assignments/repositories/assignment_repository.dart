@@ -20,6 +20,7 @@ class AssignmentRepository {
       cacheScope: cacheScope,
     );
     final rawCached = snapshot?['items'];
+    final cacheVersion = snapshot?['cache_version'];
     final cached = rawCached is List
         ? rawCached
               .whereType<Map>()
@@ -30,6 +31,7 @@ class AssignmentRepository {
     final fullSyncAt = snapshot?['full_sync_at'];
     final fullSync =
         cached == null ||
+        cacheVersion != AssignmentLocalStorage.cacheVersion ||
         cursor is! String ||
         cursor.isEmpty ||
         fullSyncAt is! int ||

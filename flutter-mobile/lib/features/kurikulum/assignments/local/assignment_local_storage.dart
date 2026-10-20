@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 class AssignmentLocalStorage {
   static const String _boxName = 'assignment_box';
   static const String _keyAssignmentsPrefix = 'cached_assignments';
+  static const int cacheVersion = 2;
   static const Duration fullSyncInterval = Duration(hours: 24);
 
   Future<Box> _getBox() async {
@@ -29,6 +30,7 @@ class AssignmentLocalStorage {
     final key = _assignmentsKey(cacheScope);
     final previous = box.get(key);
     await box.put(key, {
+      'cache_version': cacheVersion,
       'items': assignments,
       'cursor': cursor ?? (previous is Map ? previous['cursor'] : null),
       'full_sync_at':

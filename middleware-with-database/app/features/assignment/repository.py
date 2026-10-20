@@ -106,7 +106,19 @@ class AssignmentRepository:
                 FROM op_assignment_sub_line s
                 WHERE s.assignment_id = oa.id
                   AND s.student_id = :student_id
-                ORDER BY s.id DESC
+                ORDER BY CASE
+                    WHEN LOWER(COALESCE(s.state, '')) = 'graded' THEN 2
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM ir_attachment att
+                        WHERE att.res_model = 'op.assignment.sub.line'
+                          AND att.res_id = s.id
+                          AND att.type = 'binary'
+                          AND COALESCE(att.active, TRUE) IS TRUE
+                          AND COALESCE(att.for_delete, FALSE) IS FALSE
+                    ) THEN 1
+                    ELSE 0
+                END DESC, s.id DESC
                 LIMIT 1
             ) sub ON TRUE
             WHERE rel.op_student_id = :student_id
@@ -301,11 +313,23 @@ class AssignmentRepository:
 
         submission_result = await self.db.execute(
             text("""
-                SELECT id, state, submission_date
-                FROM op_assignment_sub_line
-                WHERE assignment_id = :assignment_id
-                  AND student_id = :student_id
-                ORDER BY id DESC
+                SELECT s.id, s.state, s.submission_date
+                FROM op_assignment_sub_line s
+                WHERE s.assignment_id = :assignment_id
+                  AND s.student_id = :student_id
+                ORDER BY CASE
+                    WHEN LOWER(COALESCE(s.state, '')) = 'graded' THEN 2
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM ir_attachment att
+                        WHERE att.res_model = 'op.assignment.sub.line'
+                          AND att.res_id = s.id
+                          AND att.type = 'binary'
+                          AND COALESCE(att.active, TRUE) IS TRUE
+                          AND COALESCE(att.for_delete, FALSE) IS FALSE
+                    ) THEN 1
+                    ELSE 0
+                END DESC, s.id DESC
                 LIMIT 1;
             """),
             {"assignment_id": assignment_id, "student_id": student_id},
@@ -316,10 +340,7 @@ class AssignmentRepository:
             state = str(submission.get("state") or "").lower()
             if state == "graded":
                 raise AssignmentAlreadySubmittedError("Tugas ini sudah dikumpulkan.")
-            if (
-                not allow_existing_files
-                and state in {submitted_state.lower(), "submit", "submitted"}
-            ):
+            if not allow_existing_files:
                 attachment_result = await self.db.execute(
                     text("""
                         SELECT id
