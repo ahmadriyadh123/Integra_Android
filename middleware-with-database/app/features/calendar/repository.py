@@ -26,7 +26,7 @@ class CalendarRepository:
         if table_name is None:
             raise ValueError(f"Jenjang kalender tidak didukung: {jenjang}.")
 
-        query = text(f"""
+        query_str = f"""
             SELECT 
                 k.id,
                 k.kelas_id,
@@ -40,12 +40,13 @@ class CalendarRepository:
             LEFT JOIN op_academic_term sem ON sem.id = k.semester_id
             LEFT JOIN op_academic_year ay ON ay.id = k.tahun_id
             WHERE k.kelas_id = :course_id
-              AND (:changed_since IS NULL OR COALESCE(k.write_date, k.create_date) >= :changed_since)
-            ORDER BY k.tahun_id DESC, k.semester_id ASC;
-        """)
+        """
 
         params = {"course_id": course_id}
         if changed_since is not None:
+            query_str += " AND COALESCE(k.write_date, k.create_date) >= :changed_since"
             params["changed_since"] = changed_since
+        query_str += " ORDER BY k.tahun_id DESC, k.semester_id ASC;"
+        query = text(query_str)
         result = await self.db.execute(query, params)
         return [dict(row) for row in result.mappings().all()]
