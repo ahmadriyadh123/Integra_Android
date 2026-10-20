@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -228,14 +229,6 @@ class ERaporService:
     async def get_rapor_pdf_bytes(
         self, rapor_id: int, student_id: int, jenjang: Optional[str] = None
     ) -> Optional[Tuple[bytes, str]]:
-        attachment = await self.repo.attachment_bytes(
-            rapor_id=rapor_id,
-            student_id=student_id,
-            jenjang=jenjang,
-        )
-        if attachment:
-            return attachment
-
         detail = await self.get_report_detail(
             rapor_id=rapor_id,
             student_id=student_id,
@@ -243,10 +236,23 @@ class ERaporService:
         )
         if not detail:
             return None
-        pdf_bytes = await asyncio.to_thread(self._generate_pdf_from_template, detail)
+
+        rapor_name = str(detail.get("jenis_rapor") or "Rapor").strip()
         student_name = str(detail.get("student_name") or "").strip()
-        student_name = student_name.replace(" ", "_").replace("/", "-").replace("\\", "-")
-        filename = f"E-Rapor_{student_name or f'Siswa_{student_id}'}_ID{rapor_id}.pdf"
+        safe_name = lambda value: re.sub(r"[^\w.-]+", "_", value, flags=re.UNICODE).strip("_.-")
+        filename = (
+            f"e-rapor_{safe_name(rapor_name) or 'Rapor'}_"
+            f"{safe_name(student_name) or f'Siswa_{student_id}'}.pdf"
+        )
+        attachment = await self.repo.attachment_bytes(
+            rapor_id=rapor_id,
+            student_id=student_id,
+            jenjang=jenjang,
+        )
+        if attachment:
+            return attachment[0], filename
+
+        pdf_bytes = await asyncio.to_thread(self._generate_pdf_from_template, detail)
         return pdf_bytes, filename
 
     @staticmethod

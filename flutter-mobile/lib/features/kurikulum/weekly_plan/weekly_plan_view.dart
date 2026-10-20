@@ -23,6 +23,17 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   static const Color textSlate = Color(0xFF475569);
   static const Color borderColor = Color(0xFFE2E8F0);
 
+  String _filePart(String value) => value
+      .trim()
+      .replaceAll(RegExp(r'\s+'), '_')
+      .replaceAll('/', '-')
+      .replaceAll('\\', '-');
+
+  String _weekNumber(String value) => value.replaceFirst(
+    RegExp(r'^(pekan|minggu)\s+', caseSensitive: false),
+    '',
+  ).trim();
+
   Future<void> _onRefresh() async {
     final vm = context.read<WeeklyPlanViewModel>();
     await vm.fetchList(widget.authToken);
@@ -201,7 +212,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${item.semester}  •  Pekan: ${item.pekan}',
+                    '${item.semester}  •  Pekan: ${_weekNumber(item.pekan)}',
                     style: const TextStyle(fontSize: 12, color: textSlate),
                   ),
                 ],
@@ -243,7 +254,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     MaterialPageRoute(
                       builder: (_) => WeeklyPlanDetailScreen(
                         planId: item.id,
-                        title: '${item.kelas} — Pekan ${item.pekan}',
+                        title: 'Weekly_Plan_${_filePart(item.semester)}_${_filePart(item.kelas)}_${_filePart(_weekNumber(item.pekan))}',
                         authToken: widget.authToken,
                       ),
                     ),

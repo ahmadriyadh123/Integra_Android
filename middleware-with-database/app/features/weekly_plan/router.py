@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import io
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -141,9 +142,12 @@ async def get_weekly_plan_pdf(
                 detail="Rencana mingguan tidak ditemukan."
             )
 
-        kelas = str(header.get('course_name') or 'SD').replace(' ', '_')
-        pekan = str(header.get('pekan') or '').replace(' ', '_').replace('/', '-')
-        filename = f"WeeklyPlan_{kelas}_{pekan}.pdf"
+        safe_part = lambda value: str(value or '').strip().replace(' ', '_').replace('/', '-').replace('\\', '-')
+        semester = safe_part(header.get('semester_name') or 'Semester')
+        kelas = safe_part(header.get('course_name') or 'SD')
+        minggu = str(header.get('pekan') or '').strip()
+        minggu = re.sub(r'^(pekan|minggu)\s+', '', minggu, flags=re.IGNORECASE)
+        filename = f"Weekly_Plan_{semester}_{kelas}_{safe_part(minggu)}.pdf"
 
         pdf_bytes = None
         attachment_id = header.get('message_main_attachment_id')

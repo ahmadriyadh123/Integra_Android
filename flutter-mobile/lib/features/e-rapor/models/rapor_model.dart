@@ -79,6 +79,7 @@ class ReportCardDetail {
   final int id;
   final int studentId;
   final String studentName;
+  final String reportType;
   final String className;
   final double averageScore;
   final String teacherNotes;
@@ -90,6 +91,7 @@ class ReportCardDetail {
     required this.id,
     required this.studentId,
     required this.studentName,
+    this.reportType = '-',
     required this.className,
     required this.averageScore,
     required this.teacherNotes,
@@ -103,6 +105,7 @@ class ReportCardDetail {
       id: json['id'] as int,
       studentId: (json['student_id'] as num?)?.toInt() ?? 0,
       studentName: json['student_name'] as String? ?? '-',
+      reportType: json['jenis_rapor'] as String? ?? '-',
       className: json['kelas'] as String? ?? '-',
       averageScore: (json['rata_rata_nilai'] as num?)?.toDouble() ?? 0.0,
       teacherNotes: json['catatan_wali_kelas'] as String? ?? '-',

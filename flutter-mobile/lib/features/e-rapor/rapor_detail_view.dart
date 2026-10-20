@@ -176,7 +176,7 @@ class _RaporDetailViewPageState extends State<RaporDetailViewPage> {
           final studentName = vm.currentDetail?.studentName ?? 'Siswa';
           return CustomPdfViewer(
             pdfBytes: _generatedPdfBytes!,
-            fileName: 'E-Rapor_${studentName}_ID${widget.raporId}.pdf',
+            fileName: 'e-rapor_${(vm.currentDetail?.reportType ?? 'Rapor').replaceAll(RegExp(r'\s+'), '_')}_${(vm.currentDetail?.studentName ?? studentName).replaceAll(RegExp(r'\s+'), '_')}',
           );
         },
       ),

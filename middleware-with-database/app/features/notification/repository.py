@@ -132,8 +132,8 @@ class NotificationRepository:
         query = text(f"""
             SELECT
                 wp.id           AS ref_id,
-                'Weekly Plan pekan ' || wp.pekan AS judul,
-                'Rencana pembelajaran untuk pekan ' || wp.pekan
+                'Weekly Plan Pekan ' || regexp_replace(wp.pekan, '^\\s*(pekan|minggu)\\s+', '', 'i') AS judul,
+                'Rencana pembelajaran untuk pekan ' || regexp_replace(wp.pekan, '^\\s*(pekan|minggu)\\s+', '', 'i')
                     || ' telah diterbitkan' AS isi,
                 GREATEST(wp.create_date, wp.write_date) AS created_at
             FROM {table} wp
@@ -159,8 +159,8 @@ class NotificationRepository:
         query = text(f"""
             SELECT
                 wp.id           AS ref_id,
-                'Status Weekly Plan pekan ' || wp.pekan AS judul,
-                'Rencana pembelajaran pekan ' || wp.pekan
+                'Status Weekly Plan Pekan ' || regexp_replace(wp.pekan, '^\\s*(pekan|minggu)\\s+', '', 'i') AS judul,
+                'Rencana pembelajaran pekan ' || regexp_replace(wp.pekan, '^\\s*(pekan|minggu)\\s+', '', 'i')
                     || ' berstatus: ' || wp.status AS isi,
                 wp.write_date   AS created_at
             FROM {table} wp

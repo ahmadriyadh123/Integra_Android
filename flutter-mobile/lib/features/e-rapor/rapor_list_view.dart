@@ -40,7 +40,7 @@ class _RaporListViewPageState extends State<RaporListViewPage> {
       MaterialPageRoute(
         builder: (_) => PdfViewerPage(
           raporId: report.id,
-          title: 'E-Rapor ${report.semester}',
+          title: 'e-rapor_${report.reportType.replaceAll(RegExp(r'\s+'), '_')}_${report.studentName.replaceAll(RegExp(r'\s+'), '_')}',
           authToken: widget.authToken,
         ),
       ),
