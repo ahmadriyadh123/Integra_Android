@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from app.features.tagihan.repository import TagihanRepository
@@ -69,15 +70,17 @@ class TagihanService:
         raw_invoices = await self.repo.get_student_invoices(
             partner_id=partner_id, payment_state=payment_state
         )
-        total_unpaid = 0.0
+        total_unpaid = Decimal("0")
         formatted_invoices: List[Dict[str, Any]] = []
         for inv in raw_invoices:
             formatted = await self._format_invoice(inv)
-            total_unpaid += float(inv.get("amount_residual") or 0.0)
+            if str(inv.get("payment_state") or "not_paid") != "paid":
+                residual = Decimal(str(inv.get("amount_residual") or 0))
+                total_unpaid += max(residual, Decimal("0"))
             formatted_invoices.append(formatted)
 
         return {
-            "total_unpaid_amount": total_unpaid,
+            "total_unpaid_amount": float(total_unpaid),
             "total_invoices": len(formatted_invoices),
             "invoices": formatted_invoices,
         }

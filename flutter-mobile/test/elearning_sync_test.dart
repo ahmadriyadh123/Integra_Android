@@ -126,7 +126,7 @@ void main() {
       ]);
       expect(requests[0].queryParameters, isEmpty);
       expect(requests[1].queryParameters['cursor'], '2026-10-01T00:00:00Z');
-      expect(requests[2].queryParameters, isEmpty);
+      expect(requests[2].queryParameters['cursor'], '2026-10-01T00:05:00Z');
       expect(
         await repository.loadCachedCourses(_token(schoolId: 4, userId: 11)),
         isNull,

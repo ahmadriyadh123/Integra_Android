@@ -127,8 +127,21 @@ class _CbtService extends CbtService {
 class _TagihanStorage extends TagihanLocalStorage {
   final Map<String, Map<String, dynamic>> snapshots = {};
   final Set<String> freshSnapshots = {};
+  final Map<String, String> cursors = {};
+  final Map<String, int> fullSyncTimes = {};
 
   String _key(String? state, String scope) => '$scope:${state ?? 'all'}';
+
+  @override
+  Future<String?> loadCursor(String scope) async => cursors[scope];
+
+  @override
+  Future<int?> loadFullSyncAt(String scope) async => fullSyncTimes[scope];
+
+  @override
+  Future<void> saveFullSyncAt(String scope, int timestamp) async {
+    fullSyncTimes[scope] = timestamp;
+  }
 
   @override
   Future<Map<String, dynamic>?> loadTagihanSummary(
@@ -145,6 +158,7 @@ class _TagihanStorage extends TagihanLocalStorage {
   }) async {
     final key = _key(paymentState, scope);
     snapshots[key] = Map.from(data);
+    if (cursor != null) cursors[scope] = cursor;
     freshSnapshots.add(key);
   }
 
@@ -171,6 +185,24 @@ class _TagihanService extends TagihanService {
     fetchCount++;
     if (fail) throw Exception('offline');
     return summary;
+  }
+
+  @override
+  Future<Map<String, dynamic>> syncTagihan(
+    String token, {
+    String? cursor,
+  }) async {
+    final data = await fetchTagihan(token);
+    final count = data['total_invoices'] as int? ?? 0;
+    return {
+      'items': List.generate(
+        count,
+        (index) => {'id': index + 1, 'residual_amount': 0},
+      ),
+      'all_active_ids': List.generate(count, (index) => index + 1),
+      'next_cursor': 'tagihan-${fetchCount}',
+      'full_sync': true,
+    };
   }
 }
 
@@ -282,6 +314,8 @@ class _BukuStorage extends BukuKomunikasiLocalStorage {
   Map<String, dynamic>? snapshot;
   String? scope;
   bool fresh = false;
+  String? cursor;
+  int? fullSyncAt;
 
   @override
   Future<Map<String, dynamic>?> loadBukuKomunikasi({
@@ -293,6 +327,22 @@ class _BukuStorage extends BukuKomunikasiLocalStorage {
 
   @override
   Future<bool> isBukuKomunikasiFresh({required String scope}) async => fresh;
+
+  @override
+  Future<String?> loadCursor({required String scope}) async => cursor;
+
+  @override
+  Future<int?> loadFullSyncAt({required String scope}) async => fullSyncAt;
+
+  @override
+  Future<void> saveCursor(String value, {required String scope}) async {
+    cursor = value;
+  }
+
+  @override
+  Future<void> saveFullSyncAt(int timestamp, {required String scope}) async {
+    fullSyncAt = timestamp;
+  }
 
   @override
   Future<void> saveBukuKomunikasi(
@@ -317,6 +367,20 @@ class _BukuService extends BukuKomunikasiService {
     fetchCount++;
     if (fail) throw Exception('offline');
     return detail;
+  }
+
+  @override
+  Future<Map<String, dynamic>> syncBukuKomunikasi(
+    String token, {
+    String? cursor,
+  }) async {
+    final result = await fetchBukuKomunikasi(token);
+    return {
+      'items': result?['lines'] ?? <dynamic>[],
+      'header_id': result?['id'],
+      'next_cursor': 'buku-$fetchCount',
+      'full_sync': true,
+    };
   }
 }
 

@@ -1,6 +1,7 @@
 import base64
 import html
 import io
+import inspect
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -149,9 +150,18 @@ class ElearningService:
             if since.tzinfo is None:
                 since = since.replace(tzinfo=timezone.utc)
             # Small overlap avoids missing writes that share the cursor timestamp.
-            changed_ids = set(await self.repo.get_changed_course_ids(
-                since - timedelta(seconds=2), partner_id=partner_id
-            ))
+            changed_query = getattr(self.repo, "get_changed_course_ids", None)
+            if changed_query is not None:
+                changed_result = changed_query(
+                    since - timedelta(seconds=2), partner_id=partner_id
+                )
+                if inspect.isawaitable(changed_result):
+                    changed_ids = set(await changed_result)
+                else:
+                    # Lightweight adapters without delta support use a safe snapshot.
+                    full_sync = True
+            else:
+                full_sync = True
         courses = await self.get_courses_list(partner_id=partner_id)
         if not full_sync:
             delta_courses = [course for course in courses if int(course.get("id") or 0) in changed_ids]

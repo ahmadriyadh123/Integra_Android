@@ -102,8 +102,9 @@ class TagihanRepository {
       // Hitung ulang total
       double totalUnpaid = 0.0;
       for (final item in mergedMap.values) {
+        if (item['payment_state'] == 'paid') continue;
         final residual = (item['residual_amount'] as num?)?.toDouble() ?? 0.0;
-        totalUnpaid += residual;
+        if (residual > 0) totalUnpaid += residual;
       }
 
       final mergedData = {

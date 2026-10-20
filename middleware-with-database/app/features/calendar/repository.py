@@ -44,5 +44,8 @@ class CalendarRepository:
             ORDER BY k.tahun_id DESC, k.semester_id ASC;
         """)
 
-        result = await self.db.execute(query, {"course_id": course_id, "changed_since": changed_since})
+        params = {"course_id": course_id}
+        if changed_since is not None:
+            params["changed_since"] = changed_since
+        result = await self.db.execute(query, params)
         return [dict(row) for row in result.mappings().all()]

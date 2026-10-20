@@ -61,11 +61,13 @@ async def sync_cbt_schedules(
         parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00")) if cursor else None
         if parsed_cursor is not None and parsed_cursor.tzinfo is None:
             parsed_cursor = parsed_cursor.replace(tzinfo=timezone.utc)
-        schedule_list = await service.get_exam_list(
-            course_id=creds.get("course_id"),
-            student_id=creds.get("student_id"),
-            changed_since=parsed_cursor - timedelta(seconds=2) if parsed_cursor else None,
-        )
+        schedule_args = {
+            "course_id": creds.get("course_id"),
+            "student_id": creds.get("student_id"),
+        }
+        if parsed_cursor is not None:
+            schedule_args["changed_since"] = parsed_cursor - timedelta(seconds=2)
+        schedule_list = await service.get_exam_list(**schedule_args)
         return {
             "success": True,
             "message": "Berhasil menyinkronkan jadwal ujian CBT",

@@ -50,7 +50,7 @@ async def get_academic_calendars(
 
 @router.get("/sync")
 async def sync_academic_calendars(
-    cursor: str | None = Query(None),
+    cursor: str | None = None,
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db),
 ):
@@ -66,11 +66,10 @@ async def sync_academic_calendars(
         parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00")) if cursor else None
         if parsed_cursor is not None and parsed_cursor.tzinfo is None:
             parsed_cursor = parsed_cursor.replace(tzinfo=timezone.utc)
-        calendars = await CalendarService(CalendarRepository(db)).get_calendars_list(
-            course_id=course_id,
-            jenjang=jenjang,
-            changed_since=parsed_cursor - timedelta(seconds=2) if parsed_cursor else None,
-        )
+        calendar_args = {"course_id": course_id, "jenjang": jenjang}
+        if parsed_cursor is not None:
+            calendar_args["changed_since"] = parsed_cursor - timedelta(seconds=2)
+        calendars = await CalendarService(CalendarRepository(db)).get_calendars_list(**calendar_args)
         return {
             "success": True,
             "data": {
