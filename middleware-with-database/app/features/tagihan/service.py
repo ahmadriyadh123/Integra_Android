@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote
 
 from app.features.tagihan.repository import TagihanRepository
 
@@ -11,8 +12,14 @@ class TagihanService:
 
     @staticmethod
     def _parse_cursor(cursor: str) -> datetime:
+        normalized = unquote(cursor).strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        # Older clients may send an unescaped '+' timezone as a space.
+        if " " in normalized and "+" not in normalized[-6:] and "-" not in normalized[-6:]:
+            normalized = normalized.rsplit(" ", 1)[0] + "+" + normalized.rsplit(" ", 1)[1]
         try:
-            parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(normalized)
         except ValueError as exc:
             raise ValueError("Cursor tagihan tidak valid.") from exc
         if parsed.tzinfo is None:
@@ -110,8 +117,12 @@ class TagihanService:
                 "full_sync": True,
             }
 
-        # Delta sync
-        since = self._parse_cursor(cursor)
+        # A malformed or legacy cursor should recover with a snapshot instead
+        # of making the refresh endpoint fail with HTTP 400.
+        try:
+            since = self._parse_cursor(cursor)
+        except ValueError:
+            return await self.sync_tagihan(partner_id=partner_id, cursor=None)
         result = await self.repo.get_changed_invoices(
             partner_id=partner_id, since=since
         )
@@ -129,6 +140,7 @@ class TagihanService:
         # Solusi: client membandingkan all_active_ids terhadap cache lokal.
         return {
             "items": items,
+            "removed_ids": [],
             "all_active_ids": all_active_ids,
             "next_cursor": watermark,
             "full_sync": False,

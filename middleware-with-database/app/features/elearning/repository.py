@@ -10,6 +10,16 @@ class ElearningRepository:
 
     async def get_changed_course_ids(self, since: datetime, partner_id: Optional[int] = None) -> List[int]:
         """Return courses touched by course, slide, enrollment, or progress changes."""
+        partner_filter = """
+              AND (EXISTS (
+                  SELECT 1 FROM slide_channel_partner enrolled
+                  WHERE enrolled.channel_id = changed.course_id AND enrolled.partner_id = :partner_id
+              ) OR EXISTS (
+                  SELECT 1 FROM slide_channel_partner touched
+                  WHERE touched.channel_id = changed.course_id AND touched.write_date >= :since
+                    AND touched.partner_id = :partner_id
+              ))
+        """ if partner_id is not None else ""
         query = text("""
             SELECT DISTINCT changed.course_id
             FROM (
@@ -24,15 +34,7 @@ class ElearningRepository:
                   WHERE GREATEST(cp.create_date, cp.write_date) >= :since
             ) changed
             WHERE changed.course_id IS NOT NULL
-              AND (:partner_id IS NULL OR EXISTS (
-                  SELECT 1 FROM slide_channel_partner enrolled
-                  WHERE enrolled.channel_id = changed.course_id AND enrolled.partner_id = :partner_id
-              ) OR EXISTS (
-                  SELECT 1 FROM slide_channel_partner touched
-                  WHERE touched.channel_id = changed.course_id AND touched.write_date >= :since
-                    AND touched.partner_id = :partner_id
-              ))
-        """)
+        """ + partner_filter)
         result = await self.db.execute(query, {"since": since, "partner_id": partner_id})
         return [int(row[0]) for row in result.fetchall()]
 

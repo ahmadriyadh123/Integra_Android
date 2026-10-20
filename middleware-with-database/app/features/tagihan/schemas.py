@@ -38,6 +38,7 @@ class APIResponseInvoiceSummary(BaseModel):
 class InvoiceSyncResponse(BaseModel):
     items: List[InvoiceItemResponse]
     removed_ids: List[int]
+    all_active_ids: Optional[List[int]] = None
     next_cursor: str
     full_sync: bool
 
