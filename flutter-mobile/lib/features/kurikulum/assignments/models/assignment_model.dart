@@ -199,7 +199,8 @@ class AssignmentItem {
       studentSubmission != null &&
       (studentSubmission!.state == 'submit' ||
           studentSubmission!.state == 'submitted' ||
-          studentSubmission!.state == 'graded');
+          studentSubmission!.state == 'graded' ||
+          studentSubmission!.attachments.isNotEmpty);
   bool get isGraded =>
       studentSubmission != null && studentSubmission!.state == 'graded';
   bool get hasSubmissionFile =>

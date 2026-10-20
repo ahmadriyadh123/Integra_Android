@@ -129,6 +129,8 @@ class AssignmentRepository:
             WHERE res_model = :res_model
               AND res_id = :res_id
               AND type = 'binary'
+              AND COALESCE(active, TRUE) IS TRUE
+              AND COALESCE(for_delete, FALSE) IS FALSE
             ORDER BY id;
         """)
         result = await self.db.execute(
@@ -324,6 +326,8 @@ class AssignmentRepository:
                         FROM ir_attachment
                         WHERE res_model = 'op.assignment.sub.line'
                           AND res_id = :submission_id
+                          AND COALESCE(active, TRUE) IS TRUE
+                          AND COALESCE(for_delete, FALSE) IS FALSE
                         LIMIT 1;
                     """),
                     {"submission_id": submission["id"]},
@@ -587,6 +591,8 @@ class AssignmentRepository:
             FROM ir_attachment att
             WHERE att.id = :attachment_id
               AND att.type = 'binary'
+              AND COALESCE(att.active, TRUE) IS TRUE
+              AND COALESCE(att.for_delete, FALSE) IS FALSE
               AND (
                 (
                     att.res_model = 'op.assignment'

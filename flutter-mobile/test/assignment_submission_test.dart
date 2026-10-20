@@ -75,6 +75,29 @@ void main() {
     expect(assignment.canSubmit, isFalse);
   });
 
+  test('recognizes stored attachment as a submitted assignment even in draft state', () {
+    final assignment = _assignment(
+      deadline: DateTime.now().add(const Duration(days: 1)),
+      submission: StudentSubmission(
+        id: 8,
+        state: 'draft',
+        marks: 0,
+        attachments: [
+          AttachmentItem(
+            id: 42,
+            fileName: 'jawaban.pdf',
+            fileUrl: '/assignments/3/attachments/42',
+            uploadedByRole: 'student',
+          ),
+        ],
+      ),
+    );
+
+    expect(assignment.isSubmitted, isTrue);
+    expect(assignment.needsSubmissionFile, isFalse);
+    expect(assignment.canSubmit, isFalse);
+  });
+
   test('allows editing submitted attachments before the deadline', () {
     final assignment = _assignment(
       deadline: DateTime.now().add(const Duration(days: 1)),

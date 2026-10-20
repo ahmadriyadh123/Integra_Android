@@ -65,9 +65,17 @@ class AssignmentService:
                     )
                     for file in student_files
                 ]
+                submission_state = str(row["submission_state"] or "draft")
+                if student_attachments and submission_state.lower() not in {
+                    "graded",
+                    "grade",
+                }:
+                    # In older Odoo records a stored submission attachment may
+                    # exist even when the line state was left as draft.
+                    submission_state = "submitted"
                 student_submission = StudentSubmissionResponse(
                     id=row["submission_id"],
-                    state=row["submission_state"] or "draft",
+                    state=submission_state,
                     marks=row["score_obtained"] or 0.0,
                     submitted_at=row["submitted_at"],
                     attachments=student_attachments,

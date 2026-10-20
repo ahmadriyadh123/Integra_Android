@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.config import settings
 
 class ElearningRepository:
@@ -10,6 +10,10 @@ class ElearningRepository:
 
     async def get_changed_course_ids(self, since: datetime, partner_id: Optional[int] = None) -> List[int]:
         """Return courses touched by course, slide, enrollment, or progress changes."""
+        # Odoo stores create_date/write_date as timestamp without time zone.
+        # Compare them against a UTC timestamp with tzinfo removed.
+        if since.tzinfo is not None:
+            since = since.astimezone(timezone.utc).replace(tzinfo=None)
         partner_filter = """
               AND (EXISTS (
                   SELECT 1 FROM slide_channel_partner enrolled

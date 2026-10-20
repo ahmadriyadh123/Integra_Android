@@ -70,7 +70,7 @@ async def test_assignment_listing_returns_student_scoped_assignments_and_files()
                     "issued_date": None,
                     "deadline": None,
                     "submission_id": 21,
-                    "submission_state": "submit",
+                    "submission_state": "draft",
                     "score_obtained": 0,
                     "submitted_at": None,
                 }
@@ -104,6 +104,7 @@ async def test_assignment_listing_returns_student_scoped_assignments_and_files()
 
     assert assignments[0].id == 14
     assert assignments[0].subject.name == "Matematika"
+    assert assignments[0].student_submission.state == "submitted"
     assert assignments[0].teacher_attachments[0].file_url == (
         "/assignments/14/attachments/51"
     )
