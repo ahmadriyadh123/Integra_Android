@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/features/widgets/app_refresh_indicator.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +30,7 @@ class _NotificationPageState extends State<NotificationPage> {
   static const Color textSlate     = Color(0xFF475569);
   static const Color borderSlate   = Color(0xFFE2E8F0);
   static const Color mutedSlate    = Color(0xFF94A3B8);
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -35,10 +38,15 @@ class _NotificationPageState extends State<NotificationPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vm = context.read<NotificationViewModel>();
       await vm.loadFromStorage();
-      // Force full sync saat pertama buka halaman notifikasi
+      if (!mounted) return;
       final token = context.read<AuthViewModel>().token;
       if (token.isNotEmpty) {
         await vm.fetchFromApi(token, forceFullSync: true);
+        _pollTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+          if (!mounted) return;
+          final currentToken = context.read<AuthViewModel>().token;
+          if (currentToken.isNotEmpty) vm.fetchFromApi(currentToken);
+        });
         if (mounted && vm.lastError != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Gagal memuat: ${vm.lastError}')),
@@ -46,6 +54,12 @@ class _NotificationPageState extends State<NotificationPage> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -69,7 +83,12 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
       body: AppRefreshIndicator(
         color: primaryTeal,
-        onRefresh: () async => vm.loadFromStorage(),
+        onRefresh: () async {
+          final token = context.read<AuthViewModel>().token;
+          if (token.isNotEmpty) {
+            await vm.fetchFromApi(token, forceFullSync: true);
+          }
+        },
         child: vm.isLoading && vm.notifications.isEmpty
             ? const Center(child: CircularProgressIndicator(color: primaryTeal))
             : vm.notifications.isEmpty

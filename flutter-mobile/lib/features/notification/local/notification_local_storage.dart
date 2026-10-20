@@ -11,6 +11,7 @@ class NotificationLocalStorage {
   static const _keyNotifications = 'app_notifications';
   static const _keyUnreadCount = 'app_notifications_unread_count';
   static const _keyCursor = 'app_notifications_cursor';
+  static const _keyDismissedIds = 'app_notifications_dismissed_ids';
 
   Future<List<AppNotification>> loadNotifications() async {
     final prefs = await SharedPreferences.getInstance();
@@ -51,6 +52,7 @@ class NotificationLocalStorage {
     await prefs.remove(_keyNotifications);
     await prefs.remove(_keyUnreadCount);
     await prefs.remove(_keyCursor);
+    await prefs.remove(_keyDismissedIds);
   }
 
   Future<String?> loadCursor() async {
@@ -61,5 +63,15 @@ class NotificationLocalStorage {
   Future<void> saveCursor(String cursor) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCursor, cursor);
+  }
+
+  Future<Set<String>> loadDismissedIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(_keyDismissedIds) ?? const <String>[]).toSet();
+  }
+
+  Future<void> saveDismissedIds(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyDismissedIds, ids.toList()..sort());
   }
 }

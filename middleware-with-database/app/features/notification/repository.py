@@ -104,12 +104,12 @@ class NotificationRepository:
                 'Rapor ' || r.jenis_raport
                     || ' semester ' || r.semester_id
                     || ' telah tersedia' AS isi,
-                r.create_date  AS created_at
+                GREATEST(r.create_date, r.write_date) AS created_at
             FROM raport_siswa_sts r
             WHERE r.student_id = :student_id
               AND r.active = TRUE
-              AND r.create_date >= :since
-            ORDER BY r.create_date DESC
+              AND GREATEST(r.create_date, r.write_date) >= :since
+            ORDER BY GREATEST(r.create_date, r.write_date) DESC
             LIMIT 20;
         """)
         try:
@@ -135,11 +135,11 @@ class NotificationRepository:
                 'Weekly Plan pekan ' || wp.pekan AS judul,
                 'Rencana pembelajaran untuk pekan ' || wp.pekan
                     || ' telah diterbitkan' AS isi,
-                wp.create_date  AS created_at
+                GREATEST(wp.create_date, wp.write_date) AS created_at
             FROM {table} wp
             WHERE wp.active = TRUE
-              AND wp.create_date >= :since
-            ORDER BY wp.create_date DESC
+              AND GREATEST(wp.create_date, wp.write_date) >= :since
+            ORDER BY GREATEST(wp.create_date, wp.write_date) DESC
             LIMIT 20;
         """)
         try:
@@ -245,7 +245,7 @@ class NotificationRepository:
                 oa.id            AS ref_id,
                 ga.name          AS judul,
                 'Tugas baru: ' || ga.name || ' telah diberikan' AS isi,
-                COALESCE(oa.create_date, ga.create_date, NOW()) AS created_at
+                COALESCE(oa.write_date, oa.create_date, ga.write_date, ga.create_date, NOW()) AS created_at
             FROM op_assignment oa
             JOIN grading_assignment ga ON ga.id = oa.grading_assignment_id
             JOIN op_assignment_op_student_rel rel
@@ -253,8 +253,8 @@ class NotificationRepository:
             WHERE rel.op_student_id = :student_id
               AND oa.active = TRUE
               AND oa.state != 'cancel'
-              AND COALESCE(oa.create_date, ga.create_date) >= :since
-            ORDER BY COALESCE(oa.create_date, ga.create_date) DESC
+              AND COALESCE(oa.write_date, oa.create_date, ga.write_date, ga.create_date) >= :since
+            ORDER BY COALESCE(oa.write_date, oa.create_date, ga.write_date, ga.create_date) DESC
             LIMIT 20;
         """)
         params: Dict[str, Any] = {"student_id": student_id, "since": since}
@@ -325,14 +325,14 @@ class NotificationRepository:
                 'Jadwal ujian baru: ' || j.name
                     || ' pada ' || TO_CHAR(j.tanggal_mulai, 'DD Mon YYYY')
                     AS isi,
-                COALESCE(j.create_date, j.tanggal_mulai) AS created_at
+                GREATEST(COALESCE(j.write_date, j.create_date, j.tanggal_mulai), j.tanggal_mulai, j.tanggal_selesai) AS created_at
             FROM cbt_jadwal_ujian j
             JOIN cbt_jadwal_ujian_op_course_rel rel
               ON rel.cbt_jadwal_ujian_id = j.id
             WHERE j.active = TRUE
               AND rel.op_course_id = :course_id
-              AND COALESCE(j.create_date, j.tanggal_mulai) >= :since
-            ORDER BY COALESCE(j.create_date, j.tanggal_mulai) DESC
+              AND GREATEST(COALESCE(j.write_date, j.create_date, j.tanggal_mulai), j.tanggal_mulai, j.tanggal_selesai) >= :since
+            ORDER BY GREATEST(COALESCE(j.write_date, j.create_date, j.tanggal_mulai), j.tanggal_mulai, j.tanggal_selesai) DESC
             LIMIT 20;
         """)
         try:
@@ -353,8 +353,12 @@ class NotificationRepository:
         cursor: Optional[str] = None,
         jenjang: str = "sd",
         course_id: Optional[int] = None,
+        partner_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        since = self.parse_cursor(cursor)
+        # Notifikasi dikirim sebagai snapshot dari record yang masih berlaku,
+        # bukan delta peristiwa. Snapshot ini juga membersihkan item yang
+        # sumber datanya sudah dihapus/nonaktif di database.
+        since = self.parse_cursor(None)
         watermark = self._now_watermark()
 
         categories: List[Dict[str, Any]] = []
@@ -387,6 +391,12 @@ class NotificationRepository:
         for r in cbt:
             categories.append({**r, "kategori": "cbt"})
 
+        tagihan = await self.check_tagihan(
+            partner_id=partner_id, since=since
+        ) if partner_id is not None else []
+        for r in tagihan:
+            categories.append({**r, "kategori": "tagihan"})
+
         # Normalisasi created_at ke tz-naive UTC supaya konsisten dan bisa
         # dibandingkan saat sort (sebelumnya campuran aware/naive karena
         # COALESCE(..., NOW()) vs kolom TIMESTAMP WITHOUT TIME ZONE).
@@ -399,5 +409,37 @@ class NotificationRepository:
         return {
             "items": categories,
             "next_cursor": watermark,
-            "full_sync": cursor is None,
+            "full_sync": True,
         }
+
+    async def check_tagihan(
+        self, partner_id: int, since: datetime
+    ) -> List[Dict[str, Any]]:
+        if not await self._table_exists("account_move"):
+            return []
+        query = text("""
+            SELECT
+                am.id AS ref_id,
+                'Tagihan ' || COALESCE(NULLIF(am.name, '/'), 'baru') AS judul,
+                CASE
+                    WHEN am.payment_state = 'partial' THEN 'Pembayaran tagihan tercatat sebagian.'
+                    WHEN am.payment_state = 'in_payment' THEN 'Pembayaran tagihan sedang diproses.'
+                    ELSE 'Tagihan belum dibayar.'
+                END AS isi,
+                COALESCE(am.write_date, am.create_date) AS created_at
+            FROM account_move am
+            WHERE am.partner_id = :partner_id
+              AND am.move_type = 'out_invoice'
+              AND am.state = 'posted'
+              AND am.payment_state != 'paid'
+              AND COALESCE(am.write_date, am.create_date) >= :since
+            ORDER BY COALESCE(am.write_date, am.create_date) DESC
+            LIMIT 20;
+        """)
+        try:
+            result = await self.db.execute(query, {"partner_id": partner_id, "since": since})
+            return [dict(row) for row in result.mappings().all()]
+        except Exception as exc:
+            await self._safe_rollback()
+            logger.warning("[notification] gagal cek tagihan: %s", exc)
+            return []

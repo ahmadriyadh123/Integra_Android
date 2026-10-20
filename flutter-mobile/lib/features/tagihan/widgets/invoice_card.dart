@@ -6,6 +6,7 @@ class InvoiceCard extends StatelessWidget {
   final String category;
   final String dueDate;
   final String amount;
+  final String? remainingAmount;
   final String status;
   final bool isOverdue;
   final String? paidDate;
@@ -17,6 +18,7 @@ class InvoiceCard extends StatelessWidget {
     required this.category,
     required this.dueDate,
     required this.amount,
+    this.remainingAmount,
     required this.status,
     this.isOverdue = false,
     this.paidDate,
@@ -32,6 +34,16 @@ class InvoiceCard extends StatelessWidget {
     const Color amberWarning = Color(0xFFD97706);
 
     final isLunas = status == 'Lunas';
+    final badgeLabel = isLunas
+        ? 'LUNAS'
+        : (isOverdue
+              ? 'JATUH TEMPO'
+              : switch (status) {
+                  'Lunas Sebagian' => 'LUNAS SEBAGIAN',
+                  'Dalam Proses Pembayaran' => 'DIPROSES',
+                  'Belum Lunas' => 'BELUM LUNAS',
+                  _ => status.toUpperCase(),
+                });
     final accentColor = isLunas
         ? primaryTeal
         : (isOverdue ? redAlert : amberWarning);
@@ -86,9 +98,7 @@ class InvoiceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      isLunas
-                          ? 'LUNAS'
-                          : (isOverdue ? 'JATUH TEMPO' : 'BELUM BAYAR'),
+                        badgeLabel,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -129,6 +139,14 @@ class InvoiceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  const Text(
+                    'Total tagihan',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: textSlate,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Text(
                     amount,
                     style: const TextStyle(
@@ -137,6 +155,17 @@ class InvoiceCard extends StatelessWidget {
                       color: darkSlate,
                     ),
                   ),
+                  if (remainingAmount != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Sisa yang belum dibayar: $remainingAmount',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isLunas ? primaryTeal : amberWarning,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],

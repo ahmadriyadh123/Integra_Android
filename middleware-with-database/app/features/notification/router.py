@@ -42,6 +42,7 @@ async def get_notifications(
             cursor=cursor,
             jenjang=creds.get("jenjang", "sd"),
             course_id=creds.get("course_id"),
+            partner_id=creds.get("partner_id"),
         )
     except ValueError as exc:
         raise HTTPException(

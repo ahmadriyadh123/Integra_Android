@@ -30,7 +30,10 @@ class NotificationService {
     String token, {
     String? cursor,
   }) async {
-    final url = Uri.parse('$baseUrl/notifications');
+    final query = <String, String>{};
+    if (cursor != null) query['cursor'] = cursor;
+    final url = Uri.parse('$baseUrl/notifications')
+        .replace(queryParameters: query.isEmpty ? null : query);
     try {
       final response = await _effectiveClient
           .get(url, headers: _headers(token))

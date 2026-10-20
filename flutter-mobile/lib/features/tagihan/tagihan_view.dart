@@ -172,10 +172,13 @@ class _TagihanPageState extends State<TagihanPage> {
     return InvoiceCard(
       id: item.invoiceNumber,
       title: item.invoiceNumber,
-      category: item.isPaid ? 'Sudah Dibayar' : 'Belum Dibayar',
+      category: item.statusLabel,
       dueDate: _formatDate(item.dueDate),
       amount: _formatRupiah(item.totalAmount),
-      status: item.isPaid ? 'Lunas' : 'Belum Bayar',
+      remainingAmount: _formatRupiah(
+        item.isPaid ? 0 : item.residualAmount,
+      ),
+      status: item.statusLabel,
       isOverdue: item.isOverdue,
       paidDate: item.isPaid ? _formatDate(item.invoiceDate) : null,
     );

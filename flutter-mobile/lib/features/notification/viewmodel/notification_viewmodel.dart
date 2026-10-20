@@ -29,7 +29,8 @@ class NotificationViewModel extends ChangeNotifier {
   String? _lastCursor;
   String? _lastError;
   String? get lastError => _lastError;
-  static const _cursorKey = 'app_notifications_cursor';
+  Set<String> _dismissedIds = {};
+  bool _syncInProgress = false;
 
   // ── Local storage ────────────────────────────────────────────────────────────
 
@@ -40,6 +41,11 @@ class NotificationViewModel extends ChangeNotifier {
     _notifications = await _storage.loadNotifications();
     _unreadCount = await _storage.loadUnreadCount();
     _lastCursor = await _storage.loadCursor();
+    _dismissedIds = await _storage.loadDismissedIds();
+    _notifications = _notifications
+        .where((notification) => !_dismissedIds.contains(notification.id))
+        .toList();
+    _unreadCount = _notifications.where((notification) => !notification.isRead).length;
     _isLoading = false;
     notifyListeners();
   }
@@ -49,7 +55,8 @@ class NotificationViewModel extends ChangeNotifier {
   /// Fetch notifikasi baru dari backend, merge dengan yang sudah ada di local.
   /// Set [forceFullSync] true untuk abaikan cursor dan cek 30 hari terakhir.
   Future<void> fetchFromApi(String token, {bool forceFullSync = false}) async {
-    if (_service == null) return;
+    if (_service == null || _syncInProgress) return;
+    _syncInProgress = true;
     _isLoading = true;
     _lastError = null;
     notifyListeners();
@@ -60,17 +67,29 @@ class NotificationViewModel extends ChangeNotifier {
         cursor: cursor,
       );
 
-      // Merge: tambah hanya notifikasi yang ID-nya belum ada
-      int newCount = 0;
-      for (final notif in result.notifications) {
-        if (!_notifications.any((n) => n.id == notif.id)) {
-          _notifications.insert(0, notif);
-          newCount++;
+      if (result.fullSync) {
+        final previousById = {for (final item in _notifications) item.id: item};
+        final serverIds = result.notifications.map((item) => item.id).toSet();
+        // Keep dismissals only while the source record still exists. If it is
+        // deleted upstream, it disappears from the snapshot and its tombstone
+        // can be dropped too.
+        _dismissedIds = _dismissedIds.intersection(serverIds);
+        _notifications = result.notifications
+            .where((item) => !_dismissedIds.contains(item.id))
+            .map((item) => item.copyWith(
+                  isRead: previousById[item.id]?.isRead ?? false,
+                ))
+            .toList();
+        await _storage.saveDismissedIds(_dismissedIds);
+      } else {
+        for (final notif in result.notifications) {
+          if (!_dismissedIds.contains(notif.id) &&
+              !_notifications.any((n) => n.id == notif.id)) {
+            _notifications.add(notif);
+          }
         }
       }
-      if (newCount > 0) {
-        _unreadCount += newCount;
-      }
+      _unreadCount = _notifications.where((notification) => !notification.isRead).length;
 
       // Simpan cursor untuk poll berikutnya
       if (result.nextCursor != null) {
@@ -86,6 +105,7 @@ class NotificationViewModel extends ChangeNotifier {
     } catch (e) {
       _lastError = e.toString().replaceAll('Exception: ', '');
     } finally {
+      _syncInProgress = false;
       _isLoading = false;
       notifyListeners();
     }
@@ -117,24 +137,24 @@ class NotificationViewModel extends ChangeNotifier {
 
   /// Hapus satu notifikasi.
   Future<void> deleteNotification(String id) async {
-    final removed = _notifications.firstWhere(
-      (n) => n.id == id,
-      orElse: () => _notifications.first,
-    );
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index < 0) return;
+    final removed = _notifications[index];
     _notifications.removeWhere((n) => n.id == id);
-    if (!removed.isRead) {
-      _unreadCount = (_unreadCount - 1).clamp(0, _notifications.length);
-    }
+    if (!removed.isRead) _unreadCount = (_unreadCount - 1).clamp(0, _notifications.length);
+    _dismissedIds.add(id);
+    await _storage.saveDismissedIds(_dismissedIds);
     await _storage.saveNotifications(_notifications);
     notifyListeners();
   }
 
   /// Hapus semua notifikasi.
   Future<void> clearAll() async {
+    _dismissedIds.addAll(_notifications.map((notification) => notification.id));
     _notifications = [];
     _unreadCount = 0;
-    _lastCursor = null;
-    await _storage.clearAll();
+    await _storage.saveDismissedIds(_dismissedIds);
+    await _storage.saveNotifications(_notifications);
     notifyListeners();
   }
 }
