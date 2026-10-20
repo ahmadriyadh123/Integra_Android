@@ -36,7 +36,6 @@ class CbtRepository {
           ? snapshot!['full_sync_at'] as int
           : null;
       final shouldFullSync =
-          forceRefresh ||
           cursor == null ||
           fullSyncAt == null ||
           now - fullSyncAt >= const Duration(hours: 24).inMilliseconds;

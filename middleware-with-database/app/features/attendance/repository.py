@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -8,7 +9,7 @@ class AttendanceRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_student_id(self, student_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_by_student_id(self, student_id: int, limit: int = 100, changed_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         query = text("""
             SELECT 
                 al.id,
@@ -32,10 +33,11 @@ class AttendanceRepository:
             LEFT JOIN op_course c ON c.id = al.course_id
             LEFT JOIN op_batch b ON b.id = al.batch_id
             WHERE al.student_id = :student_id
+              AND (:changed_since IS NULL OR al.write_date >= :changed_since)
             ORDER BY al.attendance_date DESC
             LIMIT :limit;
         """)
 
-        result = await self.db.execute(query, {"student_id": student_id, "limit": limit})
+        result = await self.db.execute(query, {"student_id": student_id, "limit": limit, "changed_since": changed_since})
         rows = result.mappings().all()
         return [dict(row) for row in rows]

@@ -1,4 +1,5 @@
-from typing import List, Dict, Any
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -14,7 +15,7 @@ class CalendarRepository:
         self.db = db_session
 
     async def get_academic_calendars(
-        self, course_id: int, jenjang: str = "sd"
+        self, course_id: int, jenjang: str = "sd", changed_since: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """
         Mengambil kalender akademik untuk kelas siswa pada jenjang terkait.
@@ -39,8 +40,9 @@ class CalendarRepository:
             LEFT JOIN op_academic_term sem ON sem.id = k.semester_id
             LEFT JOIN op_academic_year ay ON ay.id = k.tahun_id
             WHERE k.kelas_id = :course_id
+              AND (:changed_since IS NULL OR COALESCE(k.write_date, k.create_date) >= :changed_since)
             ORDER BY k.tahun_id DESC, k.semester_id ASC;
         """)
 
-        result = await self.db.execute(query, {"course_id": course_id})
+        result = await self.db.execute(query, {"course_id": course_id, "changed_since": changed_since})
         return [dict(row) for row in result.mappings().all()]

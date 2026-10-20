@@ -50,14 +50,24 @@ class TagihanRepository {
     }
 
     try {
-      // Gunakan cursor jika ada untuk delta sync
+      // Delta sync: kirim cursor agar server hanya membalas tagihan baru/berubah
+      // (create_date/write_date >= cursor). Full sync hanya jika cursor hilang
+      // atau sudah lewat window 24 jam — BUKAN karena forceRefresh (swipe).
+      final fullSyncAt = await localStorage.loadFullSyncAt(scope);
+      final fullSyncDue = fullSyncAt == null ||
+          DateTime.now().difference(
+                DateTime.fromMillisecondsSinceEpoch(fullSyncAt),
+              ) >=
+              TagihanLocalStorage.fullSyncInterval;
+      final usedCursor = cursor == null || cursor.isEmpty || fullSyncDue ? null : cursor;
+
       final syncResult = await apiService.syncTagihan(
         token,
-        cursor: forceRefresh ? null : cursor,
+        cursor: usedCursor,
       );
 
       final nextCursor = syncResult['next_cursor'] as String?;
-      final isFullSync = syncResult['full_sync'] as bool? ?? cursor == null;
+      final isFullSync = syncResult['full_sync'] as bool? ?? usedCursor == null;
       final rawItems = syncResult['items'] as List<dynamic>? ?? [];
       final allActiveIds = (syncResult['all_active_ids'] as List<dynamic>?)
           ?.map((e) => e as int)
@@ -109,6 +119,12 @@ class TagihanRepository {
         scope: scope,
         cursor: nextCursor,
       );
+      if (isFullSync) {
+        await localStorage.saveFullSyncAt(
+          scope,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      }
       lastSyncError = null;
       return TagihanSummary.fromJson(mergedData);
     } catch (e) {

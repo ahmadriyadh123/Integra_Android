@@ -67,9 +67,10 @@ class CbtService:
     async def get_exam_list(
         self,
         course_id: Optional[int] = None,
-        student_id: Optional[int] = None
+        student_id: Optional[int] = None,
+        changed_since: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        raw = await self.repo.get_schedules(course_id=course_id, student_id=student_id)
+        raw = await self.repo.get_schedules(course_id=course_id, student_id=student_id, changed_since=changed_since)
         completed_ids: set[int] = set()
         if student_id is not None:
             results = await self.repo.get_hasil_ujian(student_id=student_id)

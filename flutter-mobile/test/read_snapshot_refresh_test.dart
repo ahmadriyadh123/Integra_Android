@@ -141,6 +141,7 @@ class _TagihanStorage extends TagihanLocalStorage {
     String? paymentState,
     Map<String, dynamic> data, {
     required String scope,
+    String? cursor,
   }) async {
     final key = _key(paymentState, scope);
     snapshots[key] = Map.from(data);

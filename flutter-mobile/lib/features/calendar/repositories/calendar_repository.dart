@@ -49,21 +49,25 @@ class CalendarRepository {
               DateTime.fromMillisecondsSinceEpoch(fullSyncAt),
             ) >=
             const Duration(hours: 24);
-    final fullSync = forceRefresh || cached == null || fullSyncDue;
+    final cursor = snapshot?['cursor'] as String?;
+    final fullSync = cached == null ||
+        cursor == null ||
+        cursor.isEmpty ||
+        fullSyncDue;
 
     try {
       final result = await apiService.syncCalendars(
         token,
-        cursor: fullSync ? null : snapshot?['cursor'] as String?,
+        cursor: fullSync ? null : cursor,
       );
       final rawItems = result['items'];
       final rawRemovedIds = result['removed_ids'];
-      final cursor = result['next_cursor'];
+      final nextCursor = result['next_cursor'];
       final isFullSync = result['full_sync'];
       if (rawItems is! List ||
           rawRemovedIds is! List ||
-          cursor is! String ||
-          cursor.isEmpty ||
+          nextCursor is! String ||
+          nextCursor.isEmpty ||
           isFullSync is! bool ||
           (fullSync && !isFullSync)) {
         throw const FormatException(
@@ -109,7 +113,7 @@ class CalendarRepository {
       await localStorage.saveSnapshot(
         cacheScope: scope,
         items: items,
-        cursor: cursor,
+        cursor: nextCursor,
         fullSyncAt: nextFullSyncAt,
       );
       lastSyncError = null;

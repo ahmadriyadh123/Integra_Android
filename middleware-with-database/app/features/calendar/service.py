@@ -1,4 +1,5 @@
-from typing import Dict, Any
+from datetime import datetime
+from typing import Dict, Any, Optional
 from app.features.calendar.repository import CalendarRepository
 
 
@@ -7,11 +8,12 @@ class CalendarService:
         self.repo = repo
 
     async def get_calendars_list(
-        self, course_id: int, jenjang: str = "sd"
+        self, course_id: int, jenjang: str = "sd", changed_since: Optional[datetime] = None
     ) -> Dict[str, Any]:
         raw_records = await self.repo.get_academic_calendars(
             course_id=course_id,
             jenjang=jenjang,
+            changed_since=changed_since,
         )
         calendars = []
         for item in raw_records:

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -52,14 +52,19 @@ async def get_cbt_schedules(
 
 @router.get("/schedules/sync", response_model=APIResponseCbtSync)
 async def sync_cbt_schedules(
+    cursor: str | None = None,
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         service = CbtService(CbtRepository(db))
+        parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00")) if cursor else None
+        if parsed_cursor is not None and parsed_cursor.tzinfo is None:
+            parsed_cursor = parsed_cursor.replace(tzinfo=timezone.utc)
         schedule_list = await service.get_exam_list(
             course_id=creds.get("course_id"),
             student_id=creds.get("student_id"),
+            changed_since=parsed_cursor - timedelta(seconds=2) if parsed_cursor else None,
         )
         return {
             "success": True,
@@ -68,7 +73,7 @@ async def sync_cbt_schedules(
                 "exams": schedule_list["exams"],
                 "removed_ids": [],
                 "cursor": datetime.now(timezone.utc).isoformat(),
-                "is_full_sync": True,
+                "is_full_sync": parsed_cursor is None,
             },
         }
     except Exception as exc:

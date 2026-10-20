@@ -29,7 +29,6 @@ class AssignmentRepository {
     final cursor = snapshot?['cursor'];
     final fullSyncAt = snapshot?['full_sync_at'];
     final fullSync =
-        forceRefresh ||
         cached == null ||
         cursor is! String ||
         cursor.isEmpty ||

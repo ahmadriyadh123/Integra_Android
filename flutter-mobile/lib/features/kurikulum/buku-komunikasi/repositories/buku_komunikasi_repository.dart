@@ -44,16 +44,25 @@ class BukuKomunikasiRepository {
     }
 
     try {
-      final cursor = forceRefresh ? null : await localStorage.loadCursor(scope: scope);
+      // Delta sync: kirim cursor agar server hanya membalas data yang berubah
+      // (create_date/write_date >= cursor). Full sync hanya jika cursor hilang
+      // atau sudah lewat window 24 jam — BUKAN karena forceRefresh (swipe).
+      final cursor = await localStorage.loadCursor(scope: scope);
+      final fullSyncAt = await localStorage.loadFullSyncAt(scope: scope);
+      final fullSyncDue = fullSyncAt == null ||
+          DateTime.now().difference(
+                DateTime.fromMillisecondsSinceEpoch(fullSyncAt),
+              ) >=
+              BukuKomunikasiLocalStorage.fullSyncInterval;
+      final fullSync = cursor == null || cursor.isEmpty || fullSyncDue;
 
-      // Gunakan endpoint /sync dengan cursor untuk delta sync
       final syncResult = await apiService.syncBukuKomunikasi(
         token,
-        cursor: cursor,
+        cursor: fullSync ? null : cursor,
       );
 
       final nextCursor = syncResult['next_cursor'] as String?;
-      final isFullSync = syncResult['full_sync'] as bool? ?? cursor == null;
+      final isFullSync = syncResult['full_sync'] as bool? ?? fullSync;
       final rawItems = syncResult['items'] as List<dynamic>? ?? [];
       final allActiveIds = (syncResult['all_active_ids'] as List<dynamic>?)
           ?.map((e) => e as int)
@@ -113,6 +122,12 @@ class BukuKomunikasiRepository {
       await localStorage.saveBukuKomunikasi(mergedDetail, scope: scope);
       if (nextCursor != null) {
         await localStorage.saveCursor(nextCursor, scope: scope);
+      }
+      if (isFullSync) {
+        await localStorage.saveFullSyncAt(
+          DateTime.now().millisecondsSinceEpoch,
+          scope: scope,
+        );
       }
 
       lastSyncError = null;

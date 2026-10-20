@@ -123,13 +123,21 @@ class BukuKomunikasiLocalStorage {
     }
   }
 
-  /// Hapus seluruh cache data buku komunikasi.
+  /// Hapus seluruh cache data buku komunikasi (data + cursor + full sync ts).
   Future<void> clearCache({required String scope}) async {
     final box = await _getBox();
     await box.delete(_key(keyData, scope));
+    await box.delete(_key(_keyCursor, scope));
+    await box.delete(_key(_keyFullSyncAt, scope));
   }
 
   // ── Cursor untuk delta sync ──────────────────────────────────────────────
+
+  static const String _keyFullSyncAt = 'buku_komunikasi_full_sync_at';
+
+  /// Interval full sync: setiap 24 jam backend ditarik penuh untuk menangkap
+  /// data yang hilang dari delta (mis. perubahan tanpa update write_date).
+  static const Duration fullSyncInterval = Duration(hours: 24);
 
   Future<String?> loadCursor({required String scope}) async {
     final box = await _getBox();
@@ -140,5 +148,18 @@ class BukuKomunikasiLocalStorage {
   Future<void> saveCursor(String cursor, {required String scope}) async {
     final box = await _getBox();
     await box.put(_key(_keyCursor, scope), cursor);
+  }
+
+  /// Timestamp (ms) sinkronisasi penuh terakhir. Dipakai untuk memutuskan
+  /// kapan harus melakukan full sync lagi, alih-alih delta sync.
+  Future<int?> loadFullSyncAt({required String scope}) async {
+    final box = await _getBox();
+    final value = box.get(_key(_keyFullSyncAt, scope));
+    return value is int ? value : null;
+  }
+
+  Future<void> saveFullSyncAt(int timestamp, {required String scope}) async {
+    final box = await _getBox();
+    await box.put(_key(_keyFullSyncAt, scope), timestamp);
   }
 }

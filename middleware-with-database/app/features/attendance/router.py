@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
@@ -65,6 +65,7 @@ async def get_attendance_history(
 @router.get("/history/sync")
 async def sync_attendance_history(
     limit: int = Query(500, ge=1, le=500),
+    cursor: str | None = Query(None),
     creds: dict = Depends(get_current_user_credentials),
     db: AsyncSession = Depends(get_db),
 ):
@@ -80,9 +81,13 @@ async def sync_attendance_history(
 
     try:
         service = AttendanceService(AttendanceRepository(db))
+        parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00")) if cursor else None
+        if parsed_cursor is not None and parsed_cursor.tzinfo is None:
+            parsed_cursor = parsed_cursor.replace(tzinfo=timezone.utc)
         records = await service.get_student_history(
             student_id=student_id,
             limit=limit,
+            changed_since=parsed_cursor - timedelta(seconds=2) if parsed_cursor else None,
         )
         return {
             "success": True,
@@ -90,7 +95,7 @@ async def sync_attendance_history(
                 "items": [record.model_dump(mode="json") for record in records],
                 "removed_ids": [],
                 "next_cursor": datetime.now(timezone.utc).isoformat(),
-                "full_sync": True,
+                "full_sync": parsed_cursor is None,
             },
         }
     except HTTPException:

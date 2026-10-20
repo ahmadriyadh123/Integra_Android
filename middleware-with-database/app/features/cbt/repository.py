@@ -1,5 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -9,7 +10,7 @@ class CbtRepository:
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
 
-    async def get_schedules(self, course_id: Optional[int] = None, student_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    async def get_schedules(self, course_id: Optional[int] = None, student_id: Optional[int] = None, changed_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
         Ambil jadwal ujian CBT yang aktif khusus kelas siswa yang login.
         """
@@ -57,6 +58,9 @@ class CbtRepository:
         else:
             base_query += " WHERE j.active = TRUE"
 
+        if changed_since is not None:
+            base_query += " AND (j.write_date >= :changed_since OR j.create_date >= :changed_since OR j.tanggal_mulai >= :changed_since OR j.tanggal_selesai >= :changed_since)"
+            params["changed_since"] = changed_since
         base_query += " ORDER BY j.tanggal_mulai DESC, j.id DESC;"
 
         result = await self.db.execute(text(base_query), params)

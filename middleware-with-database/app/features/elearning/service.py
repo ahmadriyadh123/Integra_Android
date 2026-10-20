@@ -3,7 +3,7 @@ import html
 import io
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlsplit, urlunsplit
 from zipfile import is_zipfile
@@ -141,9 +141,27 @@ class ElearningService:
         partner_id: Optional[int] = None,
         cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
-        # Course changes/deletions are not tracked reliably by the tenant schema,
-        # so return a complete snapshot rather than an incomplete delta.
+        full_sync = cursor is None
+        changed_ids: set[int] = set()
+        since = None
+        if cursor is not None:
+            since = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+            if since.tzinfo is None:
+                since = since.replace(tzinfo=timezone.utc)
+            # Small overlap avoids missing writes that share the cursor timestamp.
+            changed_ids = set(await self.repo.get_changed_course_ids(
+                since - timedelta(seconds=2), partner_id=partner_id
+            ))
         courses = await self.get_courses_list(partner_id=partner_id)
+        if not full_sync:
+            delta_courses = [course for course in courses if int(course.get("id") or 0) in changed_ids]
+            active_ids = {int(course.get("id") or 0) for course in delta_courses}
+            return {
+                "items": delta_courses,
+                "removed_ids": sorted(changed_ids - active_ids),
+                "next_cursor": datetime.now(timezone.utc).isoformat(),
+                "full_sync": False,
+            }
         return {
             "items": courses,
             "removed_ids": [],

@@ -51,12 +51,15 @@ class AttendanceRepository {
               DateTime.fromMillisecondsSinceEpoch(fullSyncAt),
             ) >=
             const Duration(hours: 24);
-    final fullSync = forceRefresh || cached == null || fullSyncDue;
+    final cursor = snapshot?['cursor'] as String?;
+    // fullSync tidak lagi dipicu forceRefresh — swipe tetap delta (cursor).
+    // Full sync hanya saat tidak ada cache, cursor hilang, atau lewat 24 jam.
+    final fullSync = cached == null || fullSyncDue || cursor == null || cursor.isEmpty;
 
     try {
       final result = await apiService.syncAttendanceHistory(
         token,
-        cursor: fullSync ? null : snapshot?['cursor'] as String?,
+        cursor: fullSync ? null : cursor,
       );
       final rawItems = result['items'];
       final nextCursor = result['next_cursor'];

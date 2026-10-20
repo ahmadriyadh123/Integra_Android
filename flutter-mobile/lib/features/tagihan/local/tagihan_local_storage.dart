@@ -21,6 +21,11 @@ class TagihanLocalStorage {
   }
 
   String _getCursorKey(String scope) => 'tagihan_cursor_$scope';
+  String _getFullSyncAtKey(String scope) => 'tagihan_full_sync_at_$scope';
+
+  /// Interval full sync: setiap 24 jam backend ditarik penuh untuk menangkap
+  /// data yang hilang dari delta (mis. perubahan tanpa update write_date).
+  static const Duration fullSyncInterval = Duration(hours: 24);
 
   /// Menyimpan data ringkasan tagihan ke cache lokal Hive.
   Future<void> saveTagihanSummary(
@@ -48,6 +53,19 @@ class TagihanLocalStorage {
   Future<void> saveCursor(String scope, String cursor) async {
     final box = await _getBox();
     await box.put(_getCursorKey(scope), cursor);
+  }
+
+  /// Timestamp (ms) sinkronisasi penuh terakhir. Dipakai untuk memutuskan kapan
+  /// harus full sync lagi, alih-alih delta sync berbasis cursor.
+  Future<int?> loadFullSyncAt(String scope) async {
+    final box = await _getBox();
+    final value = box.get(_getFullSyncAtKey(scope));
+    return value is int ? value : null;
+  }
+
+  Future<void> saveFullSyncAt(String scope, int timestamp) async {
+    final box = await _getBox();
+    await box.put(_getFullSyncAtKey(scope), timestamp);
   }
 
   /// Membaca data ringkasan tagihan dari cache lokal Hive.
@@ -87,12 +105,14 @@ class TagihanLocalStorage {
     await box.delete(_getCacheKey(paymentState, scope));
   }
 
-  /// Menghapus seluruh cache tagihan.
+  /// Menghapus seluruh cache tagihan (summary + cursor + full sync ts).
   Future<void> clearAllCache({required String scope}) async {
     final box = await _getBox();
     final prefix = 'tagihan_summary_${scope}_';
     for (final key in box.keys.where((key) => key.toString().startsWith(prefix))) {
       await box.delete(key);
     }
+    await box.delete(_getCursorKey(scope));
+    await box.delete(_getFullSyncAtKey(scope));
   }
 }

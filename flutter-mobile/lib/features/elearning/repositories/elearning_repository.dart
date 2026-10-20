@@ -20,9 +20,13 @@ class ElearningRepository {
     final cursor = await localStorage.loadCoursesSyncCursor(
       cacheScope: cacheScope,
     );
-    final fullSync = forceRefresh ||
-        cached == null ||
+    // fullSync tidak lagi dipicu forceRefresh agar swipe/background refresh
+    // tetap delta (hanya perubahan sejak cursor). Full sync hanya saat tidak
+    // ada cache, cursor hilang, atau window waktu (isCoursesFullSyncDue)
+    // sudah terlampaui.
+    final fullSync = cached == null ||
         cursor == null ||
+        cursor.isEmpty ||
         await localStorage.isCoursesFullSyncDue(cacheScope: cacheScope);
     final result = await apiService.syncCourses(
       token,
