@@ -2,17 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:flutter_application_1/features/auth/view/login_view.dart';
+import 'package:flutter_application_1/ui/auth/widgets/login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'features/app_providers.dart';
-import 'features/auth/local/auth_local_storage.dart';
-import 'services/authenticated_http_client.dart';
-import 'services/remote_api_config_service.dart';
-import 'services/tenant_api_config.dart';
+import './config/providers/app_providers.dart';
+import './data/local/auth/auth_local_storage.dart';
+import './data/services/core/authenticated_http_client.dart';
+import './config/api/remote_api_config_service.dart';
+import './config/api/tenant_api_config.dart';
 
 const _apiBaseUrlKey = 'api_base_url';
 const _schoolIdKey = 'school_id';

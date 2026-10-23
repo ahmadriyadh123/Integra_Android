@@ -1,0 +1,251 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/ui/core/ui/app_refresh_indicator.dart';
+import 'package:provider/provider.dart';
+
+import '../view_models/attendance_viewmodel.dart';
+import './attendance_header.dart';
+import './attendance_heatmap_card.dart';
+import './attendance_list_card.dart';
+import './attendance_summary_section.dart';
+
+class AttendanceView extends StatefulWidget {
+  final String authToken;
+
+  const AttendanceView({super.key, required this.authToken});
+
+  @override
+  State<AttendanceView> createState() => _AttendanceViewState();
+}
+
+class _AttendanceViewState extends State<AttendanceView> {
+  bool _showCalendar = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<AttendanceViewModel>();
+      vm.fetchAttendance(widget.authToken);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Consumer<AttendanceViewModel>(
+          builder: (context, viewModel, _) {
+            if (viewModel.isLoading && !viewModel.hasLoadedData) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF0284C7)),
+              );
+            }
+
+            if (viewModel.errorMessage != null && !viewModel.hasLoadedData) {
+              return AppRefreshIndicator(
+                color: const Color(0xFF0284C7),
+                onRefresh: () => viewModel.fetchAttendance(
+                  widget.authToken,
+                  forceRefresh: true,
+                ),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height * 0.7,
+                    ),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: Colors.redAccent,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          viewModel.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF334155),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return AppRefreshIndicator(
+              color: const Color(0xFF0284C7),
+              onRefresh: () => viewModel.fetchAttendance(
+                widget.authToken,
+                forceRefresh: true,
+              ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AttendanceHeader(showBackButton: Navigator.canPop(context)),
+                    const SizedBox(height: 16),
+                    AttendanceMonthFilter(
+                      activeMonthLabel: viewModel.activeMonthLabel,
+                      availableMonths: viewModel.availableMonths,
+                      onMonthChanged: viewModel.setActiveMonth,
+                    ),
+                    if (viewModel.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      _buildSyncStatus(viewModel),
+                    ],
+                    const SizedBox(height: 16),
+                    AttendanceSummarySection(
+                      totalPresent: viewModel.totalPresent,
+                      totalSick: viewModel.totalSick,
+                      totalPermit: viewModel.totalPermit,
+                      totalAlpha: viewModel.totalAlpha,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 3. Heatmap Visual
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'KALENDER PRESENSI',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: _showCalendar
+                              ? 'Sembunyikan kalender'
+                              : 'Tampilkan kalender',
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            _showCalendar
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                            color: const Color(0xFF0284C7),
+                          ),
+                          onPressed: () =>
+                              setState(() => _showCalendar = !_showCalendar),
+                        ),
+                      ],
+                    ),
+                    if (_showCalendar) ...[
+                      const SizedBox(height: 12),
+                      AttendanceHeatmapCard(
+                        totalDays: viewModel.filteredRecords.length,
+                        heatmapCells: viewModel.generateHeatmapCells(),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+
+                    // 4. Detailed History
+                    const Text(
+                      'RIWAYAT DETAIL',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (viewModel.filteredRecords.isEmpty)
+                      _buildEmptyState()
+                    else
+                      AttendanceListCard(
+                        sortedWeekStarts: viewModel.sortedWeekStarts,
+                        groupedWeeks: viewModel.groupedWeeks,
+                        getMonthName: viewModel.getMonthName,
+                        getWeekdayName: viewModel.getWeekdayName,
+                        activeMonthLabel: viewModel.activeMonthLabel,
+                      ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.event_busy_rounded, size: 48, color: Color(0xFFCBD5E1)),
+          SizedBox(height: 12),
+          Text(
+            'Belum ada data presensi.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSyncStatus(AttendanceViewModel viewModel) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (viewModel.isRefreshing)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 18,
+              color: Color(0xFFB45309),
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              viewModel.errorMessage!,
+              style: const TextStyle(
+                color: Color(0xFF9A3412),
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

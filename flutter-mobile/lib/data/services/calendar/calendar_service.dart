@@ -1,0 +1,76 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/config/api/tenant_api_config.dart';
+
+class CalendarService {
+  final String baseUrl;
+  final TenantApiConfig tenantApiConfig;
+
+  CalendarService({required this.baseUrl, required this.tenantApiConfig});
+
+  Future<Map<String, dynamic>> syncCalendars(
+    String token, {
+    String? cursor,
+  }) async {
+    final query = <String, String>{};
+    if (cursor != null) query['cursor'] = cursor;
+    final uri = Uri.parse('$baseUrl/calendar/sync')
+        .replace(queryParameters: query);
+    final headers = tenantApiConfig.headers(token: token);
+    final response = await (tenantApiConfig.httpClient?.get(
+              uri,
+              headers: headers,
+            ) ??
+            http.get(uri, headers: headers))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Gagal menyinkronkan kalender (${response.statusCode}): ${response.body}',
+      );
+    }
+    final decoded = json.decode(response.body);
+    if (decoded is! Map || decoded['success'] != true || decoded['data'] is! Map) {
+      throw const FormatException('Respons sinkronisasi kalender tidak valid.');
+    }
+    return Map<String, dynamic>.from(decoded['data'] as Map);
+  }
+
+  Future<Map<String, dynamic>> fetchCalendars(String token) async {
+    final url = Uri.parse('$baseUrl/calendar/list');
+
+    try {
+      final headers = tenantApiConfig.headers(token: token);
+      final response = await (tenantApiConfig.httpClient?.get(
+                url,
+                headers: headers,
+              ) ??
+              http.get(url, headers: headers))
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Waktu tunggu koneksi habis');
+            },
+          );
+
+      final jsonResponse = json.decode(response.body);
+
+      if (response.statusCode == 200 && jsonResponse['success'] == true) {
+        return jsonResponse['data'] as Map<String, dynamic>;
+      } else {
+        final message =
+            jsonResponse['detail'] ??
+            jsonResponse['message'] ??
+            'Gagal mengambil data kalender';
+        throw Exception(message);
+      }
+    } on TimeoutException {
+      throw Exception('Koneksi ke server terlalu lama. Coba lagi.');
+    } on http.ClientException catch (e) {
+      throw Exception('Gagal terhubung ke server: ${e.message}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Terjadi kesalahan saat mengambil data kalender');
+    }
+  }
+}

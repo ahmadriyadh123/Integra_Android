@@ -1,0 +1,270 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/data/services/auth/auth_service.dart';
+import 'package:flutter_application_1/config/api/tenant_api_config.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  String encodeSegment(String value) =>
+      base64Url.encode(utf8.encode(value)).replaceAll('=', '');
+  final scopedToken = [
+    encodeSegment('{"alg":"HS256","typ":"JWT"}'),
+    encodeSegment('{"school_id":1}'),
+    encodeSegment('signature'),
+  ].join('.');
+
+  test('uses cached schools until a refresh is explicitly requested', () async {
+    SharedPreferences.setMockInitialValues({});
+    var requestCount = 0;
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient((request) async {
+        requestCount++;
+        expect(request.url.path, '/api/v1/auth/schools');
+        return http.Response('''
+          {
+            "success": true,
+            "data": [
+              {"id": 7, "nama_sekolah": "Sekolah A"}
+            ]
+          }
+          ''', 200);
+      }),
+    );
+
+    final firstResult = await service.fetchSchools();
+    final secondResult = await service.fetchSchools();
+
+    expect(requestCount, 1);
+    expect(firstResult.map((school) => school.name), ['Sekolah A']);
+    expect(secondResult.map((school) => school.id), ['7']);
+  });
+
+  test(
+    'force refresh fetches and replaces the locally cached school list',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      var requestCount = 0;
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(),
+        client: MockClient((request) async {
+          requestCount++;
+          final schoolName = requestCount == 1
+              ? 'Sekolah Lama'
+              : 'Sekolah Baru';
+          return http.Response(
+            '{"success":true,"data":[{"id":7,"nama_sekolah":"$schoolName"}]}',
+            200,
+          );
+        }),
+      );
+
+      final initial = await service.fetchSchools();
+      final refreshed = await service.fetchSchools(forceRefresh: true);
+      final cached = await service.fetchSchools();
+
+      expect(requestCount, 2);
+      expect(initial.single.name, 'Sekolah Lama');
+      expect(refreshed.single.name, 'Sekolah Baru');
+      expect(cached.single.name, 'Sekolah Baru');
+    },
+  );
+
+  test('retains the cached schools when a forced refresh fails', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient((request) async {
+        return http.Response(
+          '{"success":true,"data":[{"id":7,"nama_sekolah":"Sekolah A"}]}',
+          200,
+        );
+      }),
+    );
+    await service.fetchSchools();
+
+    final offlineService = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient((request) async => http.Response('Server error', 503)),
+    );
+
+    await expectLater(
+      offlineService.fetchSchools(forceRefresh: true),
+      throwsException,
+    );
+    final cached = await offlineService.fetchSchools();
+
+    expect(cached.single.name, 'Sekolah A');
+  });
+
+  test('login sends the currently selected school id', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '8'),
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/v1/auth/login');
+        expect(request.headers['X-School-ID'], '8');
+        return http.Response(
+          '{"success":true,"data":{"access_token":"token","token_type":"bearer"}}',
+          200,
+        );
+      }),
+    );
+
+    final result = await service.login('siswa', 'password');
+
+    expect(result['access_token'], 'token');
+  });
+
+  test('validate and change password use the injected HTTP client', () async {
+    final requestedPaths = <String>[];
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(),
+      client: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    await service.validateToken('');
+    await service.changePassword(
+      token: '',
+      currentPassword: 'old-password',
+      newPassword: 'new-password',
+    );
+
+    expect(requestedPaths, [
+      '/api/v1/auth/validate',
+      '/api/v1/auth/change-password',
+    ]);
+  });
+
+  test('validate reports a 401 as an invalid cached session', () async {
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      client: MockClient(
+        (request) async => http.Response(
+          '{"detail":"Token autentikasi tidak valid: Signature verification failed"}',
+          401,
+        ),
+      ),
+    );
+
+    await expectLater(
+      service.validateToken(scopedToken),
+      throwsA(
+        isA<AuthSessionInvalidException>().having(
+          (error) => error.message,
+          'message',
+          contains('Signature verification failed'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'validate preserves the cached session when the API is unavailable',
+    () async {
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+        client: MockClient(
+          (request) async => http.Response('Service unavailable', 503),
+        ),
+      );
+
+      await expectLater(service.validateToken(scopedToken), completes);
+    },
+  );
+
+  test('classifies transport failures as retryable network failures', () async {
+    const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      client: MockClient((request) async {
+        throw http.ClientException('No connection', request.url);
+      }),
+    );
+
+    await expectLater(
+      service.changePassword(
+        token: token,
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+      ),
+      throwsA(isA<AuthNetworkException>()),
+    );
+  });
+
+  test('classifies login transport failures as network failures', () async {
+    final service = AuthService(
+      baseUrl: 'https://example.com/api/v1',
+      tenantApiConfig: TenantApiConfig(schoolId: '1'),
+      client: MockClient(
+        (request) async =>
+            throw http.ClientException('No connection', request.url),
+      ),
+    );
+
+    await expectLater(
+      service.login('student', 'password'),
+      throwsA(isA<AuthNetworkException>()),
+    );
+  });
+
+  test(
+    'does not classify server validation errors as network failures',
+    () async {
+      const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzY2hvb2xfaWQiOjF9.c2ln';
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(schoolId: '1'),
+        client: MockClient(
+          (request) async => http.Response(
+            '{"success":false,"detail":"Password lama salah"}',
+            400,
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.changePassword(
+          token: token,
+          currentPassword: 'wrong-password',
+          newPassword: 'new-password',
+        ),
+        throwsA(isNot(isA<AuthNetworkException>())),
+      );
+    },
+  );
+
+  test(
+    'login rejects a successful response without an object payload',
+    () async {
+      final service = AuthService(
+        baseUrl: 'https://example.com/api/v1',
+        tenantApiConfig: TenantApiConfig(),
+        client: MockClient(
+          (request) async => http.Response('{"success":true,"data":[]}', 200),
+        ),
+      );
+
+      await expectLater(
+        service.login('student', 'password'),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
+}

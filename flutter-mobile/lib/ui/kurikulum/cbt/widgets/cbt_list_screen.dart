@@ -1,0 +1,181 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/ui/core/ui/app_refresh_indicator.dart';
+import 'package:provider/provider.dart';
+
+import '../../../auth/view_models/auth_viewmodel.dart';
+import './cbt/cbt_header_card.dart';
+import './cbt/cbt_filter_tabs.dart';
+import './cbt/cbt_exam_card.dart';
+import '../view_models/cbt_viewmodel.dart';
+import './verifikasi_token_screen.dart';
+import '../../../core/ui/shared_header.dart';
+
+class CbtListView extends StatefulWidget {
+  const CbtListView({super.key});
+
+  @override
+  State<CbtListView> createState() => _CbtListViewState();
+}
+
+class _CbtListViewState extends State<CbtListView> {
+  static const Color darkSlate = Color(0xFF0F172A);
+  static const Color backgroundSlate = Color(0xFFF8FAFC);
+
+  String _selectedTab = 'Semua';
+  final List<String> _tabs = ['Semua', 'Aktif', 'Selesai'];
+
+  // Data diambil dari middleware melalui CbtViewModel
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthViewModel>(context, listen: false);
+      final cbtVm = Provider.of<CbtViewModel>(context, listen: false);
+      final token = auth.token;
+      if (token.isNotEmpty) {
+        cbtVm.fetchCbtSchedules(token);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cbtVm = Provider.of<CbtViewModel>(context);
+    final exams = cbtVm.exams;
+
+    final filteredExams = exams.where((exam) {
+      final st = exam.status.trim().toLowerCase();
+      if (_selectedTab == 'Semua') return true;
+      if (_selectedTab == 'Aktif') {
+        return st == 'aktif' ||
+            st == 'active' ||
+            st == 'published' ||
+            st == 'ongoing';
+      }
+      if (_selectedTab == 'Selesai') {
+        return st == 'selesai' || st == 'done' || st == 'completed';
+      }
+      return true;
+    }).toList();
+
+    final activeCount = exams.where((exam) {
+      final st = exam.status.trim().toLowerCase();
+      return st == 'aktif' ||
+          st == 'active' ||
+          st == 'published' ||
+          st == 'ongoing';
+    }).length;
+
+    return Scaffold(
+      backgroundColor: backgroundSlate,
+      appBar: SharedHeader(
+        title: 'JADWAL UJIAN CBT',
+        backgroundColor: Colors.white,
+        foregroundColor: darkSlate,
+        centerTitle: true,
+        elevation: 0,
+        showBackButton: true,
+        onBack: () => Navigator.pop(context),
+      ),
+      body: AppRefreshIndicator(
+        color: const Color(0xFF059669),
+        onRefresh: () async {
+          final auth = Provider.of<AuthViewModel>(context, listen: false);
+          final token = auth.token;
+          if (token.isNotEmpty) {
+            await cbtVm.fetchCbtSchedules(token, forceRefresh: true);
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CbtHeaderCard(activeExamCount: activeCount),
+              const SizedBox(height: 20),
+              CbtFilterTabs(
+                tabs: _tabs,
+                selectedTab: _selectedTab,
+                onTabChanged: (tab) => setState(() => _selectedTab = tab),
+              ),
+              const SizedBox(height: 20),
+              if (cbtVm.isLoading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (cbtVm.errorMessage != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Text(
+                      cbtVm.errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                )
+              else if (filteredExams.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Text(
+                      'Tidak ada ujian pada kategori ini.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: filteredExams.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final exam = filteredExams[index];
+                    final examTitle = exam.title;
+                    final status = exam.status;
+
+                    final statusLower = status.trim().toLowerCase();
+                    final isActive = statusLower == 'aktif' ||
+                        statusLower == 'active' ||
+                        statusLower == 'published' ||
+                        statusLower == 'ongoing';
+
+                    return CbtExamCard(
+                      subject: examTitle,
+                      examType: exam.examType,
+                      date: exam.dateRange,
+                      time: '',
+                      duration: exam.durationMinutes,
+                      questionCount: exam.questionCount,
+                      status: status,
+                      onActionTap: isActive ? () {
+                        final token = Provider.of<AuthViewModel>(
+                          context,
+                          listen: false,
+                        ).token;
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => VerifikasiTokenView(
+                              subject: examTitle,
+                              jadwalId: exam.id,
+                              authToken: token,
+                            ),
+                          ),
+                        );
+                      } : () {},
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

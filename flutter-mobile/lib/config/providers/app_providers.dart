@@ -1,0 +1,39 @@
+import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
+
+import '../api/tenant_api_config.dart';
+import '../../data/local/auth/auth_local_storage.dart';
+import '../../data/services/notification/notification_service.dart';
+import '../../ui/notification/view_models/notification_viewmodel.dart';
+import './curriculum_providers.dart';
+import './identity_providers.dart';
+import './learning_providers.dart';
+
+List<SingleChildWidget> getAppProviders(
+  String baseUrl,
+  TenantApiConfig tenantApiConfig,
+  {AuthLocalStorage? authLocalStorage}
+) => [
+  Provider<TenantApiConfig>.value(value: tenantApiConfig),
+  ...createIdentityProviders(
+    baseUrl,
+    tenantApiConfig,
+    authLocalStorage: authLocalStorage,
+  ),
+  ...createLearningProviders(baseUrl, tenantApiConfig),
+  ...createCurriculumProviders(baseUrl, tenantApiConfig),
+  Provider<NotificationService>(
+    create: (_) => NotificationService(
+      baseUrl: baseUrl,
+      tenantApiConfig: tenantApiConfig,
+    ),
+  ),
+  ChangeNotifierProxyProvider<NotificationService, NotificationViewModel>(
+    create: (context) => NotificationViewModel(),
+    update: (_, service, previous) {
+      final vm = previous ?? NotificationViewModel();
+      vm.configure(service);
+      return vm;
+    },
+  ),
+];

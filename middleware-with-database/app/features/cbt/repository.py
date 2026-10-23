@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -60,7 +60,13 @@ class CbtRepository:
 
         if changed_since is not None:
             base_query += " AND (j.write_date >= :changed_since OR j.create_date >= :changed_since OR j.tanggal_mulai >= :changed_since OR j.tanggal_selesai >= :changed_since)"
-            params["changed_since"] = changed_since
+            # Odoo timestamps are PostgreSQL ``timestamp without time zone``.
+            # Normalize cursor values to naive UTC before binding them.
+            params["changed_since"] = (
+                changed_since.astimezone(timezone.utc).replace(tzinfo=None)
+                if changed_since.tzinfo is not None
+                else changed_since
+            )
         base_query += " ORDER BY j.tanggal_mulai DESC, j.id DESC;"
 
         result = await self.db.execute(text(base_query), params)

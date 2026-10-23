@@ -1,18 +1,21 @@
-import sys
-import os
-import subprocess
-import tempfile
-from typing import Any, Dict, List, Optional, Tuple
-from docxtpl import DocxTemplate
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 from app.features.e_rapor.repository import ERaporRepository
+from app.features.e_rapor.pdf_generator import ERaporPdfGenerator
 from app.features.profile.repository import ProfileRepository
 
+
+class PdfGenerator(Protocol):
+    def generate(self, context_data: Dict[str, Any]) -> bytes: ...
+
+
 class ERaporService:
-    def __init__(self, repo: ERaporRepository):
+    def __init__(
+        self,
+        repo: ERaporRepository,
+        pdf_generator: Optional[PdfGenerator] = None,
+    ):
         self.repo = repo
-        self.template_path = os.path.join(
-            os.path.dirname(__file__), "templates", "rapor_template.docx"
-        )
+        self.pdf_generator = pdf_generator or ERaporPdfGenerator()
 
     @staticmethod
     def _text(value: Any, fallback: str = "") -> str:
@@ -33,21 +36,6 @@ class ERaporService:
         if isinstance(value, int):
             return value
         return None
-
-    @staticmethod
-    def _get_libreoffice_cmd() -> str:
-        """Mencari path eksekusi LibreOffice secara presisi di Windows / Linux."""
-        if sys.platform.startswith("win"):
-            possible_paths = [
-                r"C:\Program Files\LibreOffice\program\soffice.exe",
-                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-                "soffice",
-            ]
-            for path in possible_paths:
-                if os.path.exists(path):
-                    return path
-            return "soffice"
-        return "libreoffice"
 
     def _clean_value(self, val: Any) -> Any:
         """
@@ -293,35 +281,5 @@ class ERaporService:
         return pdf_bytes, filename
 
     def generate_pdf_from_template(self, context_data: Dict[str, Any]) -> bytes:
-        if not os.path.exists(self.template_path):
-            raise FileNotFoundError(f"Template Word tidak ditemukan di: {self.template_path}")
-
-        doc = DocxTemplate(self.template_path)
-        doc.render(context_data)
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_docx_path = os.path.join(temp_dir, "rapor_output.docx")
-            doc.save(temp_docx_path)
-
-            libreoffice_bin = self._get_libreoffice_cmd()
-            cmd = [
-                libreoffice_bin,
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", temp_dir,
-                temp_docx_path
-            ]
-
-            use_shell = sys.platform.startswith("win")
-
-            subprocess.run(
-                cmd, 
-                check=True, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
-                shell=use_shell
-            )
-
-            temp_pdf_path = os.path.join(temp_dir, "rapor_output.pdf")
-            with open(temp_pdf_path, "rb") as f:
-                return f.read()
+        """Compatibility wrapper; document rendering belongs to ERaporPdfGenerator."""
+        return self.pdf_generator.generate(context_data)

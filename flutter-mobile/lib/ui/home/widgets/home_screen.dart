@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/ui/core/ui/app_refresh_indicator.dart';
+import 'package:provider/provider.dart';
+import '../../auth/view_models/auth_viewmodel.dart';
+import '../../notification/widgets/notification_screen.dart';
+import '../../../data/model/notification/notification_model.dart';
+import '../../notification/view_models/notification_viewmodel.dart';
+import '../../profile/view_models/profile_viewmodel.dart';
+import './home_header.dart';
+import './home_quick_menu.dart';
+
+class HomeView extends StatelessWidget {
+  final String authToken;
+  final void Function(Widget page)? onMenuTap;
+  final void Function(int index)? onTabSwitch;
+  final ValueChanged<bool>? onCoursePageChanged;
+  final ValueChanged<AppNotification> onNotificationTargetTap;
+
+  const HomeView({
+    super.key,
+    required this.authToken,
+    this.onMenuTap,
+    this.onTabSwitch,
+    this.onCoursePageChanged,
+    required this.onNotificationTargetTap,
+  });
+
+  static const Color backgroundSlate = Color(0xFFF8FAFC);
+  static const Color textSlate = Color(0xFF475569);
+
+  void _loadNotifications(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<NotificationViewModel>();
+      vm.loadFromStorage().then((_) {
+        if (authToken.isNotEmpty) {
+          vm.fetchFromApi(authToken);
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthViewModel>().user;
+    final profile = context.watch<ProfileViewModel>().profile;
+
+    final String studentName = profile?.name.isNotEmpty == true
+        ? profile!.name
+        : user?.name.isNotEmpty == true
+        ? user!.name
+        : user?.username ?? 'Siswa';
+
+    final String className = profile?.className.isNotEmpty == true
+        ? profile!.className
+        : user?.className.isNotEmpty == true
+        ? user!.className
+        : '';
+
+    _loadNotifications(context);
+
+    return Scaffold(
+      backgroundColor: backgroundSlate,
+      body: SafeArea(
+        child: AppRefreshIndicator(
+          color: const Color(0xFF059669),
+          onRefresh: () async {
+            final authViewModel = context.read<AuthViewModel>();
+            final profileViewModel = context.read<ProfileViewModel>();
+            final notifViewModel = context.read<NotificationViewModel>();
+            profileViewModel.setProfile(authViewModel.user);
+            await profileViewModel.refreshProfile(authToken);
+            await notifViewModel.fetchFromApi(authToken);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HomeHeader(
+                  studentName: studentName,
+                  className: className,
+                  onNotificationTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NotificationPage(
+                          onOpenTarget: onNotificationTargetTap,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x05000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFECFDF5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.school_outlined,
+                                color: Color(0xFF059669),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PORTAL SISWA',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: textSlate,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Selamat datang di Portal Siswa, sistem informasi terintegrasi yang mendukung kegiatan belajar dan administrasi sekolah secara digital, praktis, dan efisien.',
+                                    style: TextStyle(
+                                      color: textSlate,
+                                      fontSize: 13,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      HomeQuickMenu(
+                        authToken: authToken,
+                        onMenuTap: onMenuTap,
+                        onTabSwitch: onTabSwitch,
+                        onCoursePageChanged: onCoursePageChanged,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
